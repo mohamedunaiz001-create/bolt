@@ -1,0 +1,55 @@
+{
+  "id": "/",
+  "name": "Bolt - UPSC Civil Services Preparation",
+  "short_name": "Bolt UPSC",
+  "description": "Offline-ready UPSC Civil Services preparation platform with complete syllabus tracker, timetable planner, and revision engine.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0b0f17",
+  "background_color": "#0b0f17",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Syllabus Tracker",
+      "short_name": "Syllabus",
+      "description": "View and study Public Administration & GS Core syllabus topics offline",
+      "url": "/?tab=learn",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Timetable & Planner",
+      "short_name": "Timetable",
+      "description": "Check weekly timetable and focus timer offline",
+      "url": "/?tab=planner",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}

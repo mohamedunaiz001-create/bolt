@@ -267,6 +267,202 @@ Return ONLY valid JSON matching this exact structure:
 });
 
 // User Authentication & Persistent Progress API
+// Service Worker script explicit route with standard headers
+app.get("/sw.js", (_req, res) => {
+  const swPath = path.join(process.cwd(), "public", "sw.js");
+  if (fs.existsSync(swPath)) {
+    res.setHeader("Content-Type", "application/javascript");
+    res.setHeader("Service-Worker-Allowed", "/");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.sendFile(swPath);
+  } else {
+    res.status(404).send("Not found");
+  }
+});
+
+// Explicit routes for Syllabus and Timetable to allow Service Worker and client offline caching
+app.get("/api/syllabus", (req, res) => {
+  try {
+    const userId = req.query.userId as string;
+    if (userId) {
+      const progress = getUserProgress(userId);
+      if (progress?.topics && progress.topics.length > 0) {
+        return res.json({ success: true, topics: progress.topics, source: "user_store" });
+      }
+    }
+    res.json({
+      success: true,
+      cachedAt: new Date().toISOString(),
+      topicsCount: 9,
+      topics: [
+        {
+          id: "pubad-1",
+          name: "Introduction to Public Administration",
+          category: "pub_ad",
+          paper: "Paper 1",
+          totalHours: 18,
+          completedHours: 12,
+          masteryLevel: "advanced",
+          subTopics: [
+            { id: "pubad-1-1", title: "Evolution of Public Administration and Minnowbrook Conferences", completed: true },
+            { id: "pubad-1-2", title: "New Public Management & Good Governance Paradigms", completed: true },
+            { id: "pubad-1-3", title: "Public Choice Theory and Contemporary Administrative Reform", completed: false }
+          ]
+        },
+        {
+          id: "pubad-2",
+          name: "Administrative Thought & Organizational Theory",
+          category: "pub_ad",
+          paper: "Paper 1",
+          totalHours: 24,
+          completedHours: 18,
+          masteryLevel: "advanced",
+          subTopics: [
+            { id: "pubad-2-1", title: "Classical Theory: Wilson, Taylor, Fayol & Weberian Bureaucracy", completed: true },
+            { id: "pubad-2-2", title: "Human Relations School: Elton Mayo and Hawthorne Studies", completed: true },
+            { id: "pubad-2-3", title: "Herbert Simon: Decision Making and Bounded Rationality", completed: true },
+            { id: "pubad-2-4", title: "Participative Management: Likert, Argyris, McGregor", completed: false }
+          ]
+        },
+        {
+          id: "pubad-3",
+          name: "Administrative Behaviour",
+          category: "pub_ad",
+          paper: "Paper 1",
+          totalHours: 16,
+          completedHours: 10,
+          masteryLevel: "intermediate",
+          subTopics: [
+            { id: "pubad-3-1", title: "Process and Techniques of Decision-Making", completed: true },
+            { id: "pubad-3-2", title: "Theories of Leadership: Trait, Behavioural, Situational & Transformational", completed: true },
+            { id: "pubad-3-3", title: "Theories of Motivation: Maslow, Herzberg, Vroom", completed: false }
+          ]
+        },
+        {
+          id: "pubad-4",
+          name: "Organizations and Structural Framework",
+          category: "pub_ad",
+          paper: "Paper 1",
+          totalHours: 15,
+          completedHours: 9,
+          masteryLevel: "intermediate",
+          subTopics: [
+            { id: "pubad-4-1", title: "Theories of Organizations: Systems and Contingency", completed: true },
+            { id: "pubad-4-2", title: "Ministries and Departments, Corporations, Boards and Commissions", completed: true },
+            { id: "pubad-4-3", title: "Regulatory Authorities & PPP Architecture", completed: false }
+          ]
+        },
+        {
+          id: "pubad-5",
+          name: "Accountability and Control",
+          category: "pub_ad",
+          paper: "Paper 1",
+          totalHours: 20,
+          completedHours: 14,
+          masteryLevel: "advanced",
+          subTopics: [
+            { id: "pubad-5-1", title: "Legislative, Executive and Judicial Control over Administration", completed: true },
+            { id: "pubad-5-2", title: "Citizen and Administration: Role of Media, Interest Groups, NGOs", completed: true },
+            { id: "pubad-5-3", title: "Social Audit, Citizen Charters, Right to Information, Lokpal & Lokayuktas", completed: true },
+            { id: "pubad-5-4", title: "Administrative Corruption: 2nd ARC Recommendations", completed: false }
+          ]
+        },
+        {
+          id: "pubad-6",
+          name: "Indian Administration: Evolution & Constitutional Framework",
+          category: "pub_ad",
+          paper: "Paper 2",
+          totalHours: 22,
+          completedHours: 16,
+          masteryLevel: "advanced",
+          subTopics: [
+            { id: "pubad-6-1", title: "Kautilya's Arthashastra, Mughal Administration & British Legacy", completed: true },
+            { id: "pubad-6-2", title: "Constitutional Setting: Parliamentary Democracy, Federalism & Socialism", completed: true },
+            { id: "pubad-6-3", title: "President, Prime Minister, Council of Ministers & Cabinet Secretariat", completed: true }
+          ]
+        },
+        {
+          id: "pubad-7",
+          name: "District & Local Administration",
+          category: "pub_ad",
+          paper: "Paper 2",
+          totalHours: 18,
+          completedHours: 11,
+          masteryLevel: "intermediate",
+          subTopics: [
+            { id: "pubad-7-1", title: "Role of District Collector: Traditional and Developmental Shifts", completed: true },
+            { id: "pubad-7-2", title: "73rd and 74th Constitutional Amendments & PRIs", completed: true },
+            { id: "pubad-7-3", title: "District Planning Committees and Urban Governance", completed: false }
+          ]
+        },
+        {
+          id: "gs-polity-1",
+          name: "GS Paper II: Indian Constitution & Polity",
+          category: "gs_core",
+          paper: "GS 2",
+          totalHours: 35,
+          completedHours: 25,
+          masteryLevel: "advanced",
+          subTopics: [
+            { id: "gsp-1", title: "Historical Underpinnings, Basic Structure Doctrine & Preamble", completed: true },
+            { id: "gsp-2", title: "Fundamental Rights, DPSPs, Fundamental Duties", completed: true },
+            { id: "gsp-3", title: "Judicial Review, PIL, Judicial Activism vs Overreach", completed: true },
+            { id: "gsp-4", title: "Statutory, Regulatory and Quasi-Judicial Bodies", completed: false }
+          ]
+        },
+        {
+          id: "gs-econ-1",
+          name: "GS Paper III: Economic Development & Planning",
+          category: "gs_core",
+          paper: "GS 3",
+          totalHours: 30,
+          completedHours: 18,
+          masteryLevel: "intermediate",
+          subTopics: [
+            { id: "gse-1", title: "Indian Economy and issues relating to planning, mobilization of resources", completed: true },
+            { id: "gse-2", title: "Inclusive growth and issues arising from it", completed: true },
+            { id: "gse-3", title: "Government Budgeting & Fiscal Responsibility (FRBM)", completed: true }
+          ]
+        }
+      ]
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/timetable", (req, res) => {
+  try {
+    const userId = req.query.userId as string;
+    if (userId) {
+      const progress = getUserProgress(userId);
+      if (progress?.timetableSlots && progress.timetableSlots.length > 0) {
+        return res.json({ success: true, slots: progress.timetableSlots, source: "user_store" });
+      }
+    }
+    res.json({
+      success: true,
+      cachedAt: new Date().toISOString(),
+      slots: [
+        { id: "slot-1", dayOfWeek: "Monday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Administrative Thought - Herbert Simon Bounded Rationality", isCompleted: true },
+        { id: "slot-2", dayOfWeek: "Monday", timeRange: "09:30 - 11:30", subject: "prelims", topic: "Polity MCQs: Emergency Provisions & Preamble", isCompleted: true },
+        { id: "slot-3", dayOfWeek: "Monday", timeRange: "15:00 - 17:00", subject: "current_affairs", topic: "The Hindu & Indian Express Editorial Analysis", isCompleted: true },
+        { id: "slot-4", dayOfWeek: "Monday", timeRange: "18:00 - 20:00", subject: "mains", topic: "Mains 15M Answer Writing: Judicial Activism", isCompleted: false },
+        { id: "slot-5", dayOfWeek: "Tuesday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Public Policy Models - Dror, Lasswell & Lindblom", isCompleted: true },
+        { id: "slot-6", dayOfWeek: "Tuesday", timeRange: "09:30 - 11:30", subject: "gs_core", topic: "Modern Indian History - Swadeshi Movement", isCompleted: true },
+        { id: "slot-7", dayOfWeek: "Tuesday", timeRange: "15:00 - 17:00", subject: "revision", topic: "Spaced Revision: Fundamental Rights Articles 14-32", isCompleted: false },
+        { id: "slot-8", dayOfWeek: "Wednesday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Civil Services in India & 2nd ARC Reforms", isCompleted: false },
+        { id: "slot-9", dayOfWeek: "Wednesday", timeRange: "09:30 - 11:30", subject: "prelims", topic: "Economy MCQs: Monetary Policy & Inflation", isCompleted: false },
+        { id: "slot-10", dayOfWeek: "Thursday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Financial Administration & Budgetary Control", isCompleted: false },
+        { id: "slot-11", dayOfWeek: "Friday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Comparative Public Administration: Riggsian Models", isCompleted: false },
+        { id: "slot-12", dayOfWeek: "Saturday", timeRange: "09:00 - 12:00", subject: "prelims", topic: "Full-Length GS Prelims Mock Test (100 MCQs)", isCompleted: false },
+        { id: "slot-13", dayOfWeek: "Sunday", timeRange: "10:00 - 13:00", subject: "mains", topic: "Weekly Public Administration Optional Paper 1 Mock", isCompleted: false }
+      ]
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/auth/register", (req, res) => {
   try {
     const { name, email, password, target, optionalSubject, initialData } = req.body;
@@ -381,6 +577,165 @@ app.post("/api/python/analytics", (req, res) => {
       error: "Python execution fallback",
       details: err.message,
       diagnostics,
+    });
+  }
+});
+
+// Process Study Materials (PDF, DOCX, TXT) and Generate Questions via Python Engine
+app.post("/api/python/materials/process", (req, res) => {
+  try {
+    const { text, title, questionsCount, fileBase64, filename } = req.body;
+    let materialText = text || "";
+    let effectiveTitle = title || filename || "Uploaded Study Material";
+
+    // If fileBase64 is provided (e.g. uploaded docx/pdf/txt)
+    if (fileBase64) {
+      const tempExt = path.extname(filename || "document.txt") || ".txt";
+      const tempPath = path.join("/tmp", `bolt_mat_${Date.now()}_${Math.random().toString(36).substring(7)}${tempExt}`);
+      const buffer = Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
+      fs.writeFileSync(tempPath, buffer);
+
+      try {
+        const pyScript = `import sys, json; sys.path.append('./python'); import bolt_materials; print(json.dumps(bolt_materials.extract_material_content('${tempPath}', '${filename || "document"}')))`;
+        const pyResult = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 15000 });
+        const parsed = JSON.parse(pyResult);
+        materialText = parsed.rawText || materialText;
+        if (parsed.filename) effectiveTitle = parsed.filename;
+      } finally {
+        try { fs.unlinkSync(tempPath); } catch {}
+      }
+    }
+
+    // Now generate questions using Python bolt_materials
+    const payload = JSON.stringify({
+      text: materialText,
+      title: effectiveTitle,
+      count: questionsCount || 5,
+    });
+
+    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_materials; data = json.load(sys.stdin); raw = data['text']; t = data['title']; c = data['count']; summary = bolt_materials.generate_extractive_summary(raw); themes = bolt_materials.detect_upsc_themes(raw); qs = bolt_materials.generate_questions_from_text(raw, t, c); print(json.dumps({'title': t, 'wordCount': len(raw.split()), 'summary': summary, 'detectedTags': themes['tags'], 'peripheralAreas': themes['peripheralAreas'], 'gsPaperMapping': themes['gsPaper'], 'questions': qs}))`;
+
+    const pyOutput = execSync(`python3 -c "${pyScript}"`, {
+      input: payload,
+      encoding: "utf-8",
+      timeout: 15000,
+    });
+
+    res.json({
+      success: true,
+      engine: "BOLT Python 3.10 Engine",
+      data: JSON.parse(pyOutput),
+    });
+  } catch (err: any) {
+    console.error("Error in /api/python/materials/process:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1855 - 2026 PYQ Database with Peripheral Areas & Current Affairs Engine
+app.get("/api/python/pyqs", (req, res) => {
+  try {
+    const era = (req.query.era as string) || "all";
+    const peripheral = req.query.peripheral === "true";
+    const currentAffairs = req.query.currentAffairs === "true" || req.query.current_affairs === "true";
+    const search = (req.query.search as string) || "";
+    const subject = (req.query.subject as string) || "all";
+
+    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_pyqs; print(json.dumps({'stats': bolt_pyqs.get_pyq_statistics(), 'questions': bolt_pyqs.filter_pyqs(era='${era}', peripheral_only=${peripheral ? "True" : "False"}, current_affairs_only=${currentAffairs ? "True" : "False"}, search_query=${search ? `'${search.replace(/'/g, "\\'")}'` : "None"}, subject='${subject}')}))`;
+
+    const pyOutput = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 10000 });
+    const result = JSON.parse(pyOutput);
+
+    res.json({
+      success: true,
+      engine: "BOLT Python 3.10 Engine",
+      stats: result.stats,
+      count: result.questions.length,
+      questions: result.questions,
+    });
+  } catch (err: any) {
+    console.error("Error in /api/python/pyqs:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// NCERT Foundation Chapters & Curricula (Class 6 - 12)
+app.get("/api/python/ncert/chapters", (req, res) => {
+  try {
+    const subject = (req.query.subject as string) || "all";
+    const classNum = req.query.classNum ? parseInt(req.query.classNum as string, 10) : 0;
+
+    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_ncert; print(json.dumps({'stats': bolt_ncert.get_ncert_summary_stats(), 'chapters': bolt_ncert.get_ncert_chapters(subject='${subject}', class_num=${classNum || "None"})}))`;
+
+    const pyOutput = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 10000 });
+    const result = JSON.parse(pyOutput);
+
+    res.json({
+      success: true,
+      engine: "BOLT Python 3.10 Engine",
+      stats: result.stats,
+      count: result.chapters.length,
+      chapters: result.chapters,
+    });
+  } catch (err: any) {
+    console.error("Error in /api/python/ncert/chapters:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// NCERT Chapter Quiz Assessment
+app.get("/api/python/ncert/quiz", (req, res) => {
+  try {
+    const chapterId = (req.query.chapterId as string) || "";
+    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_ncert; print(json.dumps({'chapterId': '${chapterId}', 'questions': bolt_ncert.get_ncert_quiz_for_chapter('${chapterId}')}))`;
+
+    const pyOutput = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 10000 });
+    const result = JSON.parse(pyOutput);
+
+    res.json({
+      success: true,
+      engine: "BOLT Python 3.10 Engine",
+      chapterId: result.chapterId,
+      questions: result.questions,
+    });
+  } catch (err: any) {
+    console.error("Error in /api/python/ncert/quiz:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Python Engine CLI Terminal Runner for in-app diagnostic console
+app.post("/api/python/cli/execute", (req, res) => {
+  try {
+    const { command } = req.body;
+    const allowedPrefixes = ["python3 python/", "python python/"];
+    const sanitized = (command || "").trim();
+
+    // Security whitelist check: only allow executing bolt python tools
+    const isSafe = allowedPrefixes.some(p => sanitized.startsWith(p)) && !sanitized.includes(";") && !sanitized.includes("&&") && !sanitized.includes("|");
+
+    if (!isSafe) {
+      return res.status(400).json({
+        success: false,
+        error: "Only safe commands starting with 'python3 python/bolt_*.py' are allowed.",
+      });
+    }
+
+    const t0 = Date.now();
+    const output = execSync(sanitized, { encoding: "utf-8", timeout: 15000 });
+    const executionTimeMs = Date.now() - t0;
+
+    res.json({
+      success: true,
+      command: sanitized,
+      executionTimeMs,
+      output,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err.message || "Command execution failed",
+      stderr: err.stderr?.toString() || "",
     });
   }
 });

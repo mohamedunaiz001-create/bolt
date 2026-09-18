@@ -48,6 +48,7 @@ import {
 import { DEFAULT_TIMETABLE_SLOTS, TIMETABLE_PRESETS } from "../data/timetableData";
 import { soundEngine } from "../utils/soundEngine";
 import { StudyPlanner } from "./StudyPlanner";
+import { cacheTimetableOffline } from "../services/offlineSyncService";
 
 interface TimetableAndTimerViewProps {
   user: UserProfile;
@@ -135,6 +136,7 @@ export const TimetableAndTimerView: React.FC<TimetableAndTimerViewProps> = ({
     }
     try {
       localStorage.setItem(STORAGE_TIMETABLE_KEY, JSON.stringify(newSlots));
+      cacheTimetableOffline(newSlots);
     } catch (e) {}
   };
 
@@ -701,6 +703,10 @@ export const TimetableAndTimerView: React.FC<TimetableAndTimerViewProps> = ({
             <span className="text-emerald-400 font-medium flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Live Active Time: {currentTimeStr}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+              ✓ Offline Cached
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white font-['Outfit']">

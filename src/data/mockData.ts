@@ -20,6 +20,7 @@ export const initialUserProfile: UserProfile = {
   mainsEvaluatedCount: 0,
   overallAccuracy: 0,
   themeMode: "dark",
+  dailyStudyHoursGoal: 6,
 };
 
 export const publicAdminSyllabus: SyllabusTopic[] = [

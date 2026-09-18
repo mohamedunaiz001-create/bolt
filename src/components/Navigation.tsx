@@ -22,6 +22,8 @@ import {
   UserPlus,
   Sun,
   Moon,
+  Terminal,
+  Upload,
 } from "lucide-react";
 import { NavigationTab, UserProfile, ActiveModelConfig, AppThemeMode } from "../types";
 import { AVAILABLE_MODELS } from "../data/modelsData";
@@ -39,6 +41,7 @@ interface NavigationProps {
   activeModelConfig?: ActiveModelConfig;
   themeMode?: AppThemeMode;
   onToggleTheme?: (mode?: AppThemeMode) => void;
+  onOpenPythonConsole?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -54,6 +57,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   activeModelConfig,
   themeMode = "dark",
   onToggleTheme,
+  onOpenPythonConsole,
 }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -171,7 +175,29 @@ export const Navigation: React.FC<NavigationProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Mains & Evaluation</span>
+              <span>Mains</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("materials")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                activeTab === "materials"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm ring-1 ring-blue-400/40"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <Upload className="w-3.5 h-3.5 text-blue-400" />
+              <span>Materials & Quiz</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("ncert")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                activeTab === "ncert"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm ring-1 ring-emerald-400/40"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+              <span>NCERT (6-12)</span>
             </button>
             <button
               onClick={() => setActiveTab("news")}
@@ -182,7 +208,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               }`}
             >
               <Newspaper className="w-3.5 h-3.5" />
-              <span>Daily News & MCQs</span>
+              <span>Daily News</span>
             </button>
             <button
               onClick={() => setActiveTab("planner")}
@@ -235,6 +261,16 @@ export const Navigation: React.FC<NavigationProps> = ({
               title="Saved Questions & Bookmarks"
             >
               <Bookmark className="w-4 h-4" />
+            </button>
+
+            {/* Python 3.10 Engine Console Trigger */}
+            <button
+              onClick={onOpenPythonConsole}
+              className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-colors"
+              title="Open Python 3.10 Engine Terminal & Telemetry"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span>Python 3.10</span>
             </button>
 
             {/* Theme Toggle (High-Contrast Dark vs Light Reading) */}
@@ -456,12 +492,32 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           <button
             onClick={() => setActiveTab("mains")}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-lg transition-colors ${
+            className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
               activeTab === "mains" ? "text-blue-400" : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <FileText className="w-5 h-5 mb-0.5" />
             <span className="text-[10px] font-medium">Mains</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("materials")}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
+              activeTab === "materials" ? "text-blue-400" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Upload className="w-5 h-5 mb-0.5 text-blue-400" />
+            <span className="text-[10px] font-medium">Upload</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("ncert")}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
+              activeTab === "ncert" ? "text-emerald-400" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <BookOpen className="w-5 h-5 mb-0.5 text-emerald-400" />
+            <span className="text-[10px] font-medium">NCERT</span>
           </button>
 
           <button

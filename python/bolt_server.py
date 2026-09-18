@@ -6,12 +6,25 @@ Provides REST endpoints for syllabus analytics, evaluation, and AI mentor
 
 import json
 import sys
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from bolt_engine import (
     calculate_topic_knowledge,
     analyze_student_progress,
     evaluate_mains_answer_rulebased,
+)
+from bolt_materials import (
+    extract_material_content,
+    generate_questions_from_text,
+    generate_extractive_summary,
+    detect_upsc_themes,
+)
+from bolt_pyqs import filter_pyqs, get_pyq_statistics
+from bolt_ncert import (
+    get_ncert_chapters,
+    get_ncert_quiz_for_chapter,
+    get_ncert_summary_stats,
 )
 
 PORT = 8080
@@ -89,6 +102,8 @@ class BoltAPIHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+
         if parsed.path == "/api/python/status":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -100,11 +115,69 @@ class BoltAPIHandler(BaseHTTPRequestHandler):
                 "features": [
                     "Syllabus Multi-Signal Knowledge Scoring",
                     "UPSC Public Administration Diagnostic Engine",
+                    "Study Materials (PDF/DOCX) Processing & MCQ Generation",
+                    "1855-2026 Historical & Modern PYQs with Peripheral Areas",
+                    "NCERT Class 6-12 Curriculum & Quizzes",
                     "Rule-based & Thinker Evaluator",
                     "Spaced Repetition Scheduler",
                 ],
             }
             self.wfile.write(json.dumps(response).encode("utf-8"))
+
+        elif parsed.path == "/api/python/pyqs":
+            era = query.get("era", ["all"])[0]
+            peripheral = query.get("peripheral", ["false"])[0].lower() == "true"
+            current_affairs = query.get("current_affairs", ["false"])[0].lower() == "true"
+            search = query.get("search", [None])[0]
+            subject = query.get("subject", [None])[0]
+
+            questions = filter_pyqs(
+                era=era,
+                peripheral_only=peripheral,
+                current_affairs_only=current_affairs,
+                search_query=search,
+                subject=subject,
+            )
+            stats = get_pyq_statistics()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "count": len(questions),
+                "stats": stats,
+                "questions": questions,
+            }).encode("utf-8"))
+
+        elif parsed.path == "/api/python/ncert/chapters":
+            subject = query.get("subject", [None])[0]
+            class_num = int(query.get("class", [0])[0]) or None
+            chapters = get_ncert_chapters(subject=subject, class_num=class_num)
+            stats = get_ncert_summary_stats()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "count": len(chapters),
+                "stats": stats,
+                "chapters": chapters,
+            }).encode("utf-8"))
+
+        elif parsed.path == "/api/python/ncert/quiz":
+            chapter_id = query.get("chapterId", [None])[0]
+            questions = get_ncert_quiz_for_chapter(chapter_id) if chapter_id else []
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "chapterId": chapter_id,
+                "questions": questions,
+            }).encode("utf-8"))
 
         elif parsed.path == "/api/python/analytics":
             self.send_response(200)
@@ -123,7 +196,31 @@ class BoltAPIHandler(BaseHTTPRequestHandler):
         post_data = self.rfile.read(content_length).decode("utf-8")
         body = json.loads(post_data) if post_data else {}
 
-        if parsed.path == "/api/python/evaluate":
+        if parsed.path == "/api/python/materials/process":
+            raw_text = body.get("text", "")
+            doc_title = body.get("title", "Uploaded Material")
+            count = int(body.get("questionsCount", 5))
+
+            summary = generate_extractive_summary(raw_text)
+            themes = detect_upsc_themes(raw_text)
+            questions = generate_questions_from_text(raw_text, doc_title, count)
+
+            response = {
+                "title": doc_title,
+                "wordCount": len(raw_text.split()),
+                "summary": summary,
+                "detectedTags": themes["tags"],
+                "peripheralAreas": themes["peripheralAreas"],
+                "gsPaperMapping": themes["gsPaper"],
+                "questions": questions,
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode("utf-8"))
+
+        elif parsed.path == "/api/python/evaluate":
             question = body.get("question", "")
             answer = body.get("answer", "")
             subject = body.get("subject", "Public Administration")

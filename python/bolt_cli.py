@@ -1,127 +1,127 @@
 #!/usr/bin/env python3
 """
-BOLT UPSC Python Interactive CLI & Terminal Assistant
-Usage: python3 python/bolt_cli.py
+BOLT - UPSC Python Master Command Line Tool (CLI)
+Provides command-line commands for:
+  - Document parsing & quiz generation
+  - 1855-2026 PYQ retrieval with peripheral areas & current affairs filters
+  - NCERT Class 6-12 foundational syllabus and quizzes
+  - Student analytics & knowledge scoring
 """
 
-import json
 import sys
-from bolt_engine import (
-    analyze_student_progress,
-    evaluate_mains_answer_rulebased,
-    calculate_topic_knowledge,
-)
+import os
+import json
+import argparse
 
-SAMPLE_TOPICS = [
-    {
-        "id": "p1-1",
-        "name": "Introduction & Meaning of Public Administration",
-        "paper": "Paper 1",
-        "completionPercentage": 85,
-        "knowledgeScore": 82,
-        "mcqAccuracy": 85,
-        "attemptsCount": 42,
-        "mainsAverageScore": 10.5,
-        "status": "strong",
-    },
-    {
-        "id": "p1-2",
-        "name": "Administrative Thought & Thinkers (Simon, Weber, Taylor)",
-        "paper": "Paper 1",
-        "completionPercentage": 58,
-        "knowledgeScore": 54,
-        "mcqAccuracy": 55,
-        "attemptsCount": 24,
-        "mainsAverageScore": 6.8,
-        "status": "needs_revision",
-    },
-    {
-        "id": "p2-1",
-        "name": "Evolution of Indian Administration (Kautilya to Modern)",
-        "paper": "Paper 2",
-        "completionPercentage": 90,
-        "knowledgeScore": 88,
-        "mcqAccuracy": 90,
-        "attemptsCount": 38,
-        "mainsAverageScore": 11.2,
-        "status": "strong",
-    },
-    {
-        "id": "p2-2",
-        "name": "Civil Services & Administrative Reforms (2nd ARC, Lateral Entry)",
-        "paper": "Paper 2",
-        "completionPercentage": 52,
-        "knowledgeScore": 48,
-        "mcqAccuracy": 48,
-        "attemptsCount": 18,
-        "mainsAverageScore": 6.2,
-        "status": "needs_revision",
-    },
-]
+# Add local directory to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from bolt_engine import analyze_student_progress, evaluate_mains_answer_rulebased
+from bolt_materials import extract_material_content, generate_questions_from_text
+from bolt_pyqs import filter_pyqs, get_pyq_statistics
+from bolt_ncert import get_ncert_chapters, get_ncert_quiz_for_chapter, get_ncert_summary_stats
 
 
-def print_banner():
-    print("=" * 60)
-    print(" ⚡ BOLT UPSC - Python Academic Intelligence CLI")
-    print(" Public Administration & GS Preparation Engine")
-    print("=" * 60)
+def main():
+    parser = argparse.ArgumentParser(
+        description="BOLT UPSC Master Python Engine (1855-2026 PYQs, Materials, NCERT & Analytics)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(dest="subcommand", help="Module command to execute")
 
+    # Subcommand: pyqs
+    pyq_parser = subparsers.add_parser("pyqs", help="1855-2026 PYQ database engine")
+    pyq_parser.add_argument("--era", choices=["19th_century", "early_20th_century", "post_independence", "modern", "all"], default="all")
+    pyq_parser.add_argument("--peripheral", action="store_true", help="Filter for peripheral area questions")
+    pyq_parser.add_argument("--current-affairs", action="store_true", help="Filter for current affairs integration")
+    pyq_parser.add_argument("--search", help="Search keyword")
+    pyq_parser.add_argument("--stats", action="store_true", help="Print PYQ dataset stats")
 
-def run_cli():
-    print_banner()
-    while True:
-        print("\n[Menu Options]")
-        print("1. Run Academic Diagnostics for Aspirant (Syllabus, Weak/Strong Areas)")
-        print("2. Evaluate Public Administration Mains Answer")
-        print("3. Test Multi-Signal Knowledge Scoring Algorithm")
-        print("4. Exit")
-        
-        choice = input("\nEnter choice [1-4]: ").strip()
-        if choice == "1":
-            print("\nComputing Python diagnostics...")
-            res = analyze_student_progress(SAMPLE_TOPICS)
-            print(f"\n📊 Syllabus Completion:")
-            print(f"   • Overall: {res['overallCompletion']}%")
-            print(f"   • Paper 1: {res['paper1Completion']}%")
-            print(f"   • Paper 2: {res['paper2Completion']}%")
-            print(f"\n⚠️  Weak Areas (Need Revision):")
-            for w in res["weakAreas"]:
-                print(f"   - {w['name']} ({w['paper']}): Knowledge Score {w['score']}% (MCQ: {w['mcqAccuracy']}%)")
-            print(f"\n✅ Strong Areas:")
-            for s in res["strongAreas"]:
-                print(f"   + {s['name']} ({s['paper']}): Knowledge Score {s['score']}%")
+    # Subcommand: materials
+    mat_parser = subparsers.add_parser("materials", help="Process PDF/DOCX/TXT and generate questions")
+    mat_parser.add_argument("--file", help="Path to study material file (.pdf, .docx, .txt)")
+    mat_parser.add_argument("--questions", type=int, default=5, help="Number of questions to generate")
+    mat_parser.add_argument("--demo", action="store_true", help="Use built-in 2nd ARC document sample")
 
-        elif choice == "2":
-            print("\n--- Public Administration Mains Evaluator ---")
-            q = input("Question Prompt: ") or "Evaluate the impact of Herbert Simon's Bounded Rationality on administrative decision making."
-            print("\nEnter candidate answer text (or press Enter for default sample):")
-            ans = input("> ")
-            if not ans.strip():
-                ans = "Herbert Simon introduced bounded rationality replacing classical economic man with administrative man who satisfices. Chester Barnard also argued for informal organization."
-            res = evaluate_mains_answer_rulebased(q, ans, 15, "Public Administration")
-            print(f"\n🎯 Score Awarded: {res['score']} / {res['maxMarks']}")
-            print(f"⚡ Bolt Feedback: {res['boltFeedback']}")
-            print("What went well:")
-            for item in res["whatWentWell"]:
-                print(f"  ✓ {item}")
-            print("Needs improvement:")
-            for item in res["needsImprovement"]:
-                print(f"  ! {item}")
+    # Subcommand: ncert
+    ncert_parser = subparsers.add_parser("ncert", help="NCERT Class 6-12 foundation module")
+    ncert_parser.add_argument("--subject", choices=["Polity", "History", "Geography", "Economy", "Science", "all"], default="all")
+    ncert_parser.add_argument("--class-num", type=int, choices=[6, 7, 8, 9, 10, 11, 12])
+    ncert_parser.add_argument("--chapter-id", help="Chapter ID to fetch quiz")
+    ncert_parser.add_argument("--summary", action="store_true", help="Print NCERT module summary")
 
-        elif choice == "3":
-            print("\nTesting Knowledge Scoring:")
-            acc = float(input("MCQ Accuracy % (e.g. 65): ") or 65)
-            att = int(input("Attempts count (e.g. 25): ") or 25)
-            mains = float(input("Mains average out of 15 (e.g. 8.5): ") or 8.5)
-            score = calculate_topic_knowledge(acc, att, mains)
-            print(f"Calculated Topic Knowledge: {score['knowledge_score']}% -> Status: {score['status']}")
+    # Subcommand: analytics
+    subparsers.add_parser("analytics", help="Run student diagnostic analytics")
 
-        elif choice == "4":
-            print("Exiting Bolt CLI. Happy prep!")
-            break
+    # Subcommand: status
+    subparsers.add_parser("status", help="Print Python engine architecture status")
+
+    args = parser.parse_args()
+
+    if args.subcommand == "pyqs":
+        if args.stats:
+            print(json.dumps(get_pyq_statistics(), indent=2))
         else:
-            print("Invalid selection.")
+            res = filter_pyqs(
+                era=args.era,
+                peripheral_only=args.peripheral,
+                current_affairs_only=args.current_affairs,
+                search_query=args.search,
+            )
+            print(json.dumps({"total": len(res), "questions": res}, indent=2))
+
+    elif args.subcommand == "materials":
+        if args.demo or not args.file:
+            sample_text = (
+                "The 2nd Administrative Reforms Commission (10th Report) recommended the creation of a statutory Civil Services Authority "
+                "to oversee senior appointments, transfers, and tenures. Arbitrary transfers undermine civil servant morale and public accountability. "
+                "Under the Fifth Schedule, tribal customary self-governance and PESA empower Gram Sabhas with resource ownership."
+            )
+            extracted = {
+                "filename": "Sample_UPSC_Notes.txt",
+                "fileType": "TXT",
+                "wordCount": len(sample_text.split()),
+                "summary": sample_text,
+                "detectedTags": ["Public Administration", "Polity & Governance"],
+                "peripheralAreas": ["Tribal Customary Laws & PESA Peripheral Provisions"],
+                "gsPaperMapping": ["GS 2"],
+            }
+            qs = generate_questions_from_text(sample_text, "Sample UPSC Notes", args.questions)
+            print(json.dumps({"extracted": extracted, "questions": qs}, indent=2))
+        else:
+            extracted = extract_material_content(args.file)
+            qs = generate_questions_from_text(extracted["rawText"], extracted["filename"], args.questions)
+            print(json.dumps({"extracted": extracted, "questions": qs}, indent=2))
+
+    elif args.subcommand == "ncert":
+        if args.summary:
+            print(json.dumps(get_ncert_summary_stats(), indent=2))
+        elif args.chapter_id:
+            qs = get_ncert_quiz_for_chapter(args.chapter_id)
+            print(json.dumps({"chapterId": args.chapter_id, "questions": qs}, indent=2))
+        else:
+            chapters = get_ncert_chapters(subject=args.subject, class_num=args.class_num)
+            print(json.dumps({"total": len(chapters), "chapters": chapters}, indent=2))
+
+    elif args.subcommand == "analytics":
+        res = analyze_student_progress([])
+        print(json.dumps(res, indent=2))
+
+    elif args.subcommand == "status" or not args.subcommand:
+        status = {
+            "engine": "BOLT Unified Python Engine",
+            "version": sys.version.split()[0],
+            "architecture": "Python 3.10 Micro-Services & Standard Library Core",
+            "modules": {
+                "materials": "PDF / DOCX / TXT extractor & question generator",
+                "pyqs": "1855-2026 Comprehensive PYQ database with Peripheral Areas & Current Affairs",
+                "ncert": "Class 6-12 Foundation Curriculum & Chapter Quizzes",
+                "analytics": "Diagnostic multi-signal scoring & Ebbinghaus curve",
+            },
+            "status": "Operational & Ready",
+        }
+        print(json.dumps(status, indent=2))
 
 
 if __name__ == "__main__":
-    run_cli()
+    main()

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "motion/react";
 import {
   ResponsiveContainer,
   PieChart,
@@ -277,6 +278,15 @@ export const SyllabusStatusBreakdownChart: React.FC<SyllabusStatusBreakdownChart
           <p className="text-[11px] text-slate-400 mt-1">
             Mastered or &ge; 80% coverage
           </p>
+          {/* Animated entrance progress bar */}
+          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mt-2.5">
+            <motion.div
+              className="h-full bg-emerald-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${completedPct}%` }}
+              transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+            />
+          </div>
         </div>
 
         {/* In Progress Card */}
@@ -304,6 +314,15 @@ export const SyllabusStatusBreakdownChart: React.FC<SyllabusStatusBreakdownChart
           <p className="text-[11px] text-slate-400 mt-1">
             Active learning & practicing
           </p>
+          {/* Animated entrance progress bar */}
+          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mt-2.5">
+            <motion.div
+              className="h-full bg-blue-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${inProgressPct}%` }}
+              transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+            />
+          </div>
         </div>
 
         {/* Needs Revision Card */}
@@ -331,6 +350,15 @@ export const SyllabusStatusBreakdownChart: React.FC<SyllabusStatusBreakdownChart
           <p className="text-[11px] text-slate-400 mt-1">
             Retention decay / score &lt; 65%
           </p>
+          {/* Animated entrance progress bar */}
+          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mt-2.5">
+            <motion.div
+              className="h-full bg-red-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${needsRevisionPct}%` }}
+              transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+            />
+          </div>
         </div>
       </div>
 
@@ -385,22 +413,28 @@ export const SyllabusStatusBreakdownChart: React.FC<SyllabusStatusBreakdownChart
                 Distribution Breakdown
               </h4>
 
-              {/* Segmented Progress Bar */}
+              {/* Segmented Progress Bar with entrance animation */}
               <div className="space-y-1.5">
                 <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden flex">
-                  <div
-                    style={{ width: `${completedPct}%` }}
-                    className="h-full bg-emerald-500 transition-all duration-500"
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completedPct}%` }}
+                    transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+                    className="h-full bg-emerald-500"
                     title={`Completed: ${completedCount} (${completedPct}%)`}
                   />
-                  <div
-                    style={{ width: `${inProgressPct}%` }}
-                    className="h-full bg-blue-500 transition-all duration-500"
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${inProgressPct}%` }}
+                    transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
+                    className="h-full bg-blue-500"
                     title={`In Progress: ${inProgressCount} (${inProgressPct}%)`}
                   />
-                  <div
-                    style={{ width: `${needsRevisionPct}%` }}
-                    className="h-full bg-red-500 transition-all duration-500"
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${needsRevisionPct}%` }}
+                    transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.35 }}
+                    className="h-full bg-red-500"
                     title={`Needs Revision: ${needsRevisionCount} (${needsRevisionPct}%)`}
                   />
                 </div>

@@ -27,6 +27,7 @@ import {
 import { MilestonesSection } from "./MilestonesSection";
 import { DailyNewsDashboardSection } from "./DailyNewsDashboardSection";
 import { DailyStudyGoalsSection } from "./DailyStudyGoalsSection";
+import { DailyStudyGoalTracker } from "./DailyStudyGoalTracker";
 import { generateMilestones } from "../data/milestonesData";
 import { mockNewsArticles } from "../data/mockData";
 
@@ -36,6 +37,8 @@ interface HomeDashboardProps {
   articles?: NewsArticle[];
   evaluations?: MainsAnswerEvaluation[];
   studySessions?: StudySessionLog[];
+  onUpdateUser?: (updated: UserProfile) => void;
+  onUpdateStudySessions?: (sessions: StudySessionLog[]) => void;
   onNavigate: (tab: NavigationTab) => void;
   onAskBoltAboutWeakness: (weaknessName: string) => void;
   onStartRevision: () => void;
@@ -50,6 +53,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   articles = mockNewsArticles,
   evaluations = [],
   studySessions = [],
+  onUpdateUser,
+  onUpdateStudySessions,
   onNavigate,
   onAskBoltAboutWeakness,
   onStartRevision,
@@ -58,6 +63,17 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onStartTodayMCQs = () => onNavigate("prelims"),
 }) => {
   const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
+
+  // Daily study goal calculations for top banner
+  const currentGoalHours = user.dailyStudyHoursGoal || 6;
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const todayAchievedHours = useMemo(() => {
+    const mins = studySessions
+      .filter((s) => s.date === todayStr)
+      .reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+    return parseFloat((mins / 60).toFixed(1));
+  }, [studySessions, todayStr]);
+  const todayGoalPercentage = currentGoalHours > 0 ? Math.min(Math.round((todayAchievedHours / currentGoalHours) * 100), 100) : 0;
 
   // Generate gamified milestones dynamically based on current user state
   const milestones = useMemo(() => {
@@ -131,7 +147,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         </div>
 
         {/* Academic Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800/80">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6 pt-6 border-t border-slate-800/80">
           <div className="bg-[#162033]/60 rounded-xl p-3 border border-slate-800/80">
             <div className="flex items-center space-x-2 text-slate-400 text-xs">
               <Flame className="w-4 h-4 text-orange-400" />
@@ -139,6 +155,25 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
             <p className="text-xl font-bold text-white mt-1">{user.studyStreakDays} Days</p>
             <span className="text-[10px] text-emerald-400 font-medium">Consistent daily goal</span>
+          </div>
+
+          <div className="bg-[#162033]/60 rounded-xl p-3 border border-slate-800/80">
+            <div className="flex items-center space-x-2 text-slate-400 text-xs">
+              <Clock className="w-4 h-4 text-blue-400" />
+              <span>Today's Study</span>
+            </div>
+            <p className="text-xl font-bold text-white mt-1">
+              {todayAchievedHours} <span className="text-xs font-normal text-slate-400">/ {currentGoalHours}h</span>
+            </p>
+            <span
+              className={`text-[10px] font-medium ${
+                todayAchievedHours >= currentGoalHours ? "text-emerald-400" : "text-blue-400"
+              }`}
+            >
+              {todayAchievedHours >= currentGoalHours
+                ? "✓ Goal achieved today"
+                : `${todayGoalPercentage}% achieved`}
+            </span>
           </div>
 
           <div className="bg-[#162033]/60 rounded-xl p-3 border border-slate-800/80">
@@ -378,64 +413,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
         {/* Right Col: Today's Targets & Daily Action */}
         <div className="space-y-6">
-          {/* Today's Target Card */}
-          <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-white text-base flex items-center space-x-2">
-                <Target className="w-4 h-4 text-blue-400" />
-                <span>Today's Study Target</span>
-              </h3>
-              <span className="text-[11px] text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
-                Sep 16, 2026
-              </span>
-            </div>
-
-            <ul className="space-y-2.5 mb-5">
-              <li className="flex items-start space-x-2.5 text-xs text-slate-300 p-2.5 rounded-xl bg-[#162033] border border-slate-800">
-                <span className="w-2 h-2 rounded-full bg-blue-400 mt-1 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-slate-200">Polity – Parliament</p>
-                  <p className="text-[11px] text-slate-400">Financial committees & legislative control</p>
-                </div>
-              </li>
-              <li className="flex items-start space-x-2.5 text-xs text-slate-300 p-2.5 rounded-xl bg-[#162033] border border-slate-800">
-                <span className="w-2 h-2 rounded-full bg-purple-400 mt-1 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-slate-200">Public Administration – Accountability</p>
-                  <p className="text-[11px] text-slate-400">2nd ARC 4th report & citizen charters</p>
-                </div>
-              </li>
-              <li className="flex items-start space-x-2.5 text-xs text-slate-300 p-2.5 rounded-xl bg-[#162033] border border-slate-800">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-slate-200">20 Current Affairs MCQs</p>
-                  <p className="text-[11px] text-slate-400">NPCI UPI MDR framework & Trade deficit</p>
-                </div>
-              </li>
-              <li className="flex items-start space-x-2.5 text-xs text-slate-300 p-2.5 rounded-xl bg-[#162033] border border-slate-800">
-                <span className="w-2 h-2 rounded-full bg-amber-400 mt-1 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-slate-200">1 Mains 15-Mark Answer</p>
-                  <p className="text-[11px] text-slate-400">Herbert Simon Bounded Rationality PYQ</p>
-                </div>
-              </li>
-            </ul>
-
-            <button
-              onClick={() => {
-                const el = document.getElementById("daily-study-goals-section");
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth", block: "start" });
-                } else {
-                  onNavigate("prelims");
-                }
-              }}
-              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center space-x-2 transition-colors"
-            >
-              <span>Track Hourly Study Goals</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {/* Daily Study Goal & Session Progress Tracker */}
+          <DailyStudyGoalTracker
+            user={user}
+            studySessions={studySessions}
+            onUpdateUser={onUpdateUser}
+            onUpdateStudySessions={onUpdateStudySessions}
+            onNavigate={onNavigate}
+          />
 
           {/* Today's MCQs Banner (Matching Screenshot 6) */}
           <div className="rounded-2xl bg-gradient-to-r from-red-950/60 via-purple-950/40 to-[#121b2d] border border-red-900/40 p-4 flex items-center justify-between">

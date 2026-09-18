@@ -9,6 +9,9 @@ import { TimetableAndTimerView } from "./components/TimetableAndTimerView";
 import { BoltAssistantView } from "./components/BoltAssistantView";
 import { KnowledgeBaseView } from "./components/KnowledgeBaseView";
 import { KnowledgeGraphVisualization } from "./components/KnowledgeGraphVisualization";
+import { MaterialUploadAndQuizView } from "./components/MaterialUploadAndQuizView";
+import { NcertFoundationView } from "./components/NcertFoundationView";
+import { PythonEngineConsoleModal } from "./components/PythonEngineConsoleModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { AuthModal } from "./components/AuthModal";
 import {
@@ -34,6 +37,8 @@ import {
 } from "./types";
 import { DEFAULT_ACTIVE_MODEL_CONFIG } from "./data/modelsData";
 import { loadUserProgress, saveUserProgress, logoutAccount, subscribeToAuthState, getCleanSyllabus, getCleanTimetableSlots } from "./services/userService";
+import { cacheSyllabusOffline, cacheTimetableOffline, flushOfflineQueue } from "./services/offlineSyncService";
+import { OfflineStatusIndicator } from "./components/OfflineStatusIndicator";
 import { Search, Bookmark, X } from "lucide-react";
 
 export default function App() {
@@ -154,6 +159,7 @@ export default function App() {
   const [authModalMode, setAuthModalMode] = useState<"signin" | "signup">("signin");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [boltInitialPrompt, setBoltInitialPrompt] = useState<string | null>(null);
+  const [isPythonConsoleOpen, setIsPythonConsoleOpen] = useState<boolean>(false);
 
   // Debounced auto-save ref
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -167,13 +173,15 @@ export default function App() {
       const currentSlots = overrides?.timetableSlots || timetableSlots;
       const currentSessions = overrides?.studySessions || studySessions;
 
-      // Always save to localStorage
+      // Always save to localStorage and offline CacheStorage
       try {
         localStorage.setItem("bolt_current_user", JSON.stringify(currentUser));
         localStorage.setItem("bolt_topics", JSON.stringify(currentTopics));
         localStorage.setItem("bolt_mains_evaluations", JSON.stringify(currentEvaluations));
         localStorage.setItem("bolt_custom_timetable_slots", JSON.stringify(currentSlots));
         localStorage.setItem("bolt_study_sessions", JSON.stringify(currentSessions));
+        cacheSyllabusOffline(currentTopics);
+        cacheTimetableOffline(currentSlots);
       } catch (e) {}
 
       // If user is authenticated with an email, sync with backend store
@@ -248,6 +256,11 @@ export default function App() {
         }
       });
     }
+
+    // 3. Prime offline caches for syllabus and timetable
+    cacheSyllabusOffline(topics);
+    cacheTimetableOffline(timetableSlots);
+    flushOfflineQueue(targetId);
 
     return () => unsubscribe();
   }, []);
@@ -433,7 +446,11 @@ export default function App() {
         }}
         onLogout={handleLogout}
         activeModelConfig={activeModelConfig}
+        onOpenPythonConsole={() => setIsPythonConsoleOpen(true)}
       />
+
+      {/* Offline Status & Caching Control Indicator */}
+      <OfflineStatusIndicator topics={topics} timetableSlots={timetableSlots} />
 
       {/* Main Content Area */}
       <main className="flex-grow">
@@ -444,6 +461,8 @@ export default function App() {
             articles={articles}
             evaluations={evaluations}
             studySessions={studySessions}
+            onUpdateUser={handleUpdateUser}
+            onUpdateStudySessions={handleUpdateStudySessions}
             onNavigate={(tab) => setActiveTab(tab)}
             onAskBoltAboutWeakness={handleAskBoltAboutWeakness}
             onStartRevision={() => setActiveTab("learn")}
@@ -490,6 +509,14 @@ export default function App() {
             onSaveNewEvaluation={handleSaveNewEvaluation}
             user={user}
           />
+        )}
+
+        {activeTab === "materials" && (
+          <MaterialUploadAndQuizView />
+        )}
+
+        {activeTab === "ncert" && (
+          <NcertFoundationView />
         )}
 
         {activeTab === "news" && (
@@ -561,6 +588,12 @@ export default function App() {
         currentUser={user}
         initialMode={authModalMode}
         onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* Interactive Python 3.10 Engine Diagnostic Terminal */}
+      <PythonEngineConsoleModal
+        isOpen={isPythonConsoleOpen}
+        onClose={() => setIsPythonConsoleOpen(false)}
       />
 
       {/* Global Search Modal */}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "motion/react";
 import {
   GraduationCap,
   AlertTriangle,
@@ -99,6 +100,9 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
             <div className="flex items-center space-x-2 text-blue-400 font-semibold text-xs tracking-wider uppercase mb-1">
               <GraduationCap className="w-4 h-4" />
               <span>{user.name}'s Academic Diagnostics • Public Administration</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold normal-case tracking-normal">
+                ✓ Offline Available
+              </span>
             </div>
             <h1 className="text-2xl font-bold text-white font-['Outfit']">
               Syllabus Completion & Topic Knowledge Analysis
@@ -149,9 +153,11 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
               <span className="font-bold text-white text-sm">{overallCompletion}%</span>
             </div>
             <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div
+              <motion.div
                 className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full"
-                style={{ width: `${overallCompletion}%` }}
+                initial={{ width: 0 }}
+                animate={{ width: `${overallCompletion}%` }}
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
               />
             </div>
             <p className="text-[11px] text-slate-400 mt-2">
@@ -165,9 +171,11 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
               <span className="font-bold text-blue-400 text-sm">{avgP1}%</span>
             </div>
             <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div
+              <motion.div
                 className="h-full bg-blue-500 rounded-full"
-                style={{ width: `${avgP1}%` }}
+                initial={{ width: 0 }}
+                animate={{ width: `${avgP1}%` }}
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
               />
             </div>
             <p className="text-[11px] text-slate-400 mt-2">
@@ -181,9 +189,11 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
               <span className="font-bold text-indigo-400 text-sm">{avgP2}%</span>
             </div>
             <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div
+              <motion.div
                 className="h-full bg-indigo-500 rounded-full"
-                style={{ width: `${avgP2}%` }}
+                initial={{ width: 0 }}
+                animate={{ width: `${avgP2}%` }}
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
               />
             </div>
             <p className="text-[11px] text-slate-400 mt-2">
@@ -480,7 +490,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
       ) : (
         /* TOPIC LIST VIEW */
         <div className="space-y-4">
-          {displayedTopics.map((topic) => {
+          {displayedTopics.map((topic, idx) => {
             const isExpanded = expandedTopicId === topic.id;
             const isWeak = topic.status === "needs_revision";
             const isStrong = topic.status === "strong";
@@ -567,11 +577,11 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
 
                   {/* Right: Metrics & Expand Icon */}
                   <div className="flex items-center justify-between md:justify-end space-x-4 pt-3 md:pt-0 border-t md:border-t-0 border-slate-800">
-                    <div className="text-left md:text-right">
+                    <div className="text-left md:text-right min-w-[130px]">
                       <span className="text-[10px] text-slate-400 block uppercase tracking-wider">
                         Topic Knowledge
                       </span>
-                      <div className="flex items-baseline space-x-1">
+                      <div className="flex items-baseline space-x-1 justify-start md:justify-end">
                         <span
                           className={`text-xl font-bold ${
                             isWeak
@@ -586,6 +596,25 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
                         <span className="text-[11px] text-slate-400">
                           ({topic.completionPercentage}% studied)
                         </span>
+                      </div>
+                      {/* Topic knowledge animated progress bar */}
+                      <div className="h-1.5 w-full bg-slate-800/90 rounded-full overflow-hidden mt-1.5">
+                        <motion.div
+                          className={`h-full rounded-full ${
+                            isWeak
+                              ? "bg-red-500"
+                              : isStrong
+                              ? "bg-emerald-500"
+                              : "bg-blue-500"
+                          }`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${topic.knowledgeScore}%` }}
+                          transition={{
+                            duration: 0.85,
+                            ease: [0.16, 1, 0.3, 1],
+                            delay: Math.min(idx * 0.04 + 0.1, 0.5),
+                          }}
+                        />
                       </div>
                     </div>
 
@@ -640,36 +669,56 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
                         Subtopic Breakdown & Knowledge Confidence
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {topic.subtopics.map((sub) => (
+                        {topic.subtopics.map((sub, sIdx) => (
                           <div
                             key={sub.id}
-                            className="p-2.5 rounded-lg bg-[#162033] border border-slate-800 flex items-center justify-between"
+                            className="p-2.5 rounded-lg bg-[#162033] border border-slate-800 flex flex-col justify-between space-y-2"
                           >
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle2
-                                className={`w-4 h-4 ${
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2 min-w-0 pr-2">
+                                <CheckCircle2
+                                  className={`w-4 h-4 flex-shrink-0 ${
+                                    sub.confidence >= 75
+                                      ? "text-emerald-400"
+                                      : sub.confidence >= 60
+                                      ? "text-blue-400"
+                                      : "text-amber-400"
+                                  }`}
+                                />
+                                <span className="text-xs text-slate-200 font-medium truncate">
+                                  {sub.name}
+                                </span>
+                              </div>
+                              <span
+                                className={`text-xs font-bold flex-shrink-0 ${
                                   sub.confidence >= 75
                                     ? "text-emerald-400"
                                     : sub.confidence >= 60
                                     ? "text-blue-400"
                                     : "text-amber-400"
                                 }`}
-                              />
-                              <span className="text-xs text-slate-200 font-medium">
-                                {sub.name}
+                              >
+                                {sub.confidence}%
                               </span>
                             </div>
-                            <span
-                              className={`text-xs font-bold ${
-                                sub.confidence >= 75
-                                  ? "text-emerald-400"
-                                  : sub.confidence >= 60
-                                  ? "text-blue-400"
-                                  : "text-amber-400"
-                              }`}
-                            >
-                              {sub.confidence}%
-                            </span>
+                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                              <motion.div
+                                className={`h-full rounded-full ${
+                                  sub.confidence >= 75
+                                    ? "bg-emerald-500"
+                                    : sub.confidence >= 60
+                                    ? "bg-blue-500"
+                                    : "bg-amber-500"
+                                }`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${sub.confidence}%` }}
+                                transition={{
+                                  duration: 0.65,
+                                  ease: [0.16, 1, 0.3, 1],
+                                  delay: sIdx * 0.04,
+                                }}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>

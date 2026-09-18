@@ -1,4 +1,4 @@
-export type NavigationTab = "home" | "learn" | "knowledge" | "knowledgeGraph" | "prelims" | "mains" | "news" | "schedule" | "planner" | "bolt";
+export type NavigationTab = "home" | "learn" | "knowledge" | "knowledgeGraph" | "prelims" | "mains" | "materials" | "ncert" | "news" | "schedule" | "planner" | "bolt";
 
 export type GraphNodeType = "topic" | "thinker" | "pyq" | "concept";
 
@@ -99,6 +99,7 @@ export interface UserProfile {
   mainsEvaluatedCount: number;
   overallAccuracy: number;
   themeMode?: AppThemeMode;
+  dailyStudyHoursGoal?: number;
 }
 
 export interface AuthAccount {
@@ -308,8 +309,8 @@ export interface PrelimsQuestion {
   id: string;
   questionNumber: number;
   subject: string;
-  topic: string;
-  tags: string[];
+  topic?: string;
+  tags?: string[];
   isCurrentAffairs: boolean;
   questionText: string;
   statements?: string[];
@@ -319,13 +320,13 @@ export interface PrelimsQuestion {
   }[];
   correctOption: "A" | "B" | "C" | "D";
   explanation: string;
-  optionAnalysis: {
+  optionAnalysis?: {
     optionKey: string;
     analysis: string;
     isCorrect: boolean;
   }[];
-  relatedConcept: string;
-  source: string;
+  relatedConcept?: string;
+  source?: string;
   difficulty: "Easy" | "Medium" | "Hard";
 }
 
@@ -714,6 +715,105 @@ export interface RevisionQueueItem {
   retentionEstimate: number; // 0 to 100%
   urgency: "overdue" | "due_today" | "due_soon" | "scheduled";
   difficulty: "high" | "medium" | "low";
+}
+
+// -------------------------------------------------------------
+// STUDY MATERIALS & AUTOMATED QUESTION ATTENDANCE
+// -------------------------------------------------------------
+export interface MaterialOption {
+  key: "A" | "B" | "C" | "D";
+  text: string;
+}
+
+export interface MaterialOptionAnalysis {
+  optionKey: string;
+  analysis: string;
+  isCorrect: boolean;
+}
+
+export interface MaterialQuestion {
+  id: string;
+  questionNumber: number;
+  subject: string;
+  topic: string;
+  tags: string[];
+  isCurrentAffairs?: boolean;
+  questionText: string;
+  options: MaterialOption[];
+  correctOption: "A" | "B" | "C" | "D";
+  explanation: string;
+  optionAnalysis?: MaterialOptionAnalysis[];
+  sourceCitation?: string;
+  relatedConcept?: string;
+  difficulty?: "Easy" | "Medium" | "Hard";
+}
+
+export interface UploadedMaterial {
+  id: string;
+  title: string;
+  filename: string;
+  fileType: string;
+  uploadDate: string;
+  wordCount: number;
+  estimatedReadMinutes: number;
+  summary: string;
+  detectedTags: string[];
+  peripheralAreas: string[];
+  gsPaperMapping: string[];
+  rawText?: string;
+  questions: MaterialQuestion[];
+}
+
+// -------------------------------------------------------------
+// NCERT FOUNDATION (CLASS 6 - 12)
+// -------------------------------------------------------------
+export interface NcertQuizQuestion {
+  id: string;
+  questionNumber: number;
+  questionText: string;
+  options: { key: "A" | "B" | "C" | "D"; text: string }[];
+  correctOption: "A" | "B" | "C" | "D";
+  explanation: string;
+}
+
+export interface NcertChapter {
+  id: string;
+  subject: "Polity" | "History" | "Geography" | "Economy" | "Science";
+  classNum: number;
+  bookTitle: string;
+  chapterNumber: number;
+  chapterTitle: string;
+  upscWeightage: "High" | "Very High" | "Medium";
+  keyConcepts: string[];
+  highYieldCrux: string;
+  mindmapPoints: string[];
+  quizQuestions: NcertQuizQuestion[];
+  isCompleted?: boolean;
+}
+
+// -------------------------------------------------------------
+// 1855 - 2026 HISTORICAL & MODERN PYQ ENGINE
+// -------------------------------------------------------------
+export type PyqEra = "19th_century" | "early_20th_century" | "post_independence" | "modern" | "all";
+
+export interface HistoricalPYQ {
+  id: string;
+  year: number;
+  era: PyqEra;
+  eraLabel: string;
+  subject: string;
+  topic: string;
+  isPeripheralArea: boolean;
+  peripheralTag?: string;
+  isCurrentAffairs: boolean;
+  difficulty: "Easy" | "Medium" | "Hard";
+  questionText: string;
+  options: { key: "A" | "B" | "C" | "D"; text: string }[];
+  correctOption: "A" | "B" | "C" | "D";
+  explanation: string;
+  optionAnalysis?: { optionKey: string; analysis: string; isCorrect: boolean }[];
+  historicalContext?: string;
+  relatedConcept?: string;
 }
 
 
