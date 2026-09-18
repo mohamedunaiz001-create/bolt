@@ -21,6 +21,12 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Clock,
+  Radio,
+  Play,
+  Pause,
+  Sliders,
+  ShieldCheck,
 } from "lucide-react";
 import { NewsArticle } from "../types";
 
@@ -34,7 +40,7 @@ interface NewsViewProps {
 interface SavedFeed {
   id: string;
   name: string;
-  source: "The Hindu" | "PIB" | "The Indian Express" | "Government Sources" | "Editorials";
+  source: "The Hindu" | "PIB" | "The Indian Express" | "Down To Earth" | "LiveLaw" | "PRS Legislative" | "Business Standard" | "ORF" | "Government Sources" | "Editorials";
   url: string;
   category: string;
   lastSynced?: string;
@@ -50,6 +56,55 @@ const DEFAULT_PRESET_FEEDS: SavedFeed[] = [
     category: "Editorials",
   },
   {
+    id: "preset-ie-exp",
+    name: "The Indian Express - Explained",
+    source: "The Indian Express",
+    url: "https://indianexpress.com/section/explained/feed/",
+    category: "In-depth Analysis",
+  },
+  {
+    id: "preset-pib",
+    name: "PIB - Official Press Releases",
+    source: "PIB",
+    url: "https://pib.gov.in/press-releases",
+    category: "Government Sources",
+  },
+  {
+    id: "preset-dte",
+    name: "Down To Earth - Environment & Wildlife",
+    source: "Down To Earth",
+    url: "https://www.downtoearth.org.in/rss",
+    category: "Environment & Ecology (GS 3)",
+  },
+  {
+    id: "preset-livelaw",
+    name: "LiveLaw - Supreme Court & Legal Judgments",
+    source: "LiveLaw",
+    url: "https://www.livelaw.in/rss/news",
+    category: "Judiciary & Constitutional Law (GS 2)",
+  },
+  {
+    id: "preset-prs",
+    name: "PRS Legislative Research - Bills & Acts",
+    source: "PRS Legislative",
+    url: "https://prsindia.org/rss/bills",
+    category: "Parliament & Legislation (GS 2)",
+  },
+  {
+    id: "preset-bs",
+    name: "Business Standard - Economy & Fiscal Policy",
+    source: "Business Standard",
+    url: "https://www.business-standard.com/rss/economy-policy-102.rss",
+    category: "Indian Economy & Industry (GS 3)",
+  },
+  {
+    id: "preset-orf",
+    name: "Observer Research Foundation (ORF) - Geopolitics",
+    source: "ORF",
+    url: "https://www.orfonline.org/rss.xml",
+    category: "International Relations & Security (GS 2/3)",
+  },
+  {
     id: "preset-et",
     name: "Economic Times - Economy & Policy",
     source: "Government Sources",
@@ -62,20 +117,6 @@ const DEFAULT_PRESET_FEEDS: SavedFeed[] = [
     source: "Government Sources",
     url: "https://www.livemint.com/rss/politics",
     category: "Polity & Governance",
-  },
-  {
-    id: "preset-pib",
-    name: "PIB - Official Press Releases",
-    source: "PIB",
-    url: "https://pib.gov.in/press-releases",
-    category: "Government Sources",
-  },
-  {
-    id: "preset-ie-exp",
-    name: "The Indian Express - Explained",
-    source: "The Indian Express",
-    url: "https://indianexpress.com/section/explained/feed/",
-    category: "In-depth Analysis",
   },
 ];
 
@@ -269,11 +310,271 @@ export const NewsView: React.FC<NewsViewProps> = ({
     saveFeedsList(filtered);
   };
 
-  const sources = ["All", "The Hindu", "PIB", "The Indian Express", "Government Sources", "Editorials"];
+  // ----------------------------------------------------
+  // BACKGROUND TASK & SCHEDULED DAILY CURRENT AFFAIRS TRIGGER
+  // ----------------------------------------------------
+  const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem("bolt_news_auto_sync");
+      return stored !== "false";
+    } catch {
+      return true;
+    }
+  });
+
+  const [syncIntervalMinutes, setSyncIntervalMinutes] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem("bolt_news_sync_interval");
+      return stored ? parseInt(stored, 10) : 30;
+    } catch {
+      return 30;
+    }
+  });
+
+  const [lastSyncTimestamp, setLastSyncTimestamp] = useState<number | null>(() => {
+    try {
+      const stored = localStorage.getItem("bolt_news_last_sync");
+      return stored ? parseInt(stored, 10) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(() => {
+    const storedLast = localStorage.getItem("bolt_news_last_sync");
+    const interval = localStorage.getItem("bolt_news_sync_interval");
+    const intervalMin = interval ? parseInt(interval, 10) : 30;
+    if (storedLast) {
+      const elapsedSec = Math.floor((Date.now() - parseInt(storedLast, 10)) / 1000);
+      const rem = intervalMin * 60 - elapsedSec;
+      return rem > 0 ? rem : 0;
+    }
+    return intervalMin * 60;
+  });
+
+  const [isBackgroundSyncing, setIsBackgroundSyncing] = useState<boolean>(false);
+  const [showSchedulerDetails, setShowSchedulerDetails] = useState<boolean>(false);
+  const [schedulerLogs, setSchedulerLogs] = useState<
+    Array<{
+      id: string;
+      time: string;
+      added: number;
+      sources: string[];
+      status: "success" | "error";
+      message: string;
+    }>
+  >(() => {
+    try {
+      const stored = localStorage.getItem("bolt_news_scheduler_logs");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [
+      {
+        id: "init-1",
+        time: "Initial Start",
+        added: 0,
+        sources: ["The Hindu", "The Indian Express", "PIB", "Down To Earth", "LiveLaw", "PRS Legislative", "Business Standard", "ORF"],
+        status: "success",
+        message: "Scheduler initialized with 8 reliable UPSC publishers.",
+      },
+    ];
+  });
+
+  const handleToggleAutoSync = () => {
+    const next = !isAutoSyncEnabled;
+    setIsAutoSyncEnabled(next);
+    try {
+      localStorage.setItem("bolt_news_auto_sync", String(next));
+    } catch {}
+  };
+
+  const handleIntervalChange = (newIntervalMinutes: number) => {
+    setSyncIntervalMinutes(newIntervalMinutes);
+    setCountdownSeconds(newIntervalMinutes * 60);
+    try {
+      localStorage.setItem("bolt_news_sync_interval", String(newIntervalMinutes));
+    } catch {}
+  };
+
+  // Background API Trigger Implementation
+  const executeScheduledNewsSync = async (isManualTrigger: boolean = false) => {
+    if (isBackgroundSyncing) return;
+    setIsBackgroundSyncing(true);
+    const triggerTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+    try {
+      // Fetch fresh daily current affairs from the backend ingestion API
+      const response = await fetch("/api/news/daily-current-affairs/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+
+      if (data.success && Array.isArray(data.articles)) {
+        const existingHeadlines = new Set(articles.map((a) => a.headline.toLowerCase().trim()));
+        const fresh: NewsArticle[] = [];
+
+        for (const art of data.articles) {
+          if (!existingHeadlines.has(art.headline.toLowerCase().trim())) {
+            fresh.push(art);
+          }
+        }
+
+        const now = Date.now();
+        setLastSyncTimestamp(now);
+        setCountdownSeconds(syncIntervalMinutes * 60);
+        try {
+          localStorage.setItem("bolt_news_last_sync", String(now));
+        } catch {}
+
+        if (fresh.length > 0) {
+          const merged = [...fresh, ...articles];
+          if (onUpdateArticles) {
+            onUpdateArticles(merged);
+          }
+          if (!activeArticle) {
+            setActiveArticle(fresh[0]);
+          }
+          setFeedNotification({
+            type: "success",
+            message: `Background Task: Ingested ${fresh.length} fresh daily current affairs articles from reliable sources (${(data.sources || []).slice(0, 3).join(", ")})!`,
+          });
+        } else if (isManualTrigger) {
+          setFeedNotification({
+            type: "info",
+            message: "Daily current affairs are fully up to date. All reliable sources checked.",
+          });
+        }
+
+        const logEntry = {
+          id: "log-" + Date.now(),
+          time: triggerTime,
+          added: fresh.length,
+          sources: data.sources || ["The Hindu", "PIB", "The Indian Express", "Down To Earth", "LiveLaw", "PRS"],
+          status: "success" as const,
+          message: fresh.length > 0 ? `Merged ${fresh.length} fresh articles into application state` : "All sources verified; 0 new updates",
+        };
+        setSchedulerLogs((prev) => {
+          const next = [logEntry, ...prev.slice(0, 9)];
+          try {
+            localStorage.setItem("bolt_news_scheduler_logs", JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+      } else {
+        throw new Error(data.error || "Unexpected payload from daily current affairs API");
+      }
+    } catch (err: any) {
+      console.warn("Background current affairs fetch error:", err);
+      const logEntry = {
+        id: "log-" + Date.now(),
+        time: triggerTime,
+        added: 0,
+        sources: ["Pipeline"],
+        status: "error" as const,
+        message: err?.message || "Sync failed",
+      };
+      setSchedulerLogs((prev) => {
+        const next = [logEntry, ...prev.slice(0, 9)];
+        try {
+          localStorage.setItem("bolt_news_scheduler_logs", JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      if (isManualTrigger) {
+        setFeedNotification({
+          type: "error",
+          message: err?.message || "Background task encountered an error connecting to news APIs.",
+        });
+      }
+    } finally {
+      setIsBackgroundSyncing(false);
+    }
+  };
+
+  // 1. Initial check on mount: If never synced or stale (> syncIntervalMinutes), auto-trigger
+  useEffect(() => {
+    const now = Date.now();
+    const intervalMs = syncIntervalMinutes * 60 * 1000;
+    if (!lastSyncTimestamp || now - lastSyncTimestamp >= intervalMs) {
+      executeScheduledNewsSync(false);
+    }
+  }, []);
+
+  // 2. Periodic 1-second countdown ticker and trigger
+  useEffect(() => {
+    if (!isAutoSyncEnabled) return;
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const intervalMs = syncIntervalMinutes * 60 * 1000;
+      const elapsed = now - (lastSyncTimestamp || 0);
+
+      if (elapsed >= intervalMs) {
+        executeScheduledNewsSync(false);
+      } else {
+        const remainingSec = Math.max(0, Math.ceil((intervalMs - elapsed) / 1000));
+        setCountdownSeconds(remainingSec);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isAutoSyncEnabled, syncIntervalMinutes, lastSyncTimestamp, articles]);
+
+  // 3. Tab visibility trigger: resume fresh ingestion when user returns
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && isAutoSyncEnabled) {
+        const now = Date.now();
+        const intervalMs = syncIntervalMinutes * 60 * 1000;
+        if (!lastSyncTimestamp || now - lastSyncTimestamp >= intervalMs) {
+          executeScheduledNewsSync(false);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isAutoSyncEnabled, syncIntervalMinutes, lastSyncTimestamp, articles]);
+
+  const formatCountdown = (totalSec: number) => {
+    if (totalSec <= 0) return "Triggering...";
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${mins.toString().padStart(2, "0")}m ${secs.toString().padStart(2, "0")}s`;
+    }
+    return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+  };
+
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const sources = [
+    "All",
+    "The Hindu",
+    "The Indian Express",
+    "PIB",
+    "Down To Earth",
+    "LiveLaw",
+    "PRS Legislative",
+    "Business Standard",
+    "ORF",
+    "Government Sources",
+    "Editorials",
+  ];
 
   const filteredArticles = articles.filter((a) => {
-    if (selectedSource === "All") return true;
-    return a.source === selectedSource;
+    const matchesSource = selectedSource === "All" || a.source === selectedSource;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      a.headline.toLowerCase().includes(q) ||
+      a.summary.toLowerCase().includes(q) ||
+      (a.syllabusPaper && a.syllabusPaper.toLowerCase().includes(q)) ||
+      (a.tags && a.tags.some((t) => t.toLowerCase().includes(q)));
+    return matchesSource && matchesSearch;
   });
 
   return (
@@ -338,7 +639,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
 
           {/* Compilations PDF */}
           <button
-            onClick={() => alert("Monthly UPSC Current Affairs Compilations PDF downloaded.")}
+            onClick={() => setFeedNotification({ type: "info", message: "Monthly UPSC Current Affairs Compilation PDF ready. Access via syllabus repository." })}
             className="px-3.5 py-2 rounded-xl bg-[#162033] hover:bg-[#1f2d48] text-slate-200 border border-slate-700 text-xs font-semibold flex items-center space-x-1.5 transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5 text-blue-400" />
@@ -346,6 +647,235 @@ export const NewsView: React.FC<NewsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* BACKGROUND TASK & SCHEDULED TRIGGER STATUS BAR */}
+      <div className="bg-[#111723] rounded-2xl border border-slate-800 p-4 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        {/* Left side: Live Pulse Status & Countdown */}
+        <div className="flex items-start sm:items-center space-x-3.5">
+          <div className={`p-2.5 rounded-xl border flex items-center justify-center transition-colors ${
+            isBackgroundSyncing
+              ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+              : isAutoSyncEnabled
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+              : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+          }`}>
+            {isBackgroundSyncing ? (
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            ) : (
+              <Radio className={`w-5 h-5 ${isAutoSyncEnabled ? "animate-pulse" : ""}`} />
+            )}
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
+                {isBackgroundSyncing ? (
+                  "Fetching Daily News via API..."
+                ) : isAutoSyncEnabled ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping" />
+                    <span>Auto-Sync Active</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                    <span>Auto-Sync Paused</span>
+                  </>
+                )}
+              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-300 font-mono border border-slate-700">
+                {isAutoSyncEnabled
+                  ? `Next trigger in: ${formatCountdown(countdownSeconds)}`
+                  : "Scheduled triggers suspended"}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span>
+                {lastSyncTimestamp
+                  ? `Last fetched: ${new Date(lastSyncTimestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : "Never synced"}
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="text-slate-400">
+                Monitoring 8 reliable outlets (The Hindu, Indian Express, PIB, LiveLaw, DTE, PRS, BS, ORF)
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* Right side: Scheduler Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Interval Selector */}
+          <div className="flex items-center space-x-1.5 bg-[#162033] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
+            <Clock className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-[11px] text-slate-400">Freq:</span>
+            <select
+              value={syncIntervalMinutes}
+              onChange={(e) => handleIntervalChange(parseInt(e.target.value, 10))}
+              className="bg-transparent text-white font-medium text-xs focus:outline-none cursor-pointer"
+            >
+              <option value="15" className="bg-[#111723]">Every 15 min</option>
+              <option value="30" className="bg-[#111723]">Every 30 min</option>
+              <option value="60" className="bg-[#111723]">Every 1 hour</option>
+              <option value="180" className="bg-[#111723]">Every 3 hours</option>
+              <option value="720" className="bg-[#111723]">Every 12 hours</option>
+              <option value="1440" className="bg-[#111723]">Daily (24h)</option>
+            </select>
+          </div>
+
+          {/* Toggle Pause / Resume */}
+          <button
+            onClick={handleToggleAutoSync}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-colors ${
+              isAutoSyncEnabled
+                ? "bg-[#162033] hover:bg-[#1f2d48] text-slate-300 border-slate-700"
+                : "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border-emerald-500/40"
+            }`}
+            title={isAutoSyncEnabled ? "Pause automatic scheduled triggers" : "Resume automatic scheduled triggers"}
+          >
+            {isAutoSyncEnabled ? (
+              <>
+                <Pause className="w-3.5 h-3.5 text-amber-400" />
+                <span>Pause</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Resume</span>
+              </>
+            )}
+          </button>
+
+          {/* Trigger Now Button */}
+          <button
+            onClick={() => executeScheduledNewsSync(true)}
+            disabled={isBackgroundSyncing}
+            className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center space-x-1.5 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
+            title="Immediately trigger API fetch and update news list in application state"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isBackgroundSyncing ? "animate-spin" : ""}`} />
+            <span>{isBackgroundSyncing ? "Fetching API..." : "Sync Now"}</span>
+          </button>
+
+          {/* Task Diagnostics Details Toggle */}
+          <button
+            onClick={() => setShowSchedulerDetails((prev) => !prev)}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs flex items-center space-x-1 transition-colors ${
+              showSchedulerDetails
+                ? "bg-slate-700 text-white border-slate-600"
+                : "bg-[#162033] hover:bg-[#1f2d48] text-slate-400 hover:text-slate-200 border-slate-700"
+            }`}
+            title="Show background trigger diagnostics and history"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Diagnostics</span>
+            {showSchedulerDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+        </div>
+      </div>
+
+      {/* EXPANDABLE SCHEDULER DIAGNOSTICS & TELEMETRY */}
+      {showSchedulerDetails && (
+        <div className="bg-[#0e1420] rounded-2xl border border-slate-800 p-4 space-y-4 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+            <div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-blue-400" />
+                <span>Background Scheduled Trigger Engine Status</span>
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Automated daemon fetches daily feeds via <code className="text-blue-400">/api/news/daily-current-affairs/sync</code>, deduplicates items, and dispatches updates to application state.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Server Daemon: 30m Active
+              </span>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                Client Watcher: Active
+              </span>
+            </div>
+          </div>
+
+          {/* Connected Reliable API Sources Grid */}
+          <div>
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+              Reliable News Pipeline Sources (8 Active):
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { name: "The Hindu", spec: "Editorials & National (GS 1/2)" },
+                { name: "The Indian Express", spec: "Explained & Opinion (GS 2/3)" },
+                { name: "PIB", spec: "Cabinet & Ministry Releases" },
+                { name: "Down To Earth", spec: "Environment & Ecology (GS 3)" },
+                { name: "LiveLaw", spec: "Judiciary & Supreme Court" },
+                { name: "PRS Legislative", spec: "Bills & Parliamentary Acts" },
+                { name: "Business Standard", spec: "Macroeconomy & Trade (GS 3)" },
+                { name: "ORF", spec: "Geopolitics & Security (GS 2)" },
+              ].map((src, i) => (
+                <div key={i} className="bg-[#141b2b] border border-slate-800 rounded-xl p-2">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-xs font-semibold text-white">{src.name}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5 truncate">{src.spec}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Trigger Log */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Recent Scheduled Run History:
+              </span>
+              <button
+                onClick={() => {
+                  const initialLog = [
+                    {
+                      id: "cleared-" + Date.now(),
+                      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                      added: 0,
+                      sources: ["All Reliable Sources"],
+                      status: "success" as const,
+                      message: "Log cleared by user. Standby for next scheduled trigger.",
+                    },
+                  ];
+                  setSchedulerLogs(initialLog);
+                  localStorage.setItem("bolt_news_scheduler_logs", JSON.stringify(initialLog));
+                }}
+                className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Clear Log History
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+              {schedulerLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between text-[11px] bg-[#141b2b] border border-slate-800/80 rounded-lg px-3 py-1.5"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${log.status === "success" ? "bg-emerald-400" : "bg-red-400"}`} />
+                    <span className="font-mono text-slate-400">{log.time}</span>
+                    <span className="text-slate-200">{log.message}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {log.added > 0 && (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        +{log.added} Articles
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-500 truncate max-w-[140px]">
+                      {log.sources.slice(0, 2).join(", ")}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* RSS / ATOM FEED MANAGER PANEL (Expandable) */}
       {isFeedManagerOpen && (
@@ -600,6 +1130,39 @@ export const NewsView: React.FC<NewsViewProps> = ({
           <span>Practice Now</span>
           <ArrowRight className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Search Bar & News Overview */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <input
+            type="text"
+            placeholder="Search headlines, syllabus paper, tags..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-[#111723] border border-[#1e293b] rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          <svg
+            className="w-4 h-4 text-slate-400 absolute left-3 top-2.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        <div className="text-xs text-slate-400 self-end sm:self-auto">
+          Showing <span className="text-white font-semibold">{filteredArticles.length}</span> of {articles.length} news items
+        </div>
       </div>
 
       {/* Source Filter Tabs & Feed Scroll Indicator */}

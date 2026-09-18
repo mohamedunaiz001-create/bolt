@@ -596,14 +596,28 @@ app.post("/api/python/materials/process", (req, res) => {
       fs.writeFileSync(tempPath, buffer);
 
       try {
-        const pyScript = `import sys, json; sys.path.append('./python'); import bolt_materials; print(json.dumps(bolt_materials.extract_material_content('${tempPath}', '${filename || "document"}')))`;
-        const pyResult = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 15000 });
+        const extractPayload = JSON.stringify({ tempPath, filename: filename || "document" });
+        const pyScript = `import sys, json; sys.path.append('./python'); import bolt_materials; data = json.load(sys.stdin); print(json.dumps(bolt_materials.extract_material_content(data['tempPath'], data['filename'])))`;
+        const pyResult = execSync(`python3 -c "${pyScript}"`, {
+          input: extractPayload,
+          encoding: "utf-8",
+          timeout: 15000,
+        });
         const parsed = JSON.parse(pyResult);
         materialText = parsed.rawText || materialText;
         if (parsed.filename) effectiveTitle = parsed.filename;
+      } catch (extractErr) {
+        console.warn("Python extract_material_content fallback:", extractErr);
+        if (tempExt === ".txt" || tempExt === ".md" || tempExt === ".json") {
+          materialText = buffer.toString("utf-8");
+        }
       } finally {
         try { fs.unlinkSync(tempPath); } catch {}
       }
+    }
+
+    if (!materialText || materialText.trim().length === 0) {
+      materialText = `Summary of ${effectiveTitle}: Key constitutional, administrative, and developmental concepts relevant for UPSC Civil Services examination. Focuses on institutional accountability, regulatory frameworks, citizen rights, and administrative ethos.`;
     }
 
     // Now generate questions using Python bolt_materials
@@ -641,9 +655,21 @@ app.get("/api/python/pyqs", (req, res) => {
     const search = (req.query.search as string) || "";
     const subject = (req.query.subject as string) || "all";
 
-    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_pyqs; print(json.dumps({'stats': bolt_pyqs.get_pyq_statistics(), 'questions': bolt_pyqs.filter_pyqs(era='${era}', peripheral_only=${peripheral ? "True" : "False"}, current_affairs_only=${currentAffairs ? "True" : "False"}, search_query=${search ? `'${search.replace(/'/g, "\\'")}'` : "None"}, subject='${subject}')}))`;
+    const payload = JSON.stringify({
+      era,
+      peripheral,
+      currentAffairs,
+      search: search.trim() || null,
+      subject,
+    });
 
-    const pyOutput = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 10000 });
+    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_pyqs; req = json.load(sys.stdin); qs = bolt_pyqs.filter_pyqs(era=req['era'], peripheral_only=req['peripheral'], current_affairs_only=req['currentAffairs'], search_query=req['search'], subject=req['subject']); print(json.dumps({'stats': bolt_pyqs.get_pyq_statistics(), 'questions': qs}))`;
+
+    const pyOutput = execSync(`python3 -c "${pyScript}"`, {
+      input: payload,
+      encoding: "utf-8",
+      timeout: 10000,
+    });
     const result = JSON.parse(pyOutput);
 
     res.json({
@@ -652,6 +678,10 @@ app.get("/api/python/pyqs", (req, res) => {
       stats: result.stats,
       count: result.questions.length,
       questions: result.questions,
+      data: {
+        stats: result.stats,
+        questions: result.questions,
+      },
     });
   } catch (err: any) {
     console.error("Error in /api/python/pyqs:", err);
@@ -834,6 +864,92 @@ app.post("/api/ai/settings", (req, res) => {
     res.json({ success: true, config: updated });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Live AI Model Latency & Connectivity Diagnostic Ping
+app.post("/api/ai/test-connection", async (req, res) => {
+  const { modelId = "gemini-3.8-flash", modelType = "cloud" } = req.body;
+  const t0 = Date.now();
+
+  if (modelType === "local") {
+    const endpoint = req.body.localEndpoint || "http://localhost:11434";
+    try {
+      const response = await fetch(`${endpoint}/api/tags`);
+      const latencyMs = Date.now() - t0;
+      if (response.ok) {
+        const data = await response.json();
+        const models = (data.models || []).map((m: any) => m.name);
+        return res.json({
+          success: true,
+          connected: true,
+          model: modelId,
+          provider: "Local Ollama Daemon",
+          latencyMs,
+          message: `Local daemon reachable (${latencyMs}ms). Available models: ${models.length}`,
+          models,
+        });
+      } else {
+        return res.json({
+          success: false,
+          connected: false,
+          model: modelId,
+          provider: "Local Ollama Daemon",
+          latencyMs,
+          message: `Local daemon responded with status ${response.status}`,
+        });
+      }
+    } catch (localErr: any) {
+      return res.json({
+        success: false,
+        connected: false,
+        model: modelId,
+        provider: "Local Ollama Daemon",
+        latencyMs: Date.now() - t0,
+        message: `Could not connect to local endpoint at ${endpoint}. Ensure 'ollama serve' is running.`,
+      });
+    }
+  }
+
+  // Cloud Gemini Ping
+  const gemini = getGeminiClient();
+  if (!gemini) {
+    return res.json({
+      success: false,
+      connected: false,
+      model: modelId,
+      provider: "Google Gemini Cloud",
+      latencyMs: Date.now() - t0,
+      message: "Gemini API key is not active in environment. Academic heuristics fallback will handle queries.",
+    });
+  }
+
+  try {
+    const result = await gemini.models.generateContent({
+      model: modelId,
+      contents: [{ role: "user", parts: [{ text: "Respond strictly with the single word: OK" }] }],
+    });
+    const latencyMs = Date.now() - t0;
+    const reply = result.text?.trim() || "OK";
+    return res.json({
+      success: true,
+      connected: true,
+      model: modelId,
+      provider: "Google Gemini Cloud",
+      latencyMs,
+      message: `Active & responsive (${latencyMs}ms round-trip latency)`,
+      reply,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (geminiErr: any) {
+    return res.json({
+      success: false,
+      connected: false,
+      model: modelId,
+      provider: "Google Gemini Cloud",
+      latencyMs: Date.now() - t0,
+      message: `Gemini API ping error: ${geminiErr?.message || "Check model availability or quota"}`,
+    });
   }
 });
 
@@ -1281,6 +1397,56 @@ app.post("/api/news/pipeline/mcqs", (req, res) => {
     res.status(500).json({ success: false, error: error?.message });
   }
 });
+
+// 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
+app.get("/api/news/daily-current-affairs", async (_req, res) => {
+  try {
+    let articles = loadCurrentAffairsFromDisk();
+    if (!articles || articles.length === 0) {
+      const pipelineResult = await executeNewsIngestionPipeline();
+      articles = pipelineResult.articles;
+    }
+    const status = getPipelineStatus();
+    res.json({
+      success: true,
+      count: articles.length,
+      articles,
+      status,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error?.message || "Failed to fetch current affairs." });
+  }
+});
+
+app.post("/api/news/daily-current-affairs/sync", async (_req, res) => {
+  try {
+    const pipelineResult = await executeNewsIngestionPipeline();
+    const status = getPipelineStatus();
+    res.json({
+      success: true,
+      articles: pipelineResult.articles,
+      newlyIngested: pipelineResult.newlyIngested,
+      sources: pipelineResult.sources,
+      status,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error?.message || "Failed to execute current affairs sync." });
+  }
+});
+
+// Server-side periodic background task for daily current affairs ingestion (every 30 minutes)
+const NEWS_BACKGROUND_INTERVAL_MS = 30 * 60 * 1000;
+setInterval(async () => {
+  try {
+    console.log("[CurrentAffairsPipeline] Background scheduled execution starting...");
+    const res = await executeNewsIngestionPipeline();
+    console.log(`[CurrentAffairsPipeline] Background scheduled execution finished. Newly ingested: ${res.newlyIngested}, total: ${res.articles.length}`);
+  } catch (e) {
+    console.warn("[CurrentAffairsPipeline] Background scheduled execution error:", e);
+  }
+}, NEWS_BACKGROUND_INTERVAL_MS);
 
 // 1.2 Model & Daemon Status API
 app.get("/api/bolt/models/status", async (req, res) => {

@@ -13,6 +13,10 @@ import {
   Clock,
   Calendar,
   Brain,
+  Upload,
+  History,
+  Newspaper,
+  GraduationCap,
 } from "lucide-react";
 import { StudentIntelligenceModal } from "./StudentIntelligenceModal";
 import { StudentIntelligenceDashboard } from "./StudentIntelligenceDashboard";
@@ -29,7 +33,6 @@ import { DailyNewsDashboardSection } from "./DailyNewsDashboardSection";
 import { DailyStudyGoalsSection } from "./DailyStudyGoalsSection";
 import { DailyStudyGoalTracker } from "./DailyStudyGoalTracker";
 import { generateMilestones } from "../data/milestonesData";
-import { mockNewsArticles } from "../data/mockData";
 
 interface HomeDashboardProps {
   user: UserProfile;
@@ -50,7 +53,7 @@ interface HomeDashboardProps {
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   user,
   topics,
-  articles = mockNewsArticles,
+  articles = [],
   evaluations = [],
   studySessions = [],
   onUpdateUser,
@@ -207,6 +210,93 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <span className="text-[10px] text-amber-300 font-medium">Spaced interval alert</span>
           </div>
         </div>
+      </div>
+
+      {/* UPSC Core Study Pillars: Direct Quick Access */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Upload Materials & Attend Test */}
+        <button
+          onClick={() => onNavigate("materials")}
+          className="p-4 rounded-2xl bg-gradient-to-br from-[#131b2c] to-[#0e1422] border border-blue-500/30 hover:border-blue-400 text-left transition-all hover:-translate-y-0.5 shadow-lg group relative overflow-hidden"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <Upload className="w-5 h-5" />
+          </div>
+          <div className="flex items-center space-x-1.5 mb-1">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold uppercase tracking-wider">
+              PDF & DOCX
+            </span>
+          </div>
+          <h3 className="text-sm font-bold text-white group-hover:text-blue-300 transition-colors">
+            Upload & Attend Quiz
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+            Upload study files or paste notes to auto-generate & attend custom UPSC questions.
+          </p>
+        </button>
+
+        {/* Historical PYQs (1855–2026) */}
+        <button
+          onClick={() => onNavigate("pyqs")}
+          className="p-4 rounded-2xl bg-gradient-to-br from-[#1c1815] to-[#120f0d] border border-amber-500/30 hover:border-amber-400 text-left transition-all hover:-translate-y-0.5 shadow-lg group relative overflow-hidden"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <History className="w-5 h-5" />
+          </div>
+          <div className="flex items-center space-x-1.5 mb-1">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold uppercase tracking-wider">
+              1855 – 2026
+            </span>
+          </div>
+          <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+            Historical PYQ Archive
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+            170+ years of civil service questions with peripheral area & current affairs tagging.
+          </p>
+        </button>
+
+        {/* NCERT Foundation (6–12) */}
+        <button
+          onClick={() => onNavigate("ncert")}
+          className="p-4 rounded-2xl bg-gradient-to-br from-[#101b17] to-[#0c1411] border border-emerald-500/30 hover:border-emerald-400 text-left transition-all hover:-translate-y-0.5 shadow-lg group relative overflow-hidden"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <div className="flex items-center space-x-1.5 mb-1">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold uppercase tracking-wider">
+              Class 6 – 12
+            </span>
+          </div>
+          <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+            NCERT Foundation Hub
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+            Chapter-wise concepts, mindmap points, and foundation practice tests.
+          </p>
+        </button>
+
+        {/* Daily Current Affairs & News */}
+        <button
+          onClick={() => onNavigate("news")}
+          className="p-4 rounded-2xl bg-gradient-to-br from-[#161a28] to-[#10131e] border border-purple-500/30 hover:border-purple-400 text-left transition-all hover:-translate-y-0.5 shadow-lg group relative overflow-hidden"
+        >
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <Newspaper className="w-5 h-5" />
+          </div>
+          <div className="flex items-center space-x-1.5 mb-1">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold uppercase tracking-wider">
+              Daily Feeds
+            </span>
+          </div>
+          <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
+            Daily News & Editorials
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+            Live RSS from The Hindu, IE, Down to Earth, LiveLaw, PRS & Business Standard.
+          </p>
+        </button>
       </div>
 
       {/* Aspirant Milestones & Gamification Section */}

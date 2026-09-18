@@ -1,0 +1,1470 @@
+[
+  {
+    "id": "ncert-hist-6-c1",
+    "subject": "History",
+    "classNum": 6,
+    "bookTitle": "Our Pasts - I (Class 6)",
+    "chapterNumber": 3,
+    "chapterTitle": "From Hunting-Gathering to Growing Food & Harappan Civilization",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Ancient History & Culture)",
+    "estimatedReadMinutes": 25,
+    "syllabusUnit": "Ancient Indian Urbanization & Neolithic Origins",
+    "keyConcepts": [
+      "Mehrgarh Early Domestication (Neolithic 7000 BCE)",
+      "Citadel vs Lower Town Dual Urban Planning",
+      "Great Bath at Mohenjodaro & Burnt Brick Engineering",
+      "Steatite Seals, Script & Craft Specialization at Chanhudaro",
+      "Tidal Dockyard at Lothal & Dholavira Tripartite City"
+    ],
+    "highYieldCrux": "The Indus Valley Civilization (Bronze Age) pioneered grid town planning, burnt brick construction, and covered underground drainage systems. Mehrgarh in Baluchistan demonstrates the continuous transition from hunting-gathering to wheat/barley agriculture and cattle rearing from c. 7000 BCE. Dholavira features an exceptional tripartite layout and rock-cut water reservoirs.",
+    "mindmapPoints": [
+      "Citadel (Western, elevated, administrative & ceremonial public architecture)",
+      "Lower Town (Eastern, larger residential grid layout with baked brick houses)",
+      "Mohenjodaro: Great Bath (gypsum/bitumen waterproofing), Great Granary, Bronze Dancing Girl",
+      "Lothal: Tidal dockyard on Bhogava river, bead-making factory, fire altars",
+      "Dholavira: Tripartite layout with 16 stone water reservoirs and large inscription signboard",
+      "Kalibangan: Earliest ploughed agricultural field furrow marks and fire altars"
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-h6-1",
+        "questionNumber": 1,
+        "questionText": "Which of the following Harappan sites is renowned for having a unique tripartite settlement division (Citadel, Middle Town, and Lower Town) and sophisticated rainwater harvesting rock-cut reservoirs?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Kalibangan"
+          },
+          {
+            "key": "B",
+            "text": "Dholavira"
+          },
+          {
+            "key": "C",
+            "text": "Banawali"
+          },
+          {
+            "key": "D",
+            "text": "Rakhigarhi"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Dholavira in the Rann of Kutch (Gujarat) is distinct among Harappan settlements for its three-part division protected by massive stone walls, and its interconnected series of 16 monumental water reservoirs."
+      },
+      {
+        "id": "ncert-q-h6-2",
+        "questionNumber": 2,
+        "questionText": "At which early Neolithic site in the fertile plain near the Bolan Pass were charred grains of wheat and barley, and bones of sheep and goats first systematically discovered?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Burzahom"
+          },
+          {
+            "key": "B",
+            "text": "Chirand"
+          },
+          {
+            "key": "C",
+            "text": "Mehrgarh"
+          },
+          {
+            "key": "D",
+            "text": "Daojali Hading"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "Mehrgarh (in present-day Pakistan near the Bolan Pass) is one of the earliest farming and herding sites, dating back to c. 7000 BCE, evidencing early square/rectangular mud-brick houses."
+      }
+    ]
+  },
+  {
+    "id": "ncert-geo-6-c1",
+    "subject": "Geography",
+    "classNum": 6,
+    "bookTitle": "The Earth: Our Habitat (Class 6)",
+    "chapterNumber": 2,
+    "chapterTitle": "Globe: Latitudes, Longitudes & Heat Zones of the Earth",
+    "upscWeightage": "High",
+    "gsPaper": "GS 1 (Physical Geography Basics)",
+    "estimatedReadMinutes": 20,
+    "syllabusUnit": "Earth Coordinate Geometry & Solar Insulation Zones",
+    "keyConcepts": [
+      "Equator & Parallels of Latitude",
+      "Prime Meridian (Greenwich 0°) & International Date Line (180°)",
+      "Torrid Zone, Temperate Zones, and Frigid Zones",
+      "Standard Time & Indian Standard Meridian (82°30' E at Mirzapur)",
+      "Local Time Calculation (1° Longitude = 4 Minutes difference)"
+    ],
+    "highYieldCrux": "All places on the same meridian of longitude share identical local solar noon. Since the Earth rotates 360° in 24 hours, 1° corresponds to 4 minutes. India adopts 82°30' E as its Standard Meridian, making Indian Standard Time (IST) exactly 5 hours and 30 minutes ahead of Greenwich Mean Time (GMT).",
+    "mindmapPoints": [
+      "Torrid Zone: Between Tropic of Cancer (23.5°N) and Tropic of Capricorn (23.5°S); receives vertical rays of mid-day sun.",
+      "Temperate Zones: Sun never shines overhead; moderate temperatures.",
+      "Frigid Zones: Beyond Arctic/Antarctic circles; sun does not rise far above horizon.",
+      "IST Calculation: 82.5° * 4 min = 330 minutes = 5 hours 30 minutes ahead of GMT."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-g6-1",
+        "questionNumber": 1,
+        "questionText": "If an international cricket match is broadcast live from London (Greenwich 0°) at 10:00 AM GMT, at what local time will viewers in India (82°30' E) watch the live broadcast?",
+        "options": [
+          {
+            "key": "A",
+            "text": "1:30 PM IST"
+          },
+          {
+            "key": "B",
+            "text": "3:30 PM IST"
+          },
+          {
+            "key": "C",
+            "text": "4:00 PM IST"
+          },
+          {
+            "key": "D",
+            "text": "5:30 PM IST"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "India's Standard Meridian is 82°30' E. 82.5 * 4 minutes = 330 minutes = 5 hours and 30 minutes ahead of GMT. 10:00 AM + 5h 30m = 3:30 PM IST."
+      }
+    ]
+  },
+  {
+    "id": "ncert-pol-6-c1",
+    "subject": "Polity",
+    "classNum": 6,
+    "bookTitle": "Social and Political Life - I (Class 6)",
+    "chapterNumber": 5,
+    "chapterTitle": "Panchayati Raj: Gram Sabha, Gram Panchayat & Three-Tier Local Governance",
+    "upscWeightage": "High",
+    "gsPaper": "GS 2 (Local Governance & Decentralization)",
+    "estimatedReadMinutes": 20,
+    "syllabusUnit": "Grassroots Democracy & Rural Administration",
+    "keyConcepts": [
+      "Gram Sabha as Direct Democratic Forum (All Adult Voters)",
+      "Gram Panchayat (Elected Executive Ward Members & Sarpanch)",
+      "Panchayat Secretary (Government-Appointed Official)",
+      "Three Tiers: Gram Panchayat, Panchayat Samiti / Janpad, Zilla Parishad"
+    ],
+    "highYieldCrux": "The Gram Sabha is a deliberative assembly comprising all registered adult voters in a village, acting as a crucial check on the Gram Panchayat. The Secretary of the Gram Sabha and Gram Panchayat is not an elected person, but appointed by the state government to record proceedings and maintain accounts.",
+    "mindmapPoints": [
+      "Gram Sabha: Direct participatory body; audits funds, approves BPL lists.",
+      "Gram Panchayat: Executive body implementing rural development programs.",
+      "Panchayat Secretary: State appointee; calls meetings and keeps records.",
+      "Three-tier hierarchy: Village (Gram) -> Block (Panchayat Samiti) -> District (Zilla Parishad)."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p6-1",
+        "questionNumber": 1,
+        "questionText": "According to NCERT Class 6 Polity, who among the following is responsible for calling the meetings of the Gram Sabha and Gram Panchayat and keeping records of the proceedings?",
+        "options": [
+          {
+            "key": "A",
+            "text": "The Sarpanch elected by the villagers"
+          },
+          {
+            "key": "B",
+            "text": "The Secretary appointed by the state government"
+          },
+          {
+            "key": "C",
+            "text": "The Block Development Officer (BDO)"
+          },
+          {
+            "key": "D",
+            "text": "The Ward Panch with maximum seniority"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "In NCERT Class 6 Chapter 5, it is explicitly taught that the Panchayat Secretary is not elected by the people but appointed by the government to convene meetings and maintain institutional records."
+      }
+    ]
+  },
+  {
+    "id": "ncert-sci-6-c1",
+    "subject": "Science",
+    "classNum": 6,
+    "bookTitle": "Science (Class 6)",
+    "chapterNumber": 2,
+    "chapterTitle": "Components of Food: Nutrients, Balanced Diet & Deficiency Diseases",
+    "upscWeightage": "Medium",
+    "gsPaper": "GS 3 (Public Health & Nutrition)",
+    "estimatedReadMinutes": 15,
+    "syllabusUnit": "Human Nutrition & Micronutrient Deficiencies",
+    "keyConcepts": [
+      "Carbohydrates, Fats, Proteins, Vitamins & Minerals",
+      "Starch Test (Dilute Iodine Solution -> Blue-Black color)",
+      "Protein Test (Copper Sulphate + Caustic Soda -> Violet color)",
+      "Vitamin A (Night blindness), B1 (Beriberi), C (Scurvy), D (Rickets)",
+      "Goitre (Iodine deficiency) & Anaemia (Iron deficiency)"
+    ],
+    "highYieldCrux": "Nutrient testing procedures and micronutrient deficiency symptoms form regular UPSC Prelims questions. Fats yield more energy compared to the same amount of carbohydrates. Vitamin C is easily destroyed by heat during cooking, while Vitamin D is synthesized by the human body upon exposure to sunlight.",
+    "mindmapPoints": [
+      "Energy-giving foods: Carbohydrates and Fats (fats provide double energy per gram).",
+      "Body-building foods: Proteins (tissue repair and growth).",
+      "Protective foods: Vitamins and Minerals (immunity and metabolic balance).",
+      "Key tests: Iodine test for starch (blue-black); Biuret test for protein (violet)."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-s6-1",
+        "questionNumber": 1,
+        "questionText": "Which of the following vitamins is water-soluble and is easily destroyed by heat during high-temperature cooking?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Vitamin A"
+          },
+          {
+            "key": "B",
+            "text": "Vitamin D"
+          },
+          {
+            "key": "C",
+            "text": "Vitamin C"
+          },
+          {
+            "key": "D",
+            "text": "Vitamin K"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "Vitamin C (Ascorbic acid) is a water-soluble vitamin that is thermolabile—it is easily destroyed by heat during cooking."
+      }
+    ]
+  },
+  {
+    "id": "ncert-hist-7-c1",
+    "subject": "History",
+    "classNum": 7,
+    "bookTitle": "Our Pasts - II (Class 7)",
+    "chapterNumber": 2,
+    "chapterTitle": "New Kings and Kingdoms: Chola Administration, Sabha & Ur",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Medieval History & Culture)",
+    "estimatedReadMinutes": 25,
+    "syllabusUnit": "South Indian Polity & Agrarian Assemblies",
+    "keyConcepts": [
+      "Chola Imperial Expansion (Rajaraja I & Rajendra I)",
+      "Ur (General Village Assembly) vs Sabha (Brahmana Landholders Assembly)",
+      "Uttaramerur Inscription (Parantaka I) - Democratic qualifications for Sabha",
+      "Chola Bronze Sculptures (Lost-Wax Technique, Nataraja icon)",
+      "Nagaram (Assembly of Merchants & Traders)"
+    ],
+    "highYieldCrux": "The Chola empire was renowned for autonomous local self-government in villages. The famous Uttaramerur inscription laid down strict criteria for membership in village committees (Variyams), including ownership of tax-paying land, knowledge of the Vedas, and ethical accountability through lot selection (Kudavolai system).",
+    "mindmapPoints": [
+      "Ur: Peasant assembly in agrarian settlements.",
+      "Sabha: Assembly of learned Brahmadeya landholders; operated through specialized sub-committees (tanks, gardens, temples).",
+      "Kudavolai: Pot-ticket lot casting method to select committee members.",
+      "Lost-Wax Casting (Cire-Perdue): Pioneered exquisite Chola bronze icons (e.g., Shiva Nataraja)."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-h7-1",
+        "questionNumber": 1,
+        "questionText": "The famous Uttaramerur inscription of the 10th century CE, which details the qualifications and election procedure for village committee members, belongs to the reign of which Chola monarch?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Rajaraja I"
+          },
+          {
+            "key": "B",
+            "text": "Rajendra I"
+          },
+          {
+            "key": "C",
+            "text": "Parantaka I"
+          },
+          {
+            "key": "D",
+            "text": "Kulothunga I"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "The Uttaramerur inscription (Tamil Nadu) dates to the reign of Parantaka I (c. 919 and 921 CE) and provides an extraordinarily detailed view of democratic checks and balances in the Chola Sabha."
+      }
+    ]
+  },
+  {
+    "id": "ncert-geo-7-c1",
+    "subject": "Geography",
+    "classNum": 7,
+    "bookTitle": "Our Environment (Class 7)",
+    "chapterNumber": 4,
+    "chapterTitle": "Air: Atmospheric Structure, Insolation & Global Pressure Belts",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Climatology)",
+    "estimatedReadMinutes": 25,
+    "syllabusUnit": "Atmosphere Layers & Planetary Wind Systems",
+    "keyConcepts": [
+      "Atmospheric Layers: Troposphere, Stratosphere, Mesosphere, Thermosphere, Exosphere",
+      "Ozone Layer in Stratosphere (Absorbs harmful UV rays)",
+      "Mesosphere: Meteorites burn up upon entry from space",
+      "Equatorial Low Pressure (Doldrums) & Subtropical Highs (Horse Latitudes)",
+      "Trade Winds, Westerlies, and Polar Easterlies"
+    ],
+    "highYieldCrux": "The troposphere contains 75% of atmospheric mass and all weather phenomena (clouds, rainfall, fog). The stratosphere is free from weather turbulence and contains the ozone layer, making it ideal for flying jet aircraft. Air moves constantly from high pressure areas to low pressure areas, producing planetary winds.",
+    "mindmapPoints": [
+      "Troposphere (0-13 km): Temperature decreases with height (Normal Lapse Rate 6.5°C/km).",
+      "Stratosphere (up to 50 km): Houses ozone layer; temperature inversion occurs.",
+      "Mesosphere (50-80 km): Coldest layer (-100°C); burns meteorites.",
+      "Thermosphere (80-400 km): Contains Ionosphere; reflects radio waves back to Earth."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-g7-1",
+        "questionNumber": 1,
+        "questionText": "Why is the Stratosphere layer of the atmosphere considered ideal for flying commercial jet aircraft?",
+        "options": [
+          {
+            "key": "A",
+            "text": "It contains abundant water vapor and convective thermal plumes."
+          },
+          {
+            "key": "B",
+            "text": "It is almost completely free from clouds and associated turbulent weather phenomena."
+          },
+          {
+            "key": "C",
+            "text": "It has the highest concentration of ionized free electrons."
+          },
+          {
+            "key": "D",
+            "text": "It exhibits a rapid decrease in temperature with altitude."
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "The stratosphere extends up to 50 km and is free from cloud formation and weather disruptions, enabling smooth aerodynamic flight conditions for commercial aircraft."
+      }
+    ]
+  },
+  {
+    "id": "ncert-pol-7-c1",
+    "subject": "Polity",
+    "classNum": 7,
+    "bookTitle": "Social and Political Life - II (Class 7)",
+    "chapterNumber": 1,
+    "chapterTitle": "On Equality: Constitutional Provisions & Mid-Day Meal Scheme",
+    "upscWeightage": "High",
+    "gsPaper": "GS 2 (Social Justice & Welfare Policies)",
+    "estimatedReadMinutes": 20,
+    "syllabusUnit": "Substantive Equality & Affirmative State Interventions",
+    "keyConcepts": [
+      "Universal Adult Franchise (One Person, One Vote, One Value)",
+      "Article 15: Prohibition of Discrimination",
+      "Mid-Day Meal Scheme (Pioneered by Tamil Nadu in 2001)",
+      "Rosa Parks & the US Civil Rights Movement of 1964"
+    ],
+    "highYieldCrux": "Formal equality before law is insufficient without state affirmative intervention to address deep structural inequalities. The Mid-Day Meal scheme dramatically boosted primary school enrollment, improved pupil retention, eliminated caste barriers by having Dalit women cook meals, and fought childhood malnutrition.",
+    "mindmapPoints": [
+      "Four pillars of Article 15: State cannot discriminate on religion, race, caste, sex, or place of birth.",
+      "Universal Adult Franchise: Guarantees political equality irrespective of wealth or social standing.",
+      "Mid-Day Meal Impact: Improved attendance, reduced social prejudices, empowered women self-help groups."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p7-1",
+        "questionNumber": 1,
+        "questionText": "Which Indian state was the first to introduce the landmark Mid-Day Meal scheme in government primary schools, later mandated for all states by the Supreme Court of India in 2001?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Kerala"
+          },
+          {
+            "key": "B",
+            "text": "Tamil Nadu"
+          },
+          {
+            "key": "C",
+            "text": "Maharashtra"
+          },
+          {
+            "key": "D",
+            "text": "West Bengal"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Tamil Nadu was the pioneer in implementing the Mid-Day Meal scheme in 2001, which the Supreme Court subsequently directed all states to adopt within six months."
+      }
+    ]
+  },
+  {
+    "id": "ncert-hist-8-c1",
+    "subject": "History",
+    "classNum": 8,
+    "bookTitle": "Our Pasts - III (Class 8)",
+    "chapterNumber": 5,
+    "chapterTitle": "When People Rebel: 1857 and After (Causes, Leaders & British Reorganization)",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Modern Indian History)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Revolt of 1857 & Transfer of Power to the Crown",
+    "keyConcepts": [
+      "Doctrine of Lapse (Lord Dalhousie) & Annexation of Awadh (1856)",
+      "Greased Cartridge Rumor & Mangal Pandey at Barrackpore",
+      "Bahadur Shah Zafar proclaimed Shahenshah-e-Hindustan",
+      "Regional Leaders: Rani Lakshmibai (Jhansi), Kunwar Singh (Bihar), Nana Saheb & Tantia Tope (Kanpur)",
+      "Government of India Act 1858 & Queen Victoria's Proclamation"
+    ],
+    "highYieldCrux": "The Revolt of 1857 was the culmination of widespread political, economic, military, and religious grievances. Following its suppression, the British East India Company's rule was terminated, transfer of power to the British Crown occurred via the Act for Better Government of India 1858, and the ratio of European to Indian soldiers was substantially increased (Peel Commission).",
+    "mindmapPoints": [
+      "Political cause: Dalhousie's Doctrine of Lapse (Satara, Sambalpur, Jhansi, Nagpur annexed).",
+      "Awadh: Annexed in 1856 on pretext of 'misgovernance', enraging Company sepoys (the 'nursery of Bengal Army').",
+      "1858 Act: Governor-General was given the title of Viceroy; Secretary of State for India created.",
+      "Military policy: Indian soldiers kept away from artillery; recruitment shifted to 'martial races' (Sikhs, Gurkhas, Pathans)."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-h8-1",
+        "questionNumber": 1,
+        "questionText": "Who among the following was an aged zamindar of Jagdishpur in Bihar who joined the sepoys and spearheaded the rebellion across Bihar during the Revolt of 1857?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Maulvi Ahmadullah Shah"
+          },
+          {
+            "key": "B",
+            "text": "Kunwar Singh"
+          },
+          {
+            "key": "C",
+            "text": "Bakht Khan"
+          },
+          {
+            "key": "D",
+            "text": "Birjis Qadr"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Kunwar Singh, an octogenarian Rajput zamindar of Jagdishpur (Arrah, Bihar), provided remarkable military leadership during the 1857 rebellion."
+      }
+    ]
+  },
+  {
+    "id": "ncert-pol-8-c1",
+    "subject": "Polity",
+    "classNum": 8,
+    "bookTitle": "Social and Political Life - III (Class 8)",
+    "chapterNumber": 1,
+    "chapterTitle": "The Indian Constitution & Secularism: Key Features & Separation of Powers",
+    "upscWeightage": "High",
+    "gsPaper": "GS 2 (Constitutional Principles)",
+    "estimatedReadMinutes": 20,
+    "syllabusUnit": "Indian Secularism & Constitutionalism",
+    "keyConcepts": [
+      "Key Features: Federalism, Parliamentary Form, Separation of Powers, Fundamental Rights, Secularism",
+      "Principled Distance in Indian Secularism (State can intervene for social reform, e.g. untouchability)",
+      "Western Secularism vs Indian Secularism (Strict water-tight separation vs Equal respect for all religions)"
+    ],
+    "highYieldCrux": "Unlike Western secularism, which insists on a rigid wall of separation between church and state, Indian secularism maintains 'principled distance'—the state can intervene in religious practices to uphold human rights, promote social justice, or eradicate social evils like untouchability and child marriage.",
+    "mindmapPoints": [
+      "Federalism: Existence of more than one level of government.",
+      "Separation of Powers: Legislature, Executive, and Judiciary prevent concentration of tyrannical power.",
+      "Indian Secularism: State maintains principled distance; allows affirmative intervention (Article 25(2)(b))."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p8-1",
+        "questionNumber": 1,
+        "questionText": "How does Indian secularism fundamentally differ from the strict Western model of secularism as highlighted in NCERT Class 8?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Indian secularism recognizes one official state religion while tolerating others."
+          },
+          {
+            "key": "B",
+            "text": "Indian secularism allows state intervention in religion based on constitutional ideals (principled distance), unlike strict separation in the West."
+          },
+          {
+            "key": "C",
+            "text": "Western secularism provides state funding for religious shrines while India strictly bans it."
+          },
+          {
+            "key": "D",
+            "text": "Indian secularism prohibits religious minorities from running their own educational institutions."
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Indian secularism adopts 'principled distance'—the state does not strictly segregate itself, but intervenes whenever religious customs impinge on fundamental human rights (such as abolishing untouchability)."
+      }
+    ]
+  },
+  {
+    "id": "ncert-geo-8-c1",
+    "subject": "Geography",
+    "classNum": 8,
+    "bookTitle": "Resource and Development (Class 8)",
+    "chapterNumber": 2,
+    "chapterTitle": "Land, Soil, Water, Natural Vegetation and Wildlife Resources",
+    "upscWeightage": "High",
+    "gsPaper": "GS 1 & GS 3 (Soil Conservation & Water)",
+    "estimatedReadMinutes": 20,
+    "syllabusUnit": "Soil Profiles & Conservation Techniques",
+    "keyConcepts": [
+      "Factors of Soil Formation: Parent rock, Climate, Relief, Flora/Fauna, Time",
+      "Soil Profile: Topsoil, Subsoil, Weathered rock, Parent rock",
+      "Conservation Methods: Mulching, Contour barriers, Rock dams, Terrace farming, Intercropping, Contour ploughing, Shelterbelts"
+    ],
+    "highYieldCrux": "It takes hundreds of years to make just one centimetre of topsoil. Climatic factors (temperature and rainfall) determine the rate of weathering and humus formation. In coastal and dry regions, shelterbelts (rows of trees) are planted to check wind movement to protect soil cover.",
+    "mindmapPoints": [
+      "Terrace Farming: Broad flat steps cut on steep slopes to reduce surface run-off.",
+      "Contour Ploughing: Ploughing parallel to contours of a hill slope to form a natural barrier to water flow.",
+      "Shelterbelts: Rows of trees planted in coastal/arid tracts to anchor soil against high winds.",
+      "Mulching: Bare ground covered with organic matter to retain soil moisture."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-g8-1",
+        "questionNumber": 1,
+        "questionText": "In coastal and arid regions, rows of trees are planted to check wind movement and protect soil cover. This soil conservation method is known as:",
+        "options": [
+          {
+            "key": "A",
+            "text": "Contour barriers"
+          },
+          {
+            "key": "B",
+            "text": "Rock dams"
+          },
+          {
+            "key": "C",
+            "text": "Shelterbelts"
+          },
+          {
+            "key": "D",
+            "text": "Intercropping"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "Shelterbelts are windbreaks created by planting rows of trees along field boundaries to protect topsoil from wind erosion in arid and coastal zones."
+      }
+    ]
+  },
+  {
+    "id": "ncert-econ-9-c1",
+    "subject": "Economy",
+    "classNum": 9,
+    "bookTitle": "Economics (Class 9)",
+    "chapterNumber": 1,
+    "chapterTitle": "The Story of Village Palampur: Four Factors of Production & Rural Economy",
+    "upscWeightage": "Medium",
+    "gsPaper": "GS 3 (Basic Economic Principles)",
+    "estimatedReadMinutes": 20,
+    "syllabusUnit": "Factors of Production & Capital Formation",
+    "keyConcepts": [
+      "Four Factors of Production: Land, Labour, Physical Capital, Human Capital",
+      "Fixed Capital (Tools, Machines, Buildings) vs Working Capital (Raw materials & Cash)",
+      "Green Revolution (HYV Seeds, Chemical Fertilisers, Irrigation)",
+      "Non-Farm Activities (Dairy, Transport, Small-scale Manufacturing)"
+    ],
+    "highYieldCrux": "Physical capital is bifurcated into fixed capital (which endures across production cycles) and working capital (which is used up in production). While Green Revolution technologies expanded wheat and rice productivity, they triggered severe groundwater depletion and soil salinity due to over-irrigation and chemical dependency.",
+    "mindmapPoints": [
+      "Land: Fixed and inelastic factor of production.",
+      "Physical Capital: Fixed (capital goods) + Working (circulating operating funds).",
+      "Human Capital: Knowledge, training, and enterprise combining land, labour, and capital.",
+      "Green Revolution impact: High yields but degraded soil fertility and depleted water table."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-e9-1",
+        "questionNumber": 1,
+        "questionText": "In economics and production theory, which of the following is classified as 'Working Capital' rather than 'Fixed Capital'?",
+        "options": [
+          {
+            "key": "A",
+            "text": "A combine harvester used on farmland"
+          },
+          {
+            "key": "B",
+            "text": "Raw cotton purchased by a textile spinning mill"
+          },
+          {
+            "key": "C",
+            "text": "A cold storage facility erected by a farmer"
+          },
+          {
+            "key": "D",
+            "text": "A diesel-powered tubewell generator"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Raw materials and cash in hand are exhausted during production cycles and are classified as Working Capital, unlike machines and buildings which persist as Fixed Capital."
+      }
+    ]
+  },
+  {
+    "id": "ncert-pol-9-c1",
+    "subject": "Polity",
+    "classNum": 9,
+    "bookTitle": "Democratic Politics - I (Class 9)",
+    "chapterNumber": 2,
+    "chapterTitle": "Constitutional Design: South African Transition, Preamble & Philosophy",
+    "upscWeightage": "High",
+    "gsPaper": "GS 2 (Preamble & Constitutional Philosophy)",
+    "estimatedReadMinutes": 25,
+    "syllabusUnit": "Constitutionalism & The Indian Preamble",
+    "keyConcepts": [
+      "South African Non-Racial Constitution (1996)",
+      "Constituent Assembly of India (Drafting Committee headed by Dr. B.R. Ambedkar)",
+      "Preamble Keywords: Sovereign, Socialist, Secular, Democratic, Republic, Justice, Liberty, Equality, Fraternity",
+      "42nd Constitutional Amendment Act 1976 (Added 'Socialist', 'Secular', 'Integrity')"
+    ],
+    "highYieldCrux": "The Preamble is the soul of the Indian Constitution, containing the guiding ideals and philosophy. The terms 'Socialist', 'Secular', and 'Integrity' were added to the Preamble by the 42nd Amendment in 1976. The Supreme Court in Kesavananda Bharati (1973) held that the Preamble is an integral part of the Constitution and subject to basic structure limitations.",
+    "mindmapPoints": [
+      "Sovereign: People have supreme right to make decisions; no external power can dictate terms.",
+      "Socialist: Wealth generated socially should be shared equally by society; government should regulate ownership of land and industry.",
+      "Secular: Citizens have complete freedom to follow any religion; no official state religion.",
+      "Republic: The head of the state is an elected person and not a hereditary monarch."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p9-1",
+        "questionNumber": 1,
+        "questionText": "Which of the following terms was NOT part of the original Preamble adopted by the Constituent Assembly on 26th November 1949, and was inserted later by the 42nd Constitutional Amendment Act 1976?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Democratic"
+          },
+          {
+            "key": "B",
+            "text": "Republic"
+          },
+          {
+            "key": "C",
+            "text": "Secular"
+          },
+          {
+            "key": "D",
+            "text": "Liberty"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "The words 'Socialist', 'Secular', and 'Integrity' were inserted into the Preamble by the 42nd Amendment Act of 1976."
+      }
+    ]
+  },
+  {
+    "id": "ncert-geo-9-c1",
+    "subject": "Geography",
+    "classNum": 9,
+    "bookTitle": "Contemporary India - I (Class 9)",
+    "chapterNumber": 4,
+    "chapterTitle": "Climate: Indian Monsoons, ITCZ, Jet Streams & El Niño",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Monsoon Dynamics)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Climatology of the Indian Subcontinent",
+    "keyConcepts": [
+      "Inter-Tropical Convergence Zone (ITCZ) seasonal shifting",
+      "Subtropical Westerly Jet Stream & Tropical Easterly Jet Stream",
+      "Tibetan Plateau Intense Heating & Somali Jet",
+      "Southern Oscillation (SO) & El Niño-Southern Oscillation (ENSO)",
+      "Burst of Monsoon & Retreating Monsoons (October Heat)"
+    ],
+    "highYieldCrux": "The Indian monsoon is driven by differential heating of land and sea, the northward shift of the ITCZ over the Ganga plains in summer, the thermal heating of the Tibetan plateau, and the presence of the tropical easterly jet stream over peninsular India. El Niño (warming of eastern Pacific waters) frequently correlates with weak monsoon rainfall over India.",
+    "mindmapPoints": [
+      "Differential Heating: Generates low pressure over landmass and high pressure over Indian Ocean.",
+      "ITCZ Shift: Shifts 20°-25°N in summer to form the monsoon trough over the Ganga plain.",
+      "Tibetan Plateau: Strong vertical convective air currents create high-altitude anti-cyclone.",
+      "El Niño: Warm ocean current off Peru coast weakens Indian summer monsoon."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-g9-1",
+        "questionNumber": 1,
+        "questionText": "In the context of the Indian Monsoon mechanism as explained in NCERT Class 9, the seasonal reversal of winds is primarily caused by:",
+        "options": [
+          {
+            "key": "A",
+            "text": "Differential heating and cooling of land and water bodies"
+          },
+          {
+            "key": "B",
+            "text": "Earth's orbital eccentric speed variation"
+          },
+          {
+            "key": "C",
+            "text": "Volcanic eruptions along the Sunda Trench"
+          },
+          {
+            "key": "D",
+            "text": "Gravitational tides of the moon"
+          }
+        ],
+        "correctOption": "A",
+        "explanation": "Differential heating and cooling of the vast Asian landmass versus the Indian Ocean creates seasonal pressure gradients that drive the reversal of monsoon winds."
+      }
+    ]
+  },
+  {
+    "id": "ncert-pol-10-c1",
+    "subject": "Polity",
+    "classNum": 10,
+    "bookTitle": "Democratic Politics - II (Class 10)",
+    "chapterNumber": 2,
+    "chapterTitle": "Federalism: Coming Together vs Holding Together, 73rd & 74th Amendments",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 2 (Federalism & Decentralization)",
+    "estimatedReadMinutes": 25,
+    "syllabusUnit": "Indian Federal Structure & Centre-State Relations",
+    "keyConcepts": [
+      "'Coming Together' Federations (USA, Switzerland, Australia)",
+      "'Holding Together' Federations (India, Spain, Belgium)",
+      "Seventh Schedule: Union List (100), State List (61), Concurrent List (52)",
+      "Residuary Powers vested with the Union Parliament",
+      "Decentralization: 73rd and 74th Constitutional Amendments (1992)"
+    ],
+    "highYieldCrux": "India is a 'Holding Together' federation where a large country divides power between constituent states and the national government, resulting in unequal distribution of power and a strong unitary bias (Article 1 describes India as a 'Union of States'). Residuary powers on subjects not enumerated in any of the three lists belong exclusively to the Union government.",
+    "mindmapPoints": [
+      "Coming Together: Independent states pool sovereignty to increase security (equal powers).",
+      "Holding Together: Large unitary state devolves autonomy to states; Centre holds overriding leverage.",
+      "Union List: Defense, foreign affairs, currency, banking.",
+      "State List: Police, public order, agriculture, health.",
+      "Concurrent List: Education, forests, marriage, civil procedure."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p10-1",
+        "questionNumber": 1,
+        "questionText": "Under the Indian federal framework, who has the legislative competence to legislate on 'Residuary Subjects'—matters that are not included in the Union List, State List, or Concurrent List?",
+        "options": [
+          {
+            "key": "A",
+            "text": "State Legislatures exclusively"
+          },
+          {
+            "key": "B",
+            "text": "Union Parliament exclusively"
+          },
+          {
+            "key": "C",
+            "text": "Both Union and States with State concurrence"
+          },
+          {
+            "key": "D",
+            "text": "The Supreme Court of India"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "According to Article 248 and Seventh Schedule principles detailed in Class 10 NCERT, residuary legislative powers are vested exclusively in the Union Parliament."
+      }
+    ]
+  },
+  {
+    "id": "ncert-econ-10-c1",
+    "subject": "Economy",
+    "classNum": 10,
+    "bookTitle": "Understanding Economic Development (Class 10)",
+    "chapterNumber": 2,
+    "chapterTitle": "Sectors of the Indian Economy: Primary, Secondary, Tertiary & Disguised Unemployment",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 3 (Economic Structure & Employment)",
+    "estimatedReadMinutes": 25,
+    "syllabusUnit": "Sectoral Contribution & Employment Elasticity",
+    "keyConcepts": [
+      "Primary Sector (Agriculture, Mining, Forestry)",
+      "Secondary Sector (Manufacturing, Construction)",
+      "Tertiary Sector (Services: Banking, IT, Transport)",
+      "Disguised Unemployment (Marginal productivity of labor is zero)",
+      "MGNREGA 2005 (100 days guaranteed wage employment)"
+    ],
+    "highYieldCrux": "India experienced a unique structural transition: while the tertiary (service) sector surged to contribute over 50% of GDP, the share of employment did not shift proportionally. Agriculture continues to employ nearly 45% of the workforce, harboring rampant disguised unemployment where more workers are engaged than required.",
+    "mindmapPoints": [
+      "Gross Domestic Product (GDP): Value of all final goods and services produced within a country in a year.",
+      "Structural Quirk: Direct shift from Primary to Tertiary without robust Secondary manufacturing expansion.",
+      "Disguised Unemployment: Removing surplus workers causes zero reduction in total agricultural output.",
+      "MGNREGA 2005: Right to work legislation providing legal unemployment allowance if work is not given in 15 days."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-e10-1",
+        "questionNumber": 1,
+        "questionText": "In economic terminology, what type of unemployment is characterized by a situation where more people are working in a sector than necessary, such that removing some workers does not reduce total output?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Frictional unemployment"
+          },
+          {
+            "key": "B",
+            "text": "Disguised unemployment"
+          },
+          {
+            "key": "C",
+            "text": "Structural unemployment"
+          },
+          {
+            "key": "D",
+            "text": "Cyclical unemployment"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Disguised (or hidden) unemployment occurs when the marginal productivity of labor is zero. This is chronic in Indian family-operated agricultural holdings."
+      }
+    ]
+  },
+  {
+    "id": "ncert-sci-10-c1",
+    "subject": "Science",
+    "classNum": 10,
+    "bookTitle": "Science (Class 10)",
+    "chapterNumber": 15,
+    "chapterTitle": "Our Environment: Ecosystems, Food Chains, Biological Magnification & Ozone Depletion",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 3 (Ecology & Environment)",
+    "estimatedReadMinutes": 20,
+    "syllabusUnit": "Environmental Chemistry & Food Web Energetics",
+    "keyConcepts": [
+      "Trophic Levels & Unidirectional Energy Flow",
+      "Lindeman's 10% Energy Transfer Law",
+      "Biological Magnification (Bioaccumulation of persistent pollutants like DDT)",
+      "Ozone Layer (O3) & Chlorofluorocarbons (CFCs) - Montreal Protocol 1987",
+      "Biodegradable vs Non-Biodegradable Wastes"
+    ],
+    "highYieldCrux": "Biological magnification is the progressive accumulation of non-biodegradable chemicals at increasing concentrations at each successive trophic level, reaching maximum concentration in top carnivores (and humans). Energy flow through ecosystems is strictly unidirectional and diminishes by 90% at every trophic step.",
+    "mindmapPoints": [
+      "10% Law: Only 10% of organic matter reaches the next level of consumers; restricts food chains to 3-4 steps.",
+      "Biomagnification: Non-biodegradable toxins (DDT, mercury) cannot be metabolized, concentrating upwards.",
+      "Ozone depletion: UV rays split O2 into free oxygen radicals; radicals combine with O2 to make O3. CFCs release chlorine radicals that destroy thousands of ozone molecules."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-s10-1",
+        "questionNumber": 1,
+        "questionText": "In a food chain consisting of Phytoplankton -> Zooplankton -> Small Fish -> Large Fish -> Fish-eating Bird, in which organism will the concentration of a non-biodegradable pesticide like DDT be the highest due to biomagnification?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Phytoplankton"
+          },
+          {
+            "key": "B",
+            "text": "Zooplankton"
+          },
+          {
+            "key": "C",
+            "text": "Small Fish"
+          },
+          {
+            "key": "D",
+            "text": "Fish-eating Bird"
+          }
+        ],
+        "correctOption": "D",
+        "explanation": "Due to biological magnification, persistent non-biodegradable chemicals accumulate progressively and reach peak concentrations in the apex organism at the highest trophic level."
+      }
+    ]
+  },
+  {
+    "id": "ncert-polity-11-c1",
+    "subject": "Polity",
+    "classNum": 11,
+    "bookTitle": "Indian Constitution at Work (Class 11)",
+    "chapterNumber": 1,
+    "chapterTitle": "Constitution: Why and How?",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 2 (Constitutional Framework)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Foundations of Constitutionalism",
+    "keyConcepts": [
+      "Coordination & Assurance",
+      "Specification of Decision-Making Powers",
+      "Limitations on State Power (Fundamental Rights)",
+      "Aspirations & Goals of Society (DPSPs)",
+      "Constituent Assembly Composition (Indirect Election 1946)"
+    ],
+    "highYieldCrux": "A Constitution is not merely a legal rulebook; it provides minimal coordination among diverse citizens, specifies legitimate power authority, places enforceable boundaries on state power, and enables the state to realize social justice. The Constituent Assembly was indirectly elected by Provincial Assemblies under the Cabinet Mission Plan.",
+    "mindmapPoints": [
+      "Function 1: Set of basic rules allowing minimal coordination.",
+      "Function 2: Specifies who has the power to make decisions in society.",
+      "Function 3: Sets limits on what a government can impose on citizens.",
+      "Function 4: Enables government to fulfill aspirations and create conditions for a just society."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p11-1",
+        "questionNumber": 1,
+        "questionText": "According to NCERT Class 11 'Indian Constitution at Work', which of the following is considered the FIRST function of a Constitution?",
+        "options": [
+          {
+            "key": "A",
+            "text": "To specify which branch of government holds absolute supremacy."
+          },
+          {
+            "key": "B",
+            "text": "To provide a set of basic rules that allow for minimal coordination amongst members of a society."
+          },
+          {
+            "key": "C",
+            "text": "To ensure that all economic resources are distributed equally across citizens."
+          },
+          {
+            "key": "D",
+            "text": "To mandate direct democratic referendums for constitutional amendments."
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Chapter 1 explicitly articulates Function 1: 'The first function of a constitution is to provide a set of basic rules that allow for minimal coordination amongst members of a society.' Without common rules, life would be insecure and anarchic."
+      },
+      {
+        "id": "ncert-q-p11-2",
+        "questionNumber": 2,
+        "questionText": "Consider the following statements regarding the Constituent Assembly of India as highlighted in NCERT:\n\n1. The Constituent Assembly was directly elected by all adult citizens of India on the basis of universal adult franchise in 1946.\n2. The members were elected by indirect election by the members of the Provincial Legislative Assemblies established under the Government of India Act 1935.\n3. The Objectives Resolution, introduced by Jawaharlal Nehru in 1946, defined the ideological aspirations of the Constitution.\n\nWhich of the statements given above is/are correct?",
+        "options": [
+          {
+            "key": "A",
+            "text": "1 and 3 only"
+          },
+          {
+            "key": "B",
+            "text": "2 and 3 only"
+          },
+          {
+            "key": "C",
+            "text": "2 only"
+          },
+          {
+            "key": "D",
+            "text": "1, 2 and 3"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Statements 2 and 3 are correct. The Assembly was NOT elected through universal adult franchise; members were indirectly elected by Provincial Legislative Assemblies under the Cabinet Mission Plan. Nehru introduced the historic Objectives Resolution on Dec 13, 1946."
+      }
+    ]
+  },
+  {
+    "id": "ncert-polity-11-c2",
+    "subject": "Polity",
+    "classNum": 11,
+    "bookTitle": "Indian Constitution at Work (Class 11)",
+    "chapterNumber": 2,
+    "chapterTitle": "Rights in the Indian Constitution: Writs, Fundamental Rights & DPSPs",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 2 (Fundamental Rights & Writs)",
+    "estimatedReadMinutes": 35,
+    "syllabusUnit": "Part III, Part IV & Judicial Remedies",
+    "keyConcepts": [
+      "Bill of Rights & Constitutional Morality",
+      "Writs (Habeas Corpus, Mandamus, Quo Warranto, Prohibition, Certiorari)",
+      "Directive Principles vs. Fundamental Rights",
+      "Preventive Detention Protections (Article 22)"
+    ],
+    "highYieldCrux": "The Constitution guarantees enforceable Fundamental Rights under Part III. Dr. Ambedkar described Article 32 (Right to Constitutional Remedies) as the 'Heart and Soul of the Constitution'. Fundamental Rights protect citizens against state encroachment, while DPSPs guide the state toward welfare.",
+    "mindmapPoints": [
+      "Article 14-18: Right to Equality",
+      "Article 19-22: Right to Freedom",
+      "Article 23-24: Right against Exploitation",
+      "Article 25-28: Freedom of Religion",
+      "Article 29-30: Cultural and Educational Rights",
+      "Article 32: Right to Constitutional Remedies (5 Prerogative Writs)"
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p11-2-1",
+        "questionNumber": 1,
+        "questionText": "With reference to the writ of 'Quo-Warranto' in Indian constitutional law, consider the following statements:\n\n1. It is issued by the court to inquire into the legality of a claim of a person to a public office.\n2. It cannot be sought by any interested person unless their personal legal right has been directly violated.\n\nWhich of the statements given above is/are correct?",
+        "options": [
+          {
+            "key": "A",
+            "text": "1 only"
+          },
+          {
+            "key": "B",
+            "text": "2 only"
+          },
+          {
+            "key": "C",
+            "text": "Both 1 and 2"
+          },
+          {
+            "key": "D",
+            "text": "Neither 1 nor 2"
+          }
+        ],
+        "correctOption": "A",
+        "explanation": "Statement 1 is correct: Quo-Warranto literally means 'By what authority?'. It prevents illegal usurpation of a public office. Statement 2 is incorrect because, unlike other writs, Quo-Warranto does not require locus standi—any member of the public can petition the court."
+      }
+    ]
+  },
+  {
+    "id": "ncert-geo-11-c1",
+    "subject": "Geography",
+    "classNum": 11,
+    "bookTitle": "Fundamentals of Physical Geography (Class 11)",
+    "chapterNumber": 3,
+    "chapterTitle": "Interior of the Earth & Seismic Body Waves",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Geomorphology & Seismology)",
+    "estimatedReadMinutes": 35,
+    "syllabusUnit": "Earth Interior, Discontinuities & Plate Tectonics",
+    "keyConcepts": [
+      "P-waves (Longitudinal) vs S-waves (Transverse)",
+      "Shadow Zones (P-wave 105°-145°, S-wave beyond 105°)",
+      "Asthenosphere (Upper Mantle Plastic Zone)",
+      "Liquid Outer Core & Geodynamo Magnetic Field",
+      "Mohorovičić, Gutenberg, and Lehmann Discontinuities"
+    ],
+    "highYieldCrux": "Seismic wave propagation proves the Earth's layered interior. S-waves cannot travel through liquids, revealing the outer core's molten state. The S-wave shadow zone spans the entire zone beyond 105°, covering over 40% of the Earth's surface.",
+    "mindmapPoints": [
+      "P-waves: Compressional, travel through solid, liquid, gas",
+      "S-waves: Shear waves, travel only through solids",
+      "Shadow Zone: S-wave > 105°; P-wave 105° to 145°",
+      "Asthenosphere: Low velocity zone (100-400 km) driving plate tectonics"
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-g11-1",
+        "questionNumber": 1,
+        "questionText": "Consider the following statements regarding seismic body waves traveling through the Earth's interior:\n\n1. P-waves are similar to sound waves and can travel through gaseous, liquid, and solid materials.\n2. S-waves travel only through solid materials.\n3. The shadow zone of S-waves is significantly smaller than the shadow zone of P-waves.\n\nWhich of the statements given above is/are correct?",
+        "options": [
+          {
+            "key": "A",
+            "text": "1 and 2 only"
+          },
+          {
+            "key": "B",
+            "text": "2 and 3 only"
+          },
+          {
+            "key": "C",
+            "text": "1 and 3 only"
+          },
+          {
+            "key": "D",
+            "text": "1, 2 and 3"
+          }
+        ],
+        "correctOption": "A",
+        "explanation": "Statements 1 and 2 are correct. P-waves compress and dilate matter and traverse solids, liquids, and gases. S-waves are transverse shear waves that cannot transmit through liquids. Statement 3 is incorrect because the shadow zone of S-waves covers the entire region beyond 105° (more than 40% of Earth's surface), making it much larger than the P-wave shadow zone (105°-145°)."
+      }
+    ]
+  },
+  {
+    "id": "ncert-econ-11-c1",
+    "subject": "Economy",
+    "classNum": 11,
+    "bookTitle": "Indian Economic Development (Class 11)",
+    "chapterNumber": 1,
+    "chapterTitle": "Indian Economy on the Eve of Independence & Demographic Divide",
+    "upscWeightage": "High",
+    "gsPaper": "GS 3 (Colonial Economy & Demography)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Economic History & Structural Stagnation",
+    "keyConcepts": [
+      "Colonial De-industrialization & Tariff Inversion",
+      "Drain of Wealth (Dadabhai Naoroji)",
+      "1921: Year of the Great Divide",
+      "Commercialization of Agriculture & Food Insecurity"
+    ],
+    "highYieldCrux": "Colonial policies transformed India into a supplier of raw materials and importer of finished industrial goods. 1921 is known as the 'Year of the Great Divide' as India transitioned from high fluctuating mortality to steady population growth.",
+    "mindmapPoints": [
+      "1921: Demographic transition point from Stage 1 to Stage 2",
+      "Handicrafts ruin: Asymmetric tariff discrimination & loss of princely patronage",
+      "Zamindari: Exploitative intermediary rent extraction in Bengal Presidency"
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-e11-1",
+        "questionNumber": 1,
+        "questionText": "Why is the year 1921 regarded as the 'Year of the Great Divide' in the demographic history of India in NCERT Economic studies?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Because India conducted its first synchronous census in 1921."
+          },
+          {
+            "key": "B",
+            "text": "Because prior to 1921, India was in the first stage of demographic transition with fluctuating high death rates; after 1921, population entered continuous growth."
+          },
+          {
+            "key": "C",
+            "text": "Because life expectancy exceeded 60 years for the first time."
+          },
+          {
+            "key": "D",
+            "text": "Because rural-to-urban migration surpassed 50%."
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Prior to 1921, India experienced alternating spikes in population due to severe famines and epidemics (1918 Spanish Flu). After 1921, mortality gradually declined while birth rates remained high, leading to sustained demographic expansion."
+      }
+    ]
+  },
+  {
+    "id": "ncert-hist-11-c1",
+    "subject": "History",
+    "classNum": 11,
+    "bookTitle": "Themes in World History (Class 11)",
+    "chapterNumber": 3,
+    "chapterTitle": "Nomadic Empires: The Mongol State, Yasa & Pax Mongolica",
+    "upscWeightage": "Medium",
+    "gsPaper": "GS 1 (World History)",
+    "estimatedReadMinutes": 25,
+    "syllabusUnit": "Pastoral Nomads & Eurasian Trans-continental Trade",
+    "keyConcepts": [
+      "Genghis Khan (Temujin) Tribal Unification (1206 Kurultai)",
+      "Yasa (Legal Code & Decree System of Mongols)",
+      "Decimal Military Reorganization (Arban 10, Jagun 100, Mingghan 1000, Tumen 10000)",
+      "Yam (Postal Courier Relay System) & Pax Mongolica"
+    ],
+    "highYieldCrux": "Genghis Khan broke ancient tribal clan identities by organizing armies into decimals, mixing ethnic groups together. The 'Yam' courier relay system enabled unprecedented communication and safe caravan passage across Eurasia (Pax Mongolica), facilitating silk, paper, and gunpowder transmission.",
+    "mindmapPoints": [
+      "Kurultai: Assembly of Mongol chieftains conferring title of Genghis Khan in 1206.",
+      "Decimal Army: Abolished tribal exclusivity to prevent insubordination.",
+      "Yam System: Horse-relay posts positioned across Eurasia for rapid imperial dispatch.",
+      "Yasa: Body of customary law and regulations codified under Genghis Khan."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-h11-1",
+        "questionNumber": 1,
+        "questionText": "What was the 'Yam' in the context of the Mongol nomadic empire established by Genghis Khan?",
+        "options": [
+          {
+            "key": "A",
+            "text": "The supreme judicial court of the Great Khan"
+          },
+          {
+            "key": "B",
+            "text": "A rapid courier postal relay system using fresh horses at designated stations"
+          },
+          {
+            "key": "C",
+            "text": "The sacred code of steppe burial rituals"
+          },
+          {
+            "key": "D",
+            "text": "The decimal unit of ten thousand heavy cavalry warriors"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "The 'Yam' was an efficient trans-continental courier communication network established by Genghis Khan using fresh horse relays across Eurasia."
+      }
+    ]
+  },
+  {
+    "id": "ncert-hist-12-c1",
+    "subject": "History",
+    "classNum": 12,
+    "bookTitle": "Themes in Indian History - Part I (Class 12)",
+    "chapterNumber": 2,
+    "chapterTitle": "Kings, Farmers and Towns: Early States and Economies (c. 600 BCE - 600 CE)",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Ancient Epigraphy & Mahajanapadas)",
+    "estimatedReadMinutes": 35,
+    "syllabusUnit": "Second Urbanization, Magadha & Ashokan Inscriptions",
+    "keyConcepts": [
+      "James Prinsep Decipherment of Brahmi & Kharosthi (1838)",
+      "Sixteen Mahajanapadas & Rise of Magadha",
+      "Ashokan Edicts & Dhamma",
+      "Mauryan Administration (Megasthenes & Arthashastra)",
+      "Kushana Coinage & Divine Kingship"
+    ],
+    "highYieldCrux": "600 BCE was an era of second urbanization in the Gangetic plains, emergence of coins (Punch-marked coins), iron tool expansion, and growth of 16 Mahajanapadas. Magadha triumphed due to fertile alluvium, iron deposits at Rajgir, elephant reserves, and strategic water transport along the Ganga and Son.",
+    "mindmapPoints": [
+      "Mahajanapadas: Monarchies (Rajyas) and Ganas/Sanghas (Oligarchies)",
+      "Ashokan Edicts: Major Rock Edicts, Pillar Edicts, Minor Edicts written in Prakrit, Greek, and Aramaic",
+      "Inscriptions: Brahmi read left to right; Kharosthi read right to left",
+      "Gupta Epigraphy: Prayag Prashasti (Allahabad Pillar) composed by Harishena in Sanskrit"
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-h12-1",
+        "questionNumber": 1,
+        "questionText": "With reference to early Indian inscriptions, who among the following deciphered the Brahmi and Kharosthi scripts in 1838, identifying the title 'Piyadassi' with Emperor Ashoka?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Alexander Cunningham"
+          },
+          {
+            "key": "B",
+            "text": "Sir William Jones"
+          },
+          {
+            "key": "C",
+            "text": "James Prinsep"
+          },
+          {
+            "key": "D",
+            "text": "John Marshall"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "James Prinsep, an officer in the mint of the East India Company, deciphered Brahmi and Kharosthi in 1838, unlocking thousands of years of ancient Indian historical records."
+      }
+    ]
+  },
+  {
+    "id": "ncert-hist-12-c2",
+    "subject": "History",
+    "classNum": 12,
+    "bookTitle": "Themes in Indian History - Part II (Class 12)",
+    "chapterNumber": 7,
+    "chapterTitle": "An Imperial Capital: Vijayanagara (Hampi, Mahanavami Dibba & Rayas)",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 (Medieval Architecture & Vijayanagara)",
+    "estimatedReadMinutes": 35,
+    "syllabusUnit": "Southern Kingdoms & Temple Urbanism",
+    "keyConcepts": [
+      "Harihara and Bukka Foundation (1336 CE) along Tungabhadra River",
+      "Four Dynasties: Sangama, Saluva, Tuluva (Krishnadevaraya), Aravidu",
+      "Mahanavami Dibba (Massive ceremonial platform)",
+      "Amara-Nayaka Military Feudal System (derived from Delhi Sultanate Iqtadari)",
+      "Battle of Talikota / Rakshasi-Tangadi (1565 CE)"
+    ],
+    "highYieldCrux": "Vijayanagara stood out for its fortification enclosing agricultural fields, reservoirs (Kamalapuram tank, Hiriya canal), and distinct architectural fusion (Kalyana mandapas, Raya gopurams). The Amara-Nayaka system was a key military innovation where commanders were given territories (amaram) to govern in return for maintaining military contingents.",
+    "mindmapPoints": [
+      "Water Architecture: Hiriya canal and Kamalapuram tank fed by Tungabhadra.",
+      "Mahanavami Dibba: Royal center platform for Navaratri ceremonies, wrestling, and tribute inspection.",
+      "Krishnadevaraya (1509-1529): Composed Amuktamalyada in Telugu; founded Nagalapuram.",
+      "Battle of Talikota (1565): Deccan Sultanates (Bijapur, Golconda, Ahmadnagar) defeated Rama Raya."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-h12-2",
+        "questionNumber": 1,
+        "questionText": "Regarding the administrative and military setup of the Vijayanagara Empire, what was the 'Amara-Nayaka' system?",
+        "options": [
+          {
+            "key": "A",
+            "text": "A guild of maritime spice traders who controlled Coromandel ports"
+          },
+          {
+            "key": "B",
+            "text": "A military command system where commanders were assigned territories to collect revenue and maintain cavalry for the Raya"
+          },
+          {
+            "key": "C",
+            "text": "An advisory council of eight temple priests (Ashtadiggajas)"
+          },
+          {
+            "key": "D",
+            "text": "A hereditary revenue farming syndicate under the Portuguese"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "The Amara-Nayaka system was a major administrative innovation of Vijayanagara, resembling the Sultanate Iqta system, where military commanders collected taxes and maintained troops for the king."
+      }
+    ]
+  },
+  {
+    "id": "ncert-sci-12-c1",
+    "subject": "Science",
+    "classNum": 12,
+    "bookTitle": "Biology (Class 12) - Ecology & Environment",
+    "chapterNumber": 14,
+    "chapterTitle": "Ecosystem: Trophic Levels, Ecological Pyramids & Nutrient Cycling",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 3 (Ecology & Environment)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Ecosystem Thermodynamics & Biogeochemical Cycles",
+    "keyConcepts": [
+      "Lindeman's 10% Trophic Transfer Law",
+      "Inverted Biomass Pyramid in Marine Ecosystems",
+      "Pyramid of Energy (Always Upright)",
+      "Gaseous vs Sedimentary Nutrient Cycles"
+    ],
+    "highYieldCrux": "Energy flow in an ecosystem is always unidirectional and dissipates as metabolic heat, meaning the Pyramid of Energy is NEVER inverted. However, the Pyramid of Biomass in sea/aquatic ecosystems is inverted because phytoplankton have high reproductive turnover but small standing biomass.",
+    "mindmapPoints": [
+      "Pyramid of Energy: Always upright without exception",
+      "Pyramid of Biomass: Upright on land, inverted in open marine waters",
+      "Nutrient Cycles: Carbon/Nitrogen are gaseous; Phosphorus/Sulfur are sedimentary"
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-s12-1",
+        "questionNumber": 1,
+        "questionText": "Which of the following ecological pyramids can NEVER be inverted in any ecosystem under natural conditions?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Pyramid of numbers in a tree ecosystem"
+          },
+          {
+            "key": "B",
+            "text": "Pyramid of biomass in an aquatic lake ecosystem"
+          },
+          {
+            "key": "C",
+            "text": "Pyramid of energy"
+          },
+          {
+            "key": "D",
+            "text": "Pyramid of biomass in an ocean ecosystem"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "The pyramid of energy is always upright because according to the Second Law of Thermodynamics and Lindeman's 10% law, energy is irreversibly lost as heat at each successive trophic transfer."
+      }
+    ]
+  },
+  {
+    "id": "ncert-sci-12-c2",
+    "subject": "Science",
+    "classNum": 12,
+    "bookTitle": "Biology (Class 12) - Ecology & Environment",
+    "chapterNumber": 15,
+    "chapterTitle": "Biodiversity and Conservation: Latitudinal Gradients & The Evil Quartet",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 3 (Biodiversity & Conservation)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Global Species Diversity & Extinction Drivers",
+    "keyConcepts": [
+      "Latitudinal Diversity Gradient (Species diversity decreases from Equator to Poles)",
+      "Alexander von Humboldt's Species-Area Relationship (log S = log C + Z log A)",
+      "The Evil Quartet of Extinction (Habitat loss, Over-exploitation, Alien species invasions, Co-extinctions)",
+      "In-situ (National Parks, Biosphere Reserves) vs Ex-situ (Zoological Parks, Seed Banks, Cryopreservation)"
+    ],
+    "highYieldCrux": "Tropics harbor more species than temperate or polar zones because tropical environments are less seasonal, relatively more constant, and receive more solar energy. Edward Wilson popularized the term 'Biodiversity'. Habitat loss and fragmentation is the most important cause driving animals and plants to extinction.",
+    "mindmapPoints": [
+      "The Evil Quartet: 1. Habitat loss & fragmentation; 2. Over-exploitation; 3. Alien species invasion (Water Hyacinth, Lantana, Nile Perch); 4. Co-extinctions.",
+      "In-situ Conservation: On-site protection (Hotspots, Biosphere Reserves, Wildlife Sanctuaries, Sacred Groves).",
+      "Ex-situ Conservation: Off-site protection (Botanical Gardens, Zoological Parks, Seed Banks, Cryopreservation at -196°C)."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-s12-2",
+        "questionNumber": 1,
+        "questionText": "Which of the following is considered an 'Ex-situ' method of biodiversity conservation?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Biosphere Reserve"
+          },
+          {
+            "key": "B",
+            "text": "National Park"
+          },
+          {
+            "key": "C",
+            "text": "Seed Bank and Cryopreservation facility"
+          },
+          {
+            "key": "D",
+            "text": "Sacred Grove"
+          }
+        ],
+        "correctOption": "C",
+        "explanation": "Ex-situ (off-site) conservation removes threatened species or genetic material from their natural habitat to special protected locations, such as botanical gardens, seed banks, and cryopreservation labs."
+      }
+    ]
+  },
+  {
+    "id": "ncert-econ-12-c1",
+    "subject": "Economy",
+    "classNum": 12,
+    "bookTitle": "Introductory Macroeconomics (Class 12)",
+    "chapterNumber": 3,
+    "chapterTitle": "Money and Banking: Money Creation, SLR, CRR & Repo Rate Mechanisms",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 3 (Monetary Policy & Banking)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Money Multiplier & Central Bank Instruments",
+    "keyConcepts": [
+      "Functions of Money: Medium of Exchange, Unit of Account, Store of Value",
+      "Money Aggregates: M1 (Narrow Money), M2, M3 (Broad Money), M4",
+      "Money Multiplier (1 / Cash Reserve Ratio)",
+      "Qualitative vs Quantitative Instruments of RBI",
+      "Repo Rate, Reverse Repo Rate, Cash Reserve Ratio (CRR), Statutory Liquidity Ratio (SLR)"
+    ],
+    "highYieldCrux": "Commercial banks create credit via the money multiplier formula: Money Multiplier = 1 / Legal Reserve Ratio (LRR). The Reserve Bank of India (RBI) controls high-powered money and liquidity through quantitative measures (Repo rate, CRR, SLR, Open Market Operations) and qualitative controls (margin requirements, moral suasion).",
+    "mindmapPoints": [
+      "M1 = Currency with public + Demand deposits with banking system + 'Other' deposits with RBI.",
+      "M3 (Broad Money) = M1 + Time deposits with commercial banks.",
+      "Repo Rate: Rate at which RBI lends short-term funds to commercial banks against government securities.",
+      "CRR: Cash percentage banks must park with RBI with zero interest return.",
+      "SLR: Percentage of Net Demand and Time Liabilities (NDTL) banks must hold in liquid assets (gold, cash, G-Secs)."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-e12-1",
+        "questionNumber": 1,
+        "questionText": "If the Cash Reserve Ratio (CRR) is lowered by the Reserve Bank of India, what will be its immediate effect on the money creation capacity of commercial banks in the economy?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Money creation capacity decreases"
+          },
+          {
+            "key": "B",
+            "text": "Money creation capacity increases"
+          },
+          {
+            "key": "C",
+            "text": "It has zero impact on money supply"
+          },
+          {
+            "key": "D",
+            "text": "Government tax revenue rises instantly"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Lowering CRR reduces the reserves commercial banks must sterilize with the RBI, freeing up excess loanable funds and expanding the money multiplier (1/CRR), thus increasing credit creation."
+      }
+    ]
+  },
+  {
+    "id": "ncert-pol-12-c1",
+    "subject": "Polity",
+    "classNum": 12,
+    "bookTitle": "Politics in India Since Independence (Class 12)",
+    "chapterNumber": 1,
+    "chapterTitle": "Challenges of Nation Building: Partition, Princely States & States Reorganisation",
+    "upscWeightage": "Very High",
+    "gsPaper": "GS 1 & GS 2 (Post-Independence Consolidation)",
+    "estimatedReadMinutes": 30,
+    "syllabusUnit": "Accession of Princely States & Linguistic Reorganisation",
+    "keyConcepts": [
+      "Three Immediate Challenges: Unity in Diversity, Establishing Democracy, Economic Welfare",
+      "Integration of 565 Princely States (Sardar Vallabhbhai Patel & V.P. Menon)",
+      "Accession of Junagadh (Plebiscite), Hyderabad (Operation Polo), Manipur & Kashmir (Instrument of Accession)",
+      "Potti Sriramulu Hunger Strike & Andhra State Creation (1952)",
+      "States Reorganisation Commission (SRC 1953: Fazl Ali, K.M. Panikkar, H.N. Kunzru)"
+    ],
+    "highYieldCrux": "Sardar Patel employed diplomatic persuasion and firmness using the 'Instrument of Accession'. Following the martyrdom of Potti Sriramulu after a 56-day hunger strike, Andhra became the first linguistic state in December 1952. The States Reorganisation Act 1956 established 14 states and 6 union territories on linguistic lines.",
+    "mindmapPoints": [
+      "Instrument of Accession: Legal document signed by princely rulers transferring defense, foreign affairs, and communications.",
+      "Hyderabad: Razakars private militia suppressed by Indian army under Operation Polo in Sept 1948.",
+      "Manipur: First part of India to hold an election based on universal adult franchise in June 1948.",
+      "SRC 1953: Recommended redrawing state boundaries on linguistic grounds, rejecting 'one language, one state' dogma."
+    ],
+    "quizQuestions": [
+      {
+        "id": "ncert-q-p12-1",
+        "questionNumber": 1,
+        "questionText": "Which was the first state in India to hold an election based on universal adult franchise in June 1948, as documented in NCERT Class 12 Politics?",
+        "options": [
+          {
+            "key": "A",
+            "text": "Travancore"
+          },
+          {
+            "key": "B",
+            "text": "Manipur"
+          },
+          {
+            "key": "C",
+            "text": "Mysore"
+          },
+          {
+            "key": "D",
+            "text": "Hyderabad"
+          }
+        ],
+        "correctOption": "B",
+        "explanation": "Manipur held elections in June 1948 under Maharaja Bodhachandra Singh on the basis of universal adult franchise, becoming a constitutional monarchy before merging with India."
+      }
+    ]
+  }
+]

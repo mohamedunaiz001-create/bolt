@@ -113,6 +113,18 @@
         "primaryNodeId": { "type": "string", "description": "Anchor node ID" },
         "connectedNodeIds": { "type": "array", "description": "Node IDs in cluster" }
       }
+    },
+    "NcertProgress": {
+      "collection": "users/{userId}/ncert_progress",
+      "fields": {
+        "completedChapterIds": { "type": "array", "description": "List of completed NCERT chapter IDs" },
+        "inProgressChapterIds": { "type": "array", "description": "List of chapters currently in progress" },
+        "revisionChapterIds": { "type": "array", "description": "List of chapters flagged for revision" },
+        "chapterStatus": { "type": "map", "description": "Map of chapterId to study status" },
+        "quizScores": { "type": "map", "description": "Map of chapterId to quiz score records" },
+        "lastSelectedChapterId": { "type": "string", "description": "Last active chapter ID" },
+        "updatedAt": { "type": "timestamp", "description": "Last sync timestamp" }
+      }
     }
   }
 }

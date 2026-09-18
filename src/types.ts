@@ -1,4 +1,38 @@
-export type NavigationTab = "home" | "learn" | "knowledge" | "knowledgeGraph" | "prelims" | "mains" | "materials" | "ncert" | "news" | "schedule" | "planner" | "bolt";
+export type NavigationTab =
+  | "home"
+  | "learn"
+  | "knowledge"
+  | "knowledgeGraph"
+  | "prelims"
+  | "mains"
+  | "materials"
+  | "ncert"
+  | "news"
+  | "schedule"
+  | "planner"
+  | "bolt"
+  | "pyqs"
+  | "settings";
+
+export interface HistoricalPyq {
+  id: string;
+  year: number;
+  era: "19th_century" | "pre_independence" | "early_republic" | "modern";
+  eraLabel: string;
+  subject: string;
+  topic: string;
+  isPeripheralArea: boolean;
+  peripheralTag?: string;
+  isCurrentAffairs: boolean;
+  difficulty: "Easy" | "Medium" | "Hard";
+  questionText: string;
+  options: Array<{ key: string; text: string }>;
+  correctOption: string;
+  explanation: string;
+  optionAnalysis?: Array<{ optionKey: string; analysis: string; isCorrect: boolean }>;
+  historicalContext?: string;
+  relatedConcept?: string;
+}
 
 export type GraphNodeType = "topic" | "thinker" | "pyq" | "concept";
 
@@ -152,37 +186,6 @@ export interface ModelRecommendation {
   alternativeModelId?: string;
 }
 
-export type AIProviderId =
-  | "gemini"
-  | "nvidia"
-  | "openrouter"
-  | "groq"
-  | "openai"
-  | "anthropic"
-  | "perplexity"
-  | "local"
-  | "custom";
-
-export interface ProviderKeyConfig {
-  nvidiaApiKey?: string;
-  openrouterApiKey?: string;
-  groqApiKey?: string;
-  openaiApiKey?: string;
-  anthropicApiKey?: string;
-  perplexityApiKey?: string;
-  customBaseUrl?: string;
-  customApiKey?: string;
-  customModelId?: string;
-}
-
-export interface ModelInChargeConfig {
-  provider: AIProviderId;
-  modelId: string;
-  modelName: string;
-  hasAppWideAccess: boolean;
-  teachingMode: "socratic" | "comprehensive" | "revision_coach" | "prelims_driller";
-}
-
 export interface ActiveModelConfig {
   selectedModelId: string;
   modelType: "cloud" | "local";
@@ -193,9 +196,11 @@ export interface ActiveModelConfig {
   systemPromptOverride?: string;
   huggingFaceModelId?: string;
   ollamaModelTag?: string;
-  activeProvider?: AIProviderId;
-  providerKeys?: ProviderKeyConfig;
-  modelInCharge?: ModelInChargeConfig;
+  evaluatorPersona?: "strict_upsc" | "socratic_prelims" | "pubadmin_specialist" | "comprehensive_mentor";
+  reasoningDeliberation?: "fast" | "balanced" | "deep";
+  maxOutputTokens?: number;
+  strict2ndArcCitation?: boolean;
+  crossPaperSynthesis?: boolean;
 }
 
 export interface TrainingConfig {
@@ -432,7 +437,17 @@ export interface MainsAnswerEvaluation {
 export interface NewsArticle {
   id: string;
   date: string;
-  source: "The Hindu" | "PIB" | "The Indian Express" | "Government Sources" | "Editorials";
+  source:
+    | "The Hindu"
+    | "PIB"
+    | "The Indian Express"
+    | "Government Sources"
+    | "Editorials"
+    | "Down To Earth"
+    | "Business Standard"
+    | "LiveLaw"
+    | "PRS Legislative"
+    | "ORF";
   headline: string;
   page?: string;
   gsTags: string[];
@@ -823,6 +838,11 @@ export interface NcertChapter {
   mindmapPoints: string[];
   quizQuestions: NcertQuizQuestion[];
   isCompleted?: boolean;
+  gsPaper?: string;
+  estimatedReadMinutes?: number;
+  status?: "unstudied" | "in_progress" | "completed" | "needs_revision";
+  completedAt?: string;
+  syllabusUnit?: string;
 }
 
 // -------------------------------------------------------------

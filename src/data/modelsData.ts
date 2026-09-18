@@ -45,142 +45,6 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     contextWindow: "1,048,576 tokens",
   },
 
-  // NVIDIA NIM Models (User API Key)
-  {
-    id: "nvidia/meta/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B Instruct (NVIDIA NIM)",
-    type: "cloud",
-    provider: "NVIDIA NIM",
-    parameterSize: "70 Billion",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "NVIDIA TensorRT-LLM FP8/FP16",
-    description: "NVIDIA NIM accelerated enterprise Llama 3.3 70B. High-throughput structured answering with deep UPSC GS and Public Administration conceptual reasoning.",
-    strengths: ["Ultra-fast TensorRT execution", "70B Frontier reasoning", "Strict syllabus adherence", "NVIDIA NIM API Key"],
-    ollamaCommand: "N/A (NVIDIA NIM API)",
-    contextWindow: "128,000 tokens",
-  },
-  {
-    id: "nvidia/deepseek-ai/deepseek-r1",
-    name: "DeepSeek R1 Reasoning (NVIDIA NIM)",
-    type: "cloud",
-    provider: "NVIDIA NIM",
-    parameterSize: "671B Mixture-of-Experts",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "NVIDIA NIM Cloud",
-    description: "State-of-the-art chain-of-thought reasoning model hosted on NVIDIA NIM. Exceptional for evaluating multidimensional Mains questions and 2nd ARC trade-offs.",
-    strengths: ["Deep Chain-of-Thought", "Complex philosophical & ethical arguments", "In-depth rubric scrutiny"],
-    ollamaCommand: "N/A (NVIDIA NIM API)",
-    contextWindow: "64,000 tokens",
-  },
-  {
-    id: "nvidia/mistralai/mixtral-8x22b-instruct-v0.1",
-    name: "Mixtral 8x22B Instruct (NVIDIA NIM)",
-    type: "cloud",
-    provider: "NVIDIA NIM",
-    parameterSize: "141 Billion MoE",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "NVIDIA NIM Cloud",
-    description: "High-capacity sparse mixture-of-experts model on NVIDIA NIM. Excellent at synthesizing administrative case studies and policy drafts.",
-    strengths: ["Extensive domain knowledge", "Dense comparative analysis", "Fast generation"],
-    ollamaCommand: "N/A (NVIDIA NIM API)",
-    contextWindow: "65,536 tokens",
-  },
-
-  // OpenRouter Models (User API Key)
-  {
-    id: "openrouter/anthropic/claude-3.5-sonnet",
-    name: "Claude 3.5 Sonnet (OpenRouter)",
-    type: "cloud",
-    provider: "OpenRouter",
-    parameterSize: "Frontier Cloud",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "Native OpenRouter API",
-    description: "World-class nuanced writing, intellectual precision, and ethical reasoning via OpenRouter. Perfect for essay writing, GS Paper 4, and Mains mentorship.",
-    strengths: ["Superior prose and essay flow", "Subtle ethical evaluation", "Multi-tiered rubric mastery"],
-    ollamaCommand: "N/A (OpenRouter API)",
-    contextWindow: "200,000 tokens",
-  },
-  {
-    id: "openrouter/openai/gpt-4o",
-    name: "GPT-4o Omnimodal (OpenRouter)",
-    type: "cloud",
-    provider: "OpenRouter",
-    parameterSize: "Frontier Cloud",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "Native OpenRouter API",
-    description: "Flagship omnimodal model from OpenAI routed through OpenRouter. Superb general knowledge, historical chronology, and diagram description.",
-    strengths: ["Broad factual grounding", "High speed", "Comprehensive topic graphs"],
-    ollamaCommand: "N/A (OpenRouter API)",
-    contextWindow: "128,000 tokens",
-  },
-  {
-    id: "openrouter/deepseek/deepseek-r1",
-    name: "DeepSeek R1 (OpenRouter)",
-    type: "cloud",
-    provider: "OpenRouter",
-    parameterSize: "671B MoE",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "Native OpenRouter API",
-    description: "Open-weight reasoning powerhouse via OpenRouter. Ideal for deep student tutoring and step-by-step administrative question breakdown.",
-    strengths: ["Exhaustive step-by-step logic", "Cost-effective reasoning", "Full syllabus grasp"],
-    ollamaCommand: "N/A (OpenRouter API)",
-    contextWindow: "64,000 tokens",
-  },
-
-  // Groq Fast Cloud Models (User API Key)
-  {
-    id: "groq/llama-3.3-70b-versatile",
-    name: "Llama 3.3 70B Versatile (Groq LPU)",
-    type: "cloud",
-    provider: "Groq",
-    parameterSize: "70 Billion",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "Groq LPU Engine",
-    description: "Blisteringly fast 300+ tokens/sec inference powered by Groq LPUs. Provides instant real-time student Q&A and instant Prelims fact analysis.",
-    strengths: ["Ultra-fast (300+ tok/sec)", "Real-time conversational flow", "Zero wait times"],
-    ollamaCommand: "N/A (Groq API)",
-    contextWindow: "128,000 tokens",
-  },
-
-  // OpenAI Direct (User API Key)
-  {
-    id: "openai/gpt-4o",
-    name: "OpenAI GPT-4o Direct",
-    type: "cloud",
-    provider: "OpenAI",
-    parameterSize: "Frontier Cloud",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "OpenAI API",
-    description: "Direct connection with your personal OpenAI API key for flagship GPT-4o tutoring and syllabus mentoring.",
-    strengths: ["Official OpenAI API", "High consistency", "Advanced reasoning"],
-    ollamaCommand: "N/A (OpenAI API)",
-    contextWindow: "128,000 tokens",
-  },
-
-  // Anthropic Direct (User API Key)
-  {
-    id: "anthropic/claude-3-5-sonnet-20241022",
-    name: "Anthropic Claude 3.5 Sonnet Direct",
-    type: "cloud",
-    provider: "Anthropic",
-    parameterSize: "Frontier Cloud",
-    minRamGb: 2,
-    minVramGb: 0,
-    recommendedQuant: "Anthropic API",
-    description: "Direct connection with your Anthropic API key. Peerless writing quality, thinker synthesis, and civil service ethics evaluation.",
-    strengths: ["Official Anthropic API", "Nuanced writing", "Detailed feedback"],
-    ollamaCommand: "N/A (Anthropic API)",
-    contextWindow: "200,000 tokens",
-  },
-
   // Local Models (Ollama / Local Inference)
   {
     id: "llama3.1:8b-instruct-q4_K_M",
@@ -304,110 +168,20 @@ export const DEFAULT_LAPTOP_SPECS: LaptopSpecs = {
   storageFreeGb: 45,
 };
 
-export interface ProviderMeta {
-  id: string;
-  name: string;
-  description: string;
-  keyPlaceholder: string;
-  docsUrl: string;
-  supportsCustomEndpoint?: boolean;
-}
-
-export const SUPPORTED_AI_PROVIDERS: ProviderMeta[] = [
-  {
-    id: "gemini",
-    name: "Google Gemini",
-    description: "Built-in primary cloud provider with 1M-2M context tokens and deep UPSC reasoning.",
-    keyPlaceholder: "Managed in AI Studio / Server Environment",
-    docsUrl: "https://ai.google.dev",
-  },
-  {
-    id: "nvidia",
-    name: "NVIDIA NIM",
-    description: "Enterprise TensorRT-LLM hosted models like Llama 3.3 70B & DeepSeek R1.",
-    keyPlaceholder: "nvapi-...",
-    docsUrl: "https://build.nvidia.com",
-  },
-  {
-    id: "openrouter",
-    name: "OpenRouter",
-    description: "Unified gateway to Claude 3.5, GPT-4o, DeepSeek R1, Qwen 2.5, and 100+ models.",
-    keyPlaceholder: "sk-or-v1-...",
-    docsUrl: "https://openrouter.ai/keys",
-  },
-  {
-    id: "groq",
-    name: "Groq LPU",
-    description: "Ultra-fast low-latency inference at 300+ tok/sec for real-time exam drilling.",
-    keyPlaceholder: "gsk_...",
-    docsUrl: "https://console.groq.com/keys",
-  },
-  {
-    id: "openai",
-    name: "OpenAI Direct",
-    description: "Official OpenAI API for GPT-4o, GPT-4o Mini, and O1 reasoning models.",
-    keyPlaceholder: "sk-proj-...",
-    docsUrl: "https://platform.openai.com/api-keys",
-  },
-  {
-    id: "anthropic",
-    name: "Anthropic Direct",
-    description: "Official Anthropic API for Claude 3.5 Sonnet, Opus, and Haiku models.",
-    keyPlaceholder: "sk-ant-...",
-    docsUrl: "https://console.anthropic.com/settings/keys",
-  },
-  {
-    id: "perplexity",
-    name: "Perplexity AI",
-    description: "Search-augmented reasoning models with real-time web citations for UPSC current affairs.",
-    keyPlaceholder: "pplx-...",
-    docsUrl: "https://www.perplexity.ai/settings/api",
-  },
-  {
-    id: "local",
-    name: "Local Ollama / vLLM",
-    description: "Private offline inference running directly on your laptop or local GPU.",
-    keyPlaceholder: "Default: http://localhost:11434",
-    docsUrl: "https://ollama.com",
-  },
-  {
-    id: "custom",
-    name: "Custom OpenAI-Compatible Endpoint",
-    description: "Any self-hosted or alternative provider (vLLM, LMStudio, Together AI, DeepInfra).",
-    keyPlaceholder: "Bearer token / api key",
-    docsUrl: "#",
-    supportsCustomEndpoint: true,
-  },
-];
-
 export const DEFAULT_ACTIVE_MODEL_CONFIG: ActiveModelConfig = {
   selectedModelId: "gemini-3.8-flash",
   modelType: "cloud",
   localEndpoint: "http://localhost:11434",
   temperature: 0.7,
-  contextWindowTokens: 16384,
+  contextWindowTokens: 32768,
   activeAdapter: "bolt-upsc-pubadmin-adapter-v1",
   huggingFaceModelId: "meta-llama/Meta-Llama-3.1-8B-Instruct",
   ollamaModelTag: "llama3.1:8b-instruct-q4_K_M",
-  activeProvider: "gemini",
-  providerKeys: {
-    nvidiaApiKey: "",
-    openrouterApiKey: "",
-    groqApiKey: "",
-    openaiApiKey: "",
-    anthropicApiKey: "",
-    perplexityApiKey: "",
-    customBaseUrl: "https://api.openai.com/v1",
-    customApiKey: "",
-    customModelId: "",
-  },
-  modelInCharge: {
-    provider: "gemini",
-    modelId: "gemini-3.8-flash",
-    modelName: "Gemini 3.8 Flash (Chief Mentor)",
-    hasAppWideAccess: true,
-    teachingMode: "socratic",
-  },
+  evaluatorPersona: "strict_upsc",
+  reasoningDeliberation: "balanced",
+  maxOutputTokens: 4096,
+  strict2ndArcCitation: true,
+  crossPaperSynthesis: true,
 };
 
 export const DEFAULT_TRAINING_CONFIG: TrainingConfig = {

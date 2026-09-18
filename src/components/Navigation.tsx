@@ -24,6 +24,7 @@ import {
   Moon,
   Terminal,
   Upload,
+  History,
 } from "lucide-react";
 import { NavigationTab, UserProfile, ActiveModelConfig, AppThemeMode } from "../types";
 import { AVAILABLE_MODELS } from "../data/modelsData";
@@ -167,6 +168,17 @@ export const Navigation: React.FC<NavigationProps> = ({
               <span>Prelims Practice</span>
             </button>
             <button
+              onClick={() => setActiveTab("pyqs")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                activeTab === "pyqs"
+                  ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm ring-1 ring-amber-400/40"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <History className="w-3.5 h-3.5 text-amber-400" />
+              <span>PYQs (1855–2026)</span>
+            </button>
+            <button
               onClick={() => setActiveTab("mains")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
                 activeTab === "mains"
@@ -220,6 +232,17 @@ export const Navigation: React.FC<NavigationProps> = ({
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>Study Planner & Timetable</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                activeTab === "settings"
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm ring-1 ring-purple-400/50"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <Settings className="w-3.5 h-3.5 text-purple-400" />
+              <span>Settings</span>
             </button>
           </nav>
 
@@ -297,9 +320,13 @@ export const Navigation: React.FC<NavigationProps> = ({
 
             {/* Settings (Model & Specs) */}
             <button
-              onClick={onOpenSettings}
-              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/60 transition-colors"
-              title="Model Configuration & Laptop Specs"
+              onClick={() => setActiveTab("settings")}
+              className={`p-2 rounded-lg transition-colors ${
+                activeTab === "settings"
+                  ? "bg-purple-600/30 text-purple-400 border border-purple-500/40"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              }`}
+              title="System & AI Model Settings"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -356,7 +383,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <button
                       onClick={() => {
                         setIsProfileMenuOpen(false);
-                        onOpenSettings();
+                        setActiveTab("settings");
                       }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 transition-colors"
                     >
@@ -367,7 +394,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <button
                       onClick={() => {
                         setIsProfileMenuOpen(false);
-                        onOpenSettings();
+                        setActiveTab("settings");
                       }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 transition-colors"
                     >
@@ -491,6 +518,16 @@ export const Navigation: React.FC<NavigationProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab("pyqs")}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
+              activeTab === "pyqs" ? "text-amber-400" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <History className="w-5 h-5 mb-0.5 text-amber-400" />
+            <span className="text-[10px] font-medium">PYQs</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab("mains")}
             className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
               activeTab === "mains" ? "text-blue-400" : "text-slate-400 hover:text-slate-200"
@@ -550,6 +587,16 @@ export const Navigation: React.FC<NavigationProps> = ({
               <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
             </div>
             <span className="text-[10px] font-semibold">Bolt</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
+              activeTab === "settings" ? "text-purple-400 font-bold" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Settings className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-medium">Settings</span>
           </button>
         </div>
       </div>

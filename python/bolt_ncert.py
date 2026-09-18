@@ -391,6 +391,18 @@ NCERT_CHAPTERS: List[Dict[str, Any]] = [
     },
 ]
 
+import os
+
+_DATA_PATH = os.path.join(os.path.dirname(__file__), "ncert_data.json")
+if os.path.exists(_DATA_PATH):
+    try:
+        with open(_DATA_PATH, "r", encoding="utf-8") as f:
+            _loaded = json.load(f)
+            if isinstance(_loaded, list) and len(_loaded) > 0:
+                NCERT_CHAPTERS = _loaded
+    except Exception as e:
+        sys.stderr.write(f"Warning: could not load {_DATA_PATH}: {e}\n")
+
 
 def get_ncert_chapters(subject: str = None, class_num: int = None) -> List[Dict[str, Any]]:
     """Filters NCERT chapters based on subject and class."""

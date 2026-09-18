@@ -6,7 +6,7 @@ import {
   StudySessionLog,
   UserFullProgressData,
 } from "../types";
-import { publicAdminSyllabus } from "../data/mockData";
+import { publicAdminSyllabus } from "../data/upscData";
 import { DEFAULT_TIMETABLE_SLOTS } from "../data/timetableData";
 import {
   auth,

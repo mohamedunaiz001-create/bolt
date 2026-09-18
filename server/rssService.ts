@@ -4,7 +4,7 @@ import { NewsArticle } from "../src/types";
 export interface RssFeedPreset {
   id: string;
   name: string;
-  source: "The Hindu" | "PIB" | "The Indian Express" | "Government Sources" | "Editorials";
+  source: NewsArticle["source"];
   url: string;
   category: string;
   description: string;
@@ -26,22 +26,6 @@ export const POPULAR_UPSC_FEEDS: RssFeedPreset[] = [
     url: "https://www.thehindu.com/news/national/feeder/default.rss",
     category: "National Affairs",
     description: "Policy announcements, Supreme Court judgments, and parliamentary debates.",
-  },
-  {
-    id: "et-economy",
-    name: "Economic Times - Economy & Policy",
-    source: "Government Sources",
-    url: "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms",
-    category: "Economy & Governance",
-    description: "Macroeconomic data, fiscal reforms, RBI circulars, and trade policy updates.",
-  },
-  {
-    id: "livemint-policy",
-    name: "Livemint - Politics & Governance",
-    source: "Government Sources",
-    url: "https://www.livemint.com/rss/politics",
-    category: "Governance & Polity",
-    description: "Executive orders, state legislative actions, and public administration reviews.",
   },
   {
     id: "pib-releases",
@@ -66,6 +50,62 @@ export const POPULAR_UPSC_FEEDS: RssFeedPreset[] = [
     url: "https://indianexpress.com/section/opinion/editorials/feed/",
     category: "Opinion & Critique",
     description: "Expert commentary on domestic politics, judicial appointments, and foreign policy.",
+  },
+  {
+    id: "dte-environment",
+    name: "Down To Earth - Environment & Climate",
+    source: "Down To Earth",
+    url: "https://www.downtoearth.org.in/rss/environment",
+    category: "Environment & Ecology (GS 3)",
+    description: "In-depth investigative reports on climate change, biodiversity, and wildlife conservation.",
+  },
+  {
+    id: "livelaw-sc",
+    name: "LiveLaw - Supreme Court & Constitutional Law",
+    source: "LiveLaw",
+    url: "https://www.livelaw.in/rss/top-stories",
+    category: "Polity & Judiciary (GS 2)",
+    description: "Authoritative jurisprudence, constitutional bench verdicts, and judicial reviews.",
+  },
+  {
+    id: "prs-policy",
+    name: "PRS Legislative Research - Bills & Acts",
+    source: "PRS Legislative",
+    url: "https://prsindia.org/rss/articles",
+    category: "Parliament & Legislation (GS 2)",
+    description: "Objective analysis of parliamentary bills, committee reports, and policy agendas.",
+  },
+  {
+    id: "bs-economy",
+    name: "Business Standard - Economy & Fiscal Policy",
+    source: "Business Standard",
+    url: "https://www.business-standard.com/rss/economy-policy-10201.rss",
+    category: "Macroeconomics & Trade (GS 3)",
+    description: "Critical fiscal deficits, monetary transmission, manufacturing, and global trade metrics.",
+  },
+  {
+    id: "orf-strategy",
+    name: "Observer Research Foundation - Strategic Affairs",
+    source: "ORF",
+    url: "https://www.orfonline.org/rss/feed",
+    category: "International Relations (GS 2)",
+    description: "Geopolitical alignments, Indo-Pacific dynamics, multilateral diplomacy, and defense.",
+  },
+  {
+    id: "et-economy",
+    name: "Economic Times - Economy & Policy",
+    source: "Government Sources",
+    url: "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms",
+    category: "Economy & Governance",
+    description: "Macroeconomic data, fiscal reforms, RBI circulars, and trade policy updates.",
+  },
+  {
+    id: "livemint-policy",
+    name: "Livemint - Politics & Governance",
+    source: "Government Sources",
+    url: "https://www.livemint.com/rss/politics",
+    category: "Governance & Polity",
+    description: "Executive orders, state legislative actions, and public administration reviews.",
   },
 ];
 
@@ -93,11 +133,21 @@ export function detectSourceFromUrl(url: string, explicitSource?: string): NewsA
     if (explicitSource.includes("Hindu")) return "The Hindu";
     if (explicitSource.includes("PIB")) return "PIB";
     if (explicitSource.includes("Express")) return "The Indian Express";
+    if (explicitSource.includes("Down To Earth") || explicitSource.includes("DTE")) return "Down To Earth";
+    if (explicitSource.includes("LiveLaw")) return "LiveLaw";
+    if (explicitSource.includes("PRS")) return "PRS Legislative";
+    if (explicitSource.includes("Business Standard")) return "Business Standard";
+    if (explicitSource.includes("ORF")) return "ORF";
     if (explicitSource.includes("Editorial")) return "Editorials";
     return "Government Sources";
   }
 
   const lowUrl = url.toLowerCase();
+  if (lowUrl.includes("downtoearth.org.in")) return "Down To Earth";
+  if (lowUrl.includes("livelaw.in")) return "LiveLaw";
+  if (lowUrl.includes("prsindia.org")) return "PRS Legislative";
+  if (lowUrl.includes("business-standard.com")) return "Business Standard";
+  if (lowUrl.includes("orfonline.org")) return "ORF";
   if (lowUrl.includes("thehindu.com")) return "The Hindu";
   if (lowUrl.includes("pib.gov.in")) return "PIB";
   if (lowUrl.includes("indianexpress.com")) return "The Indian Express";
@@ -550,6 +600,209 @@ function getFallbackFeedData(source: NewsArticle["source"], category?: string): 
           "Financial inclusion, rural credit, and Digital Public Infrastructure in GS Paper 3.",
         possibleMainsQuestion:
           "Digital Public Infrastructure (DPI) has revolutionized payments through UPI. Can the Unified Lending Interface (ULI) replicate similar democratization in rural credit access? Analyze. (15 Marks)",
+      },
+    },
+    {
+      id: `dte-live-1-${Date.now()}`,
+      date: today,
+      source: "Down To Earth",
+      headline: "Western Ghats Ecologically Sensitive Areas (ESA): Balancing Livelihoods and Habitat Protection",
+      page: "Down To Earth • Wildlife & Biodiversity",
+      gsTags: ["GS 3 (Environment & Ecology)", "GS 1 (Geography)"],
+      prelimsTag: true,
+      summary:
+        "The Ministry of Environment, Forest and Climate Change has issued updated draft notifications delineating Ecologically Sensitive Areas (ESAs) across six Western Ghats states, reigniting the debate between Madhav Gadgil and K. Kasturirangan recommendations.",
+      keyHighlights: [
+        "Western Ghats is one of 36 global biodiversity hotspots spanning 1,600 km across six Indian states.",
+        "Kasturirangan Committee recommended 37% of Western Ghats as natural landscape ESA, whereas Gadgil Committee recommended 64%.",
+        "Prohibits red-category polluting industries, new commercial mining, and township construction in core zones.",
+      ],
+      infographic: {
+        title: "Western Ghats Ecological Delineation",
+        mainAnchor: "Gadgil (2011) vs Kasturirangan (2013)",
+        effectiveDate: "Draft ESA Notification",
+        cards: [
+          { title: "Gadgil Committee", subtitle: "Categorized entire Ghats into WGESA 1, 2 & 3", value: "64% Area" },
+          { title: "Kasturirangan Panel", subtitle: "Separated cultural vs natural landscapes", value: "37% Area" },
+          { title: "Statutory Base", subtitle: "Environment (Protection) Act 1986 Sec 3", value: "Sec 3(2)(v)" },
+          { title: "Biodiversity", subtitle: "UNESCO World Heritage Site with high endemism", value: "Hotspot" },
+        ],
+        themes: ["Ecology", "Western Ghats", "Gadgil vs Kasturirangan", "ESA"],
+      },
+      detailedInsights: [
+        "High-priority recurring topic in UPSC Prelims environment section.",
+        "Crucial for Mains GS 3 ecological balance versus developmental aspirations of riparian states.",
+      ],
+      keyConceptsInvolved: ["Ecologically Sensitive Area", "Madhav Gadgil Report", "Kasturirangan Committee", "EPA 1986"],
+      upscRelevance: {
+        prelimsFact:
+          "The term 'Ecologically Sensitive Area' (ESA) is not defined in the Environment (Protection) Act 1986 itself; it is notified by the Central Government under Section 3(2)(v) of the Act.",
+        mainsRelevance:
+          "Core environmental governance and federal cooperative environmentalism in GS Paper 3.",
+        possibleMainsQuestion:
+          "Examine the key divergences between the Madhav Gadgil Committee and K. Kasturirangan Commission reports on the Western Ghats. How can ecological preservation be reconciled with regional economic aspirations? (15 Marks)",
+      },
+    },
+    {
+      id: `livelaw-live-1-${Date.now()}`,
+      date: today,
+      source: "LiveLaw",
+      headline: "Supreme Court Clarifies Constitutional Limits of Article 200: Governor Cannot Sit Indefinitely on State Bills",
+      page: "LiveLaw • Constitutional Jurisprudence",
+      gsTags: ["GS 2 (Polity & Governance)", "GS 2 (Federalism)"],
+      prelimsTag: true,
+      summary:
+        "The Supreme Court bench held that Governors must act 'as soon as possible' under the first proviso to Article 200 when presented with legislative bills, reinforcing that gubernatorial inaction cannot obstruct representative democracy.",
+      keyHighlights: [
+        "Article 200 provides four constitutional options to the Governor: assent, withhold assent, reserve for President, or return for reconsideration.",
+        "The phrase 'as soon as possible' conveys constitutional urgency and precludes pocket veto by gubernatorial holders.",
+        "Reiterates that the Governor is a titular constitutional head bound by the aid and advice of the Council of Ministers (Article 163).",
+      ],
+      infographic: {
+        title: "Article 200 Gubernatorial Powers",
+        mainAnchor: "Aid & Advice vs Discretion",
+        effectiveDate: "Supreme Court Constitutional Ruling",
+        cards: [
+          { title: "Option 1: Assent", subtitle: "Bill becomes valid statute", value: "Standard" },
+          { title: "Option 2: Return", subtitle: "Reconsideration by legislature", value: "Proviso 1" },
+          { title: "Option 3: Reserve", subtitle: "Reserved for Presidential Consideration", value: "Art 201" },
+          { title: "Discretion Limit", subtitle: "Cannot pocket-veto representative acts", value: "Curtailed" },
+        ],
+        themes: ["Article 200", "Gubernatorial Powers", "Federalism", "Separation of Powers"],
+      },
+      detailedInsights: [
+        "Vital topic for GS 2 Polity: Center-State relations and Gubernatorial role.",
+        "Connects with recommendations of Sarkaria Commission (1988) and Punchhi Commission (2010).",
+      ],
+      keyConceptsInvolved: ["Article 200", "Article 201", "Article 163", "Sarkaria Commission", "Punchhi Commission"],
+      upscRelevance: {
+        prelimsFact:
+          "If a returned bill is passed again by the state legislature with or without amendment, the Governor has NO discretion and MUST give assent under the first proviso to Article 200.",
+        mainsRelevance:
+          "Indispensable for GS 2 questions on federal frictions and gubernatorial constitutional office.",
+        possibleMainsQuestion:
+          "Critically evaluate the scope and constitutional limits of the Governor's discretion under Article 200 in light of recent Supreme Court pronouncements. (15 Marks)",
+      },
+    },
+    {
+      id: `prs-live-1-${Date.now()}`,
+      date: today,
+      source: "PRS Legislative",
+      headline: "PRS Policy Review: Digital Personal Data Protection Act Implementation and Subordinate Rules",
+      page: "PRS Legislative • Parliament Brief",
+      gsTags: ["GS 2 (Governance & Rights)", "GS 3 (Cyber Security)"],
+      prelimsTag: true,
+      summary:
+        "PRS Legislative Research analyzes the draft subordinate rules framed under the Digital Personal Data Protection (DPDP) Act 2023, outlining data fiduciary obligations and Data Protection Board adjudication procedures.",
+      keyHighlights: [
+        "Sets clear compliance timelines for Significant Data Fiduciaries (SDFs) regarding data audits and privacy impact assessments.",
+        "Prescribes statutory procedures for verifiable parental consent for processing children's personal data.",
+        "Structure of the Data Protection Board of India as an appellate adjudicatory civil tribunal.",
+      ],
+      infographic: {
+        title: "DPDP Statutory Architecture",
+        mainAnchor: "DPDP Act 2023 & Subordinate Rules",
+        effectiveDate: "Statutory Rules Framework",
+        cards: [
+          { title: "Data Principal", subtitle: "Individual whose data is processed", value: "Owner" },
+          { title: "Data Fiduciary", subtitle: "Entity determining means and purpose", value: "Entity" },
+          { title: "DPB of India", subtitle: "Appeals lie to TDSAT", value: "Appellate" },
+          { title: "Penalties", subtitle: "Up to ₹250 crore per violation", value: "Financial" },
+        ],
+        themes: ["Data Privacy", "DPDP Act", "Puttaswamy Judgment", "Data Protection Board"],
+      },
+      detailedInsights: [
+        "Essential for GS 2 Citizen Rights and GS 3 Cyber Security & Digital Economy.",
+        "Traces origin to the landmark K.S. Puttaswamy (2017) nine-judge privacy bench.",
+      ],
+      keyConceptsInvolved: ["DPDP Act 2023", "Data Protection Board", "K.S. Puttaswamy", "TDSAT"],
+      upscRelevance: {
+        prelimsFact:
+          "Under the DPDP Act 2023, appeals against any decision or order of the Data Protection Board of India lie before the Telecom Disputes Settlement and Appellate Tribunal (TDSAT).",
+        mainsRelevance:
+          "Right to privacy, data sovereignty, and regulatory governance in GS 2 and GS 3.",
+        possibleMainsQuestion:
+          "Analyze the institutional architecture of the Data Protection Board under the DPDP Act 2023. Does it sufficiently balance data innovation with constitutional privacy guarantees? (15 Marks)",
+      },
+    },
+    {
+      id: `bs-live-1-${Date.now()}`,
+      date: today,
+      source: "Business Standard",
+      headline: "Business Standard: Macroeconomic Capex Multiplier and Gross Fixed Capital Formation (GFCF) Trends",
+      page: "Business Standard • Macroeconomy",
+      gsTags: ["GS 3 (Economy & Fiscal Policy)"],
+      prelimsTag: true,
+      summary:
+        "Analysis of public capital expenditure surge and its crowding-in effect on private investment, with Gross Fixed Capital Formation (GFCF) sustaining over 31% of GDP.",
+      keyHighlights: [
+        "Fiscal capex multiplier estimated at 2.45x by RBI studies, far exceeding revenue expenditure multiplier of 0.92x.",
+        "Crowding-in effect visible across core infrastructure, steel, and renewable power capacity additions.",
+        "Fiscal consolidation roadmap aligns with target fiscal deficit below 4.5% of GDP.",
+      ],
+      infographic: {
+        title: "Capital Expenditure & Growth Dynamics",
+        mainAnchor: "Capex Multiplier vs Revenue Deficit",
+        effectiveDate: "Macroeconomic Review",
+        cards: [
+          { title: "Capex Multiplier", subtitle: "Estimated long-run GDP stimulus", value: "2.45x" },
+          { title: "Revenue Multiplier", subtitle: "Consumption-oriented stimulus", value: "0.92x" },
+          { title: "GFCF Rate", subtitle: "Gross Fixed Capital Formation / GDP", value: "31.2%" },
+          { title: "FRBM Target", subtitle: "Medium-term consolidation trajectory", value: "<4.5%" },
+        ],
+        themes: ["Capex Multiplier", "GFCF", "FRBM Act", "Crowding-In Effect"],
+      },
+      detailedInsights: [
+        "Frequent UPSC Prelims testing area: Capital vs Revenue Expenditure, GFCF, and FRBM targets.",
+      ],
+      keyConceptsInvolved: ["Capex Multiplier", "GFCF", "Crowding-In Effect", "FRBM Act 2003"],
+      upscRelevance: {
+        prelimsFact:
+          "Gross Fixed Capital Formation (GFCF) is the net increase in physical assets (infrastructure, machinery, equipment) within an accounting period, excluding land purchases and financial assets.",
+        mainsRelevance:
+          "Quality of government expenditure and economic growth in GS Paper 3.",
+        possibleMainsQuestion:
+          "'A capital expenditure-led growth model is fiscally superior to revenue-driven demand stimulus in developing economies.' Elaborate with reference to India's fiscal strategy. (15 Marks)",
+      },
+    },
+    {
+      id: `orf-live-1-${Date.now()}`,
+      date: today,
+      source: "ORF",
+      headline: "Observer Research Foundation: India's Middle East-Europe Economic Corridor (IMEC) Strategic Architecture",
+      page: "ORF • Strategic Affairs",
+      gsTags: ["GS 2 (International Relations)", "GS 3 (Infrastructure & Logistics)"],
+      prelimsTag: true,
+      summary:
+        "ORF strategic assessment evaluates the resilience of the India-Middle East-Europe Economic Corridor (IMEC) as a multi-modal transit connectivity counterweight to China's Belt and Road Initiative (BRI).",
+      keyHighlights: [
+        "Unveiled at the New Delhi G20 Leaders Summit 2023 under the Partnership for Global Infrastructure and Investment (PGII).",
+        "Includes two distinct corridors: East corridor connecting India to Arabian Gulf, and Northern corridor connecting Gulf to Europe.",
+        "Integrates railway networks, high-speed digital data cables, and clean hydrogen pipeline export infrastructure.",
+      ],
+      infographic: {
+        title: "IMEC Strategic Connectivity Rails",
+        mainAnchor: "G20 New Delhi PGII Initiative",
+        effectiveDate: "Strategic Corridor Brief",
+        cards: [
+          { title: "Eastern Corridor", subtitle: "Indian ports to UAE/Saudi Gulf ports", value: "Maritime" },
+          { title: "Northern Corridor", subtitle: "Gulf rail network to Haifa & Europe", value: "Rail/Ship" },
+          { title: "Digital Rails", subtitle: "Cross-border high-bandwidth fiber", value: "Telecom" },
+          { title: "Clean Energy", subtitle: "Green hydrogen pipeline infrastructure", value: "Energy" },
+        ],
+        themes: ["IMEC", "PGII", "G20 New Delhi", "Indo-Pacific", "Haifa Port"],
+      },
+      detailedInsights: [
+        "Top-tier GS 2 IR theme: Connectivity initiatives, West Asia diplomacy, and strategic autonomy.",
+      ],
+      keyConceptsInvolved: ["IMEC", "PGII", "G20 New Delhi Declaration", "Chabahar vs IMEC"],
+      upscRelevance: {
+        prelimsFact:
+          "IMEC is part of the G7's Partnership for Global Infrastructure and Investment (PGII) launched to mobilize $600 billion in global infrastructure by 2027.",
+        mainsRelevance:
+          "Indo-Pacific connectivity, supply chain diversification, and West Asia foreign policy in GS 2.",
+        possibleMainsQuestion:
+          "Critically examine the geopolitical and economic significance of the India-Middle East-Europe Economic Corridor (IMEC) for India's trade resilience and strategic posture. (15 Marks)",
       },
     },
   ];

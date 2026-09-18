@@ -415,3 +415,54 @@ export async function deleteKnowledgeGraphEdge(edgeId: string): Promise<boolean>
     return false;
   }
 }
+
+// ----------------------------------------------------
+// NCERT FOUNDATION CURRICULUM PROGRESS OPERATIONS
+// ----------------------------------------------------
+
+export interface NcertProgressRecord {
+  completedChapterIds: string[];
+  inProgressChapterIds: string[];
+  revisionChapterIds: string[];
+  chapterStatus: Record<string, "unstudied" | "in_progress" | "completed" | "needs_revision">;
+  quizScores: Record<string, { score: number; maxScore: number; timestamp: string }>;
+  lastSelectedChapterId?: string;
+  updatedAt?: any;
+}
+
+export async function saveFirebaseNcertProgress(
+  uid: string,
+  progress: Partial<NcertProgressRecord>
+): Promise<void> {
+  if (!uid) return;
+  try {
+    const ncertDocRef = doc(db, "users", uid, "ncert_progress", "foundation_curriculum");
+    await setDoc(
+      ncertDocRef,
+      {
+        ...progress,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.info("Firebase NCERT progress save info:", err);
+  }
+}
+
+export async function getFirebaseNcertProgress(
+  uid: string
+): Promise<NcertProgressRecord | null> {
+  if (!uid) return null;
+  try {
+    const ncertDocRef = doc(db, "users", uid, "ncert_progress", "foundation_curriculum");
+    const snap = await getDoc(ncertDocRef);
+    if (snap.exists()) {
+      return snap.data() as NcertProgressRecord;
+    }
+  } catch (err) {
+    console.info("Firebase NCERT progress fetch info:", err);
+  }
+  return null;
+}
+

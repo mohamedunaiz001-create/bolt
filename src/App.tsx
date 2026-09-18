@@ -11,16 +11,17 @@ import { KnowledgeBaseView } from "./components/KnowledgeBaseView";
 import { KnowledgeGraphVisualization } from "./components/KnowledgeGraphVisualization";
 import { MaterialUploadAndQuizView } from "./components/MaterialUploadAndQuizView";
 import { NcertFoundationView } from "./components/NcertFoundationView";
+import { HistoricalPyqView } from "./components/HistoricalPyqView";
 import { PythonEngineConsoleModal } from "./components/PythonEngineConsoleModal";
 import { SettingsModal } from "./components/SettingsModal";
+import { SettingsView } from "./components/SettingsView";
 import { AuthModal } from "./components/AuthModal";
 import {
   initialUserProfile,
   publicAdminSyllabus,
   prelimsPracticeQuestions,
   mainsPYQsList,
-  mockNewsArticles,
-} from "./data/mockData";
+} from "./data/upscData";
 import { DEFAULT_TIMETABLE_SLOTS } from "./data/timetableData";
 import {
   NavigationTab,
@@ -130,7 +131,7 @@ export default function App() {
       const saved = localStorage.getItem("bolt_news_articles");
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    return mockNewsArticles;
+    return [];
   });
 
   // Timetable slots
@@ -501,6 +502,10 @@ export default function App() {
           />
         )}
 
+        {activeTab === "pyqs" && (
+          <HistoricalPyqView onAskBoltQuestion={handleAskBolt} />
+        )}
+
         {activeTab === "mains" && (
           <MainsEvaluationView
             modelAnswers={modelAnswers}
@@ -560,7 +565,23 @@ export default function App() {
             initialPrompt={boltInitialPrompt}
             onClearInitialPrompt={() => setBoltInitialPrompt(null)}
             activeModelConfig={activeModelConfig}
-            onOpenModelSettings={() => setIsSettingsOpen(true)}
+            onOpenModelSettings={() => setActiveTab("settings")}
+          />
+        )}
+
+        {activeTab === "settings" && (
+          <SettingsView
+            user={user}
+            onUpdateUser={handleUpdateUser}
+            activeModelConfig={activeModelConfig}
+            onUpdateActiveModelConfig={handleUpdateActiveModelConfig}
+            onOpenAuth={(mode) => {
+              setAuthModalMode(mode || "signin");
+              setIsAuthModalOpen(true);
+            }}
+            themeMode={themeMode}
+            onToggleTheme={handleToggleTheme}
+            onNavigate={(tab) => setActiveTab(tab)}
           />
         )}
       </main>

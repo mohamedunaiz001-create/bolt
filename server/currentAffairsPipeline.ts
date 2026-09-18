@@ -105,7 +105,7 @@ export async function executeNewsIngestionPipeline(): Promise<{
   const sources: string[] = [];
   let collected: NewsArticle[] = [];
 
-  for (const feed of POPULAR_UPSC_FEEDS.slice(0, 4)) {
+  for (const feed of POPULAR_UPSC_FEEDS) {
     try {
       const result = await fetchAndParseRssFeed(feed.url, feed.source);
       if (result.articles && result.articles.length > 0) {
