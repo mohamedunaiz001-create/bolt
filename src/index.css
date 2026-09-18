@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-display: 'Outfit', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  
+  body {
+    font-family: var(--font-sans);
+    background-color: #0b0f17;
+    color: #f1f5f9;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  body.theme-light {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  body.theme-dark {
+    background-color: #060911;
+    color: #f8fafc;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0f17;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+.theme-light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.theme-light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* =========================================================
+   LIGHT READING MODE ACCESSIBILITY STYLING OVERRIDES
+   ========================================================= */
+
+.theme-light {
+  color-scheme: light;
+}
+
+/* Light Mode Canvas Backgrounds */
+.theme-light .bg-\[\#090d14\],
+.theme-light .bg-\[\#090d16\],
+.theme-light .bg-\[\#0b0f17\],
+.theme-light .bg-\[\#0c101a\],
+.theme-light .bg-\[\#0d111a\],
+.theme-light .bg-\[\#0d121c\],
+.theme-light .bg-\[\#0e141f\],
+.theme-light .bg-\[\#0e1422\],
+.theme-light .bg-\[\#0f1522\],
+.theme-light .bg-\[\#101624\],
+.theme-light .bg-\[\#101726\],
+.theme-light .bg-\[\#111723\],
+.theme-light .bg-\[\#111726\],
+.theme-light .bg-\[\#11191e\],
+.theme-light .bg-\[\#121826\],
+.theme-light .bg-\[\#131a29\],
+.theme-light .bg-\[\#141b27\],
+.theme-light .bg-\[\#141b2a\],
+.theme-light .bg-\[\#141d2d\],
+.theme-light .bg-\[\#151118\],
+.theme-light .bg-\[\#151b28\],
+.theme-light .bg-\[\#151c2c\],
+.theme-light .bg-\[\#161d2d\],
+.theme-light .bg-slate-900,
+.theme-light .bg-slate-950 {
+  background-color: #ffffff !important;
+}
+
+/* Secondary Panels, Cards, Inset Boxes, & Active Items */
+.theme-light .bg-\[\#162033\],
+.theme-light .bg-\[\#162238\],
+.theme-light .bg-\[\#182133\],
+.theme-light .bg-\[\#182337\],
+.theme-light .bg-\[\#182338\],
+.theme-light .bg-\[\#19253b\],
+.theme-light .bg-\[\#1d2b45\],
+.theme-light .bg-\[\#1e293b\],
+.theme-light .bg-\[\#1f2c42\],
+.theme-light .bg-\[\#1f2d48\],
+.theme-light .bg-\[\#201520\],
+.theme-light .bg-\[\#202f4a\],
+.theme-light .bg-\[\#20304c\],
+.theme-light .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+}
+
+/* Light Mode Borders */
+.theme-light .border-slate-800,
+.theme-light .border-slate-700,
+.theme-light .border-\[\#1e293b\],
+.theme-light .border-\[\#222f48\],
+.theme-light .border-blue-900\/30,
+.theme-light .border-blue-900\/50,
+.theme-light .border-purple-900\/30,
+.theme-light .border-amber-900\/30 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Light Mode Hover States */
+.theme-light .hover\:bg-\[\#1d2b45\]:hover,
+.theme-light .hover\:bg-slate-800:hover,
+.theme-light .hover\:bg-slate-800\/60:hover,
+.theme-light .hover\:bg-slate-700:hover,
+.theme-light .hover\:bg-\[\#162033\]:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* High-Legibility Typography in Light Reading Mode */
+.theme-light .text-white,
+.theme-light .text-slate-100,
+.theme-light .text-slate-200 {
+  color: #0f172a !important;
+}
+
+.theme-light .text-slate-300 {
+  color: #1e293b !important;
+}
+
+.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+
+.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Tinted text enhancements for light background accessibility */
+.theme-light .text-blue-300,
+.theme-light .text-blue-200 {
+  color: #1d4ed8 !important;
+}
+
+.theme-light .text-emerald-300,
+.theme-light .text-emerald-200 {
+  color: #047857 !important;
+}
+
+.theme-light .text-amber-300,
+.theme-light .text-amber-200 {
+  color: #b45309 !important;
+}
+
+.theme-light .text-purple-300,
+.theme-light .text-purple-200 {
+  color: #7e22ce !important;
+}
+
+.theme-light .text-red-300,
+.theme-light .text-red-200 {
+  color: #b91c1c !important;
+}
+
+/* Inputs, Textareas, and Select Fields in Light Mode */
+.theme-light input,
+.theme-light textarea,
+.theme-light select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Keep Modal Backdrop Translucent for Focus in Light Mode */
+.theme-light .fixed.inset-0.bg-black\/80,
+.theme-light .fixed.inset-0.bg-black\/70 {
+  background-color: rgba(15, 23, 42, 0.65) !important;
+}
+
+/* =========================================================
+   HIGH-CONTRAST DARK MODE ACCESSIBILITY ENHANCEMENTS
+   ========================================================= */
+
+.theme-dark {
+  color-scheme: dark;
+}
+
+.theme-dark .border-slate-800 {
+  border-color: #27354a !important;
+}
+
+.theme-dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.theme-dark .text-slate-300 {
+  color: #cbd5e1 !important;
+}

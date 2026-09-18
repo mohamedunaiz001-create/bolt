@@ -1,0 +1,6 @@
+{
+  "name": "Bolt",
+  "description": "UPSC Civil Services preparation platform with Bolt AI assistant, syllabus-to-timetable weekly study planner with drag & drop, real-time analytics, Public Administration specialization, Mains evaluation, and Prelims practice.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

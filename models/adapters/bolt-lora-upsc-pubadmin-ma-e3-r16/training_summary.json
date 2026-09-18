@@ -1,0 +1,19 @@
+{
+  "adapter_name": "bolt-lora-upsc-pubadmin-ma-e3-r16",
+  "base_model": "llama-3.1-8b-instruct",
+  "dataset": "upsc-pubadmin-mains-pyq",
+  "epochs": 3,
+  "steps": 45,
+  "final_loss": 0.6682,
+  "eval_perplexity": 1.95,
+  "target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj"
+  ],
+  "created_at": "2026-09-17T12:25:17Z"
+}
