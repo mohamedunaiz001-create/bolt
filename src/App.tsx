@@ -32,7 +32,7 @@ import {
   UserFullProgressData,
 } from "./types";
 import { DEFAULT_ACTIVE_MODEL_CONFIG } from "./data/modelsData";
-import { loadUserProgress, saveUserProgress, logoutAccount } from "./services/userService";
+import { loadUserProgress, saveUserProgress, logoutAccount, subscribeToAuthState, getCleanSyllabus, getCleanTimetableSlots } from "./services/userService";
 import { Search, Bookmark, X } from "lucide-react";
 
 export default function App() {
@@ -196,20 +196,59 @@ export default function App() {
     [user, topics, evaluations, timetableSlots, studySessions]
   );
 
-  // Load user's saved data from backend on mount or when user email is present
+  // Load user's saved data from Firestore / backend on mount and subscribe to Firebase Auth
   useEffect(() => {
-    if (user.email) {
-      loadUserProgress(user.email).then((saved) => {
+    // 1. Listen to Firebase Auth state
+    const unsubscribe = subscribeToAuthState(async (fbUser) => {
+      if (fbUser) {
+        const userId = fbUser.uid;
+        const saved = await loadUserProgress(userId);
         if (saved) {
           if (saved.user) setUser(saved.user);
           if (saved.topics && saved.topics.length > 0) setTopics(saved.topics);
           if (saved.evaluations) setEvaluations(saved.evaluations);
-          if (saved.timetableSlots && saved.timetableSlots.length > 0)
-            setTimetableSlots(saved.timetableSlots);
+          if (saved.timetableSlots && saved.timetableSlots.length > 0) setTimetableSlots(saved.timetableSlots);
+          if (saved.studySessions) setStudySessions(saved.studySessions);
+        } else {
+          // New authenticated user with clean slate
+          const newUserProfile: UserProfile = {
+            id: userId,
+            name: fbUser.displayName || fbUser.email?.split("@")[0] || "UPSC Aspirant",
+            email: fbUser.email || "",
+            avatarUrl: fbUser.photoURL || undefined,
+            target: "UPSC CSE 2026",
+            optionalSubject: "Public Administration",
+            studyStreakDays: 1,
+            totalStudyHours: 0,
+            questionsAttempted: 0,
+            mainsEvaluatedCount: 0,
+            overallAccuracy: 0,
+            themeMode: "dark",
+          };
+          setUser(newUserProfile);
+          setTopics(getCleanSyllabus());
+          setEvaluations([]);
+          setTimetableSlots(getCleanTimetableSlots());
+          setStudySessions([]);
+        }
+      }
+    });
+
+    // 2. Initial load for stored user if no immediate auth state change
+    const targetId = user.id || user.email;
+    if (targetId && !targetId.startsWith("guest")) {
+      loadUserProgress(targetId).then((saved) => {
+        if (saved) {
+          if (saved.user) setUser(saved.user);
+          if (saved.topics && saved.topics.length > 0) setTopics(saved.topics);
+          if (saved.evaluations) setEvaluations(saved.evaluations);
+          if (saved.timetableSlots && saved.timetableSlots.length > 0) setTimetableSlots(saved.timetableSlots);
           if (saved.studySessions) setStudySessions(saved.studySessions);
         }
       });
     }
+
+    return () => unsubscribe();
   }, []);
 
   // Update user profile helper

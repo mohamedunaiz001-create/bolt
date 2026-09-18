@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+import { generateEmbedding, cosineSimilarity, rerankDocuments } from "./aiGateway";
+
 export interface KnowledgeDocument {
   id: string;
   userId?: string;
@@ -12,6 +14,7 @@ export interface KnowledgeDocument {
   fileSize?: string;
   chunkCount: number;
   snippet?: string;
+  status?: "active" | "archived";
 }
 
 export interface KnowledgeChunk {
@@ -25,6 +28,7 @@ export interface KnowledgeChunk {
   approxPage?: number;
   heading?: string;
   score?: number;
+  vector?: number[];
 }
 
 interface RagStore {
@@ -253,14 +257,15 @@ function addDocumentToStore(
   const newDoc: KnowledgeDocument = {
     id: docId,
     userId: params.userId || "aspirant",
-    title: params.title.trim(),
+    title: params.title.trim().replace(/<[^>]*>?/gm, ""), // Sanitize HTML tags
     category: params.category,
     tags: params.tags && params.tags.length ? params.tags : ["UPSC", params.category],
     sourceUrl: params.sourceUrl,
     uploadedAt: new Date().toISOString(),
     fileSize: `${(params.content.length / 1024).toFixed(1)} KB`,
     chunkCount: chunks.length,
-    snippet: params.content.slice(0, 180) + "...",
+    snippet: params.content.slice(0, 180).replace(/\n/g, " ") + "...",
+    status: "active",
   };
 
   store.documents.unshift(newDoc);
@@ -292,13 +297,25 @@ export function indexNewDocument(params: {
   userId?: string;
   sourceUrl?: string;
 }): { success: boolean; document?: KnowledgeDocument; message?: string } {
-  if (!params.title || !params.content || params.content.trim().length < 20) {
-    return { success: false, message: "Document title and text content are required (min 20 characters)." };
+  // Upload security validation
+  if (!params.title || !params.title.trim()) {
+    return { success: false, message: "Document title is required." };
+  }
+  if (!params.content || params.content.trim().length < 20) {
+    return { success: false, message: "Document content must contain at least 20 characters." };
+  }
+  if (params.content.length > 2_000_000) {
+    return { success: false, message: "Document exceeds maximum allowed size (2MB)." };
+  }
+  // Sanitize title against directory traversal or injection
+  const sanitizedTitle = params.title.trim().replace(/[/\\?%*:|"<>]/g, "");
+  if (sanitizedTitle.length === 0) {
+    return { success: false, message: "Invalid document title provided." };
   }
 
   const store = ensureStore();
   const doc = addDocumentToStore(store, {
-    title: params.title,
+    title: sanitizedTitle,
     category: params.category || "Custom Upload",
     tags: params.tags || [],
     content: params.content,
@@ -308,6 +325,16 @@ export function indexNewDocument(params: {
 
   writeStore(store);
   return { success: true, document: doc };
+}
+
+export function archiveDocument(docId: string, archive: boolean = true): boolean {
+  const store = ensureStore();
+  const doc = store.documents.find((d) => d.id === docId);
+  if (!doc) return false;
+
+  doc.status = archive ? "archived" : "active";
+  writeStore(store);
+  return true;
 }
 
 export function deleteDocument(docId: string): boolean {
@@ -321,51 +348,105 @@ export function deleteDocument(docId: string): boolean {
   return true;
 }
 
-export function searchKnowledgeChunks(query: string, options?: { category?: string; limit?: number }): KnowledgeChunk[] {
+export function searchKnowledgeChunks(
+  query: string,
+  optionsOrCategory?: string | { category?: string; limit?: number; includeArchived?: boolean },
+  maybeLimit?: number
+): KnowledgeChunk[] {
   const store = ensureStore();
+  const archivedDocIds = new Set(
+    store.documents.filter((d) => d.status === "archived").map((d) => d.id)
+  );
+
+  let categoryFilter: string | undefined = undefined;
+  let limit = 4;
+  let includeArchived = false;
+
+  if (typeof optionsOrCategory === "string") {
+    categoryFilter = optionsOrCategory;
+    if (typeof maybeLimit === "number") limit = maybeLimit;
+  } else if (optionsOrCategory && typeof optionsOrCategory === "object") {
+    categoryFilter = optionsOrCategory.category;
+    if (typeof optionsOrCategory.limit === "number") limit = optionsOrCategory.limit;
+    includeArchived = Boolean(optionsOrCategory.includeArchived);
+  }
+
   if (!query || query.trim().length === 0) {
-    return store.chunks.slice(0, options?.limit || 5);
+    return store.chunks
+      .filter((c) => includeArchived || !archivedDocIds.has(c.documentId))
+      .slice(0, limit);
   }
 
   const normalized = query.toLowerCase();
   const queryTokens = normalized.split(/\s+/).filter((t) => t.length > 2);
-  const limit = options?.limit || 4;
+  const queryVector = generateEmbedding(query);
 
-  const scored = store.chunks
-    .filter((chunk) => {
-      if (options?.category && options.category !== "All" && chunk.category !== options.category) {
-        return false;
-      }
-      return true;
-    })
-    .map((chunk) => {
-      let score = 0;
-      const chunkLower = chunk.text.toLowerCase();
-      const titleLower = chunk.documentTitle.toLowerCase();
+  const candidateChunks = store.chunks.filter((chunk) => {
+    if (!includeArchived && archivedDocIds.has(chunk.documentId)) {
+      return false;
+    }
+    if (categoryFilter && categoryFilter !== "All" && chunk.category !== categoryFilter) {
+      return false;
+    }
+    return true;
+  });
 
-      // Exact phrase match gives high boost
-      if (chunkLower.includes(normalized)) {
-        score += 15;
-      }
-      if (titleLower.includes(normalized)) {
-        score += 10;
-      }
+  // 1. Compute Hybrid Scores (Dense Vector 55% + BM25/Keyword 45%)
+  const scored = candidateChunks.map((chunk) => {
+    if (!chunk.vector || chunk.vector.length === 0) {
+      chunk.vector = generateEmbedding(chunk.text);
+    }
+    const vectorSimilarity = cosineSimilarity(queryVector, chunk.vector);
 
-      // Keyword token matches
-      for (const token of queryTokens) {
-        if (titleLower.includes(token)) score += 4;
-        if (chunk.keywords.includes(token)) score += 3;
-        const count = (chunkLower.match(new RegExp(token, "g")) || []).length;
-        score += Math.min(count * 1.5, 6);
-      }
+    let keywordScore = 0;
+    const chunkLower = chunk.text.toLowerCase();
+    const titleLower = chunk.documentTitle.toLowerCase();
 
-      return {
-        ...chunk,
-        score,
-      };
-    })
+    if (chunkLower.includes(normalized)) keywordScore += 15;
+    if (titleLower.includes(normalized)) keywordScore += 10;
+
+    for (const token of queryTokens) {
+      if (titleLower.includes(token)) keywordScore += 4;
+      if (chunk.keywords.includes(token)) keywordScore += 3;
+      const count = (chunkLower.match(new RegExp(token, "g")) || []).length;
+      keywordScore += Math.min(count * 1.5, 6);
+    }
+
+    // Normalized combined hybrid score (0 to 100)
+    const hybridScore = vectorSimilarity * 55 + Math.min(keywordScore * 3, 45);
+
+    return {
+      ...chunk,
+      score: Math.round(hybridScore * 10) / 10,
+    };
+  });
+
+  // Filter positive scores and sort
+  const topCandidates = scored
     .filter((c) => (c.score || 0) > 0)
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, Math.max(limit * 2, 8));
 
-  return scored.slice(0, limit);
+  if (topCandidates.length === 0) return [];
+
+  // 2. Cross-Encoder Multi-Factor Reranker
+  const rerankInputs = topCandidates.map((c) => ({
+    id: c.id,
+    title: c.documentTitle,
+    category: c.category,
+    page: c.approxPage || 1,
+    text: c.text,
+    initialScore: c.score,
+  }));
+
+  const reranked = rerankDocuments(query, rerankInputs, limit);
+
+  // Map reranked back to KnowledgeChunk with final calibrated score
+  return reranked.map((r) => {
+    const orig = topCandidates.find((c) => c.id === r.chunk.id)!;
+    return {
+      ...orig,
+      score: Math.round(r.relevance * 100),
+    };
+  });
 }

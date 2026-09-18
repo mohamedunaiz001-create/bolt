@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 
 export interface StoredAccount {
   id: string;
@@ -9,6 +10,18 @@ export interface StoredAccount {
   target: string;
   optionalSubject: string;
   createdAt: string;
+}
+
+function hashPassword(password: string): string {
+  if (!password) return "";
+  const salt = "bolt_upsc_secure_salt_2026";
+  return crypto.createHash("sha256").update(password + salt).digest("hex");
+}
+
+function verifyPassword(inputPassword: string, storedHash: string): boolean {
+  if (!inputPassword || !storedHash) return false;
+  if (storedHash === inputPassword) return true; // Backward compatibility for any pre-migration mock records
+  return hashPassword(inputPassword) === storedHash;
 }
 
 export interface StoredUserProfile {
@@ -105,7 +118,7 @@ export function registerUser(params: {
     id: userId,
     name: params.name.trim(),
     email: normalizedEmail,
-    password: params.password || "",
+    password: params.password ? hashPassword(params.password) : "",
     target,
     optionalSubject,
     createdAt: new Date().toISOString(),
@@ -161,7 +174,7 @@ export function loginUser(params: {
     return { success: false, message: "No account found with this email. Please check your email or create a new account." };
   }
 
-  if (account.password && params.password && account.password !== params.password) {
+  if (account.password && params.password && !verifyPassword(params.password, account.password)) {
     return { success: false, message: "Invalid password. Please check your credentials." };
   }
 

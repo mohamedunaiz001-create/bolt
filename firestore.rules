@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles and all user-private subcollections
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Direct root collections partitioned by userId
+    match /syllabus/{userId} {
+      allow read, write: if isOwner(userId);
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /progress/{userId} {
+      allow read, write: if isOwner(userId);
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /studyLogs/{userId} {
+      allow read, write: if isOwner(userId);
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /mainsEvaluations/{userId} {
+      allow read, write: if isOwner(userId);
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /documents/{userId} {
+      allow read, write: if isOwner(userId);
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /chatHistory/{userId} {
+      allow read, write: if isOwner(userId);
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Public / verified daily current affairs and published MCQs (read-only for students)
+    match /current_affairs/{articleId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /daily_mcqs/{mcqId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Shared model registry versions
+    match /model_registry/{versionId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+  }
+}

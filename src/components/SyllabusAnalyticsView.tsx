@@ -15,10 +15,12 @@ import {
   Network,
   HelpCircle,
   FileCode2,
+  Brain,
 } from "lucide-react";
 import { SyllabusTopic, UserProfile } from "../types";
 import { ThinkerFlashcardsView } from "./ThinkerFlashcardsView";
 import { SyllabusStatusBreakdownChart } from "./SyllabusStatusBreakdownChart";
+import { StudentIntelligenceModal } from "./StudentIntelligenceModal";
 
 interface SyllabusAnalyticsViewProps {
   topics: SyllabusTopic[];
@@ -40,6 +42,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
   const [activeConceptMap, setActiveConceptMap] = useState<string>("simon_vs_classical");
   const [isPythonRunning, setIsPythonRunning] = useState<boolean>(false);
   const [pythonAnalysisResult, setPythonAnalysisResult] = useState<string | null>(null);
+  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState<boolean>(false);
 
   // Calculations
   const paper1Topics = topics.filter((t) => t.paper === "Paper 1");
@@ -105,7 +108,14 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsIntelligenceOpen(true)}
+              className="px-3 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center space-x-1.5 transition-all shadow-md shadow-purple-600/20"
+            >
+              <Brain className="w-3.5 h-3.5 text-purple-400" />
+              <span>Student Intelligence & Mastery</span>
+            </button>
             <button
               onClick={() => setFilter("flashcards")}
               className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md shadow-amber-500/20"
@@ -706,6 +716,16 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           })}
         </div>
       )}
+
+      {/* Student Intelligence Engine Modal */}
+      <StudentIntelligenceModal
+        isOpen={isIntelligenceOpen}
+        onClose={() => setIsIntelligenceOpen(false)}
+        user={user}
+        topics={topics}
+        onAskBoltTopic={onAskBoltTopic}
+        onPracticeTopic={onPracticeTopicMCQs}
+      />
     </div>
   );
 };

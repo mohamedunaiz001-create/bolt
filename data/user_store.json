@@ -1,0 +1,102 @@
+{
+  "accounts": [
+    {
+      "id": "user_1789702699710_47t5x",
+      "name": "Audit User",
+      "email": "audit_1789702699710@upsc-bolt.org",
+      "password": "SuperSecretPassword123!",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T03:38:19.710Z"
+    },
+    {
+      "id": "user_1789702732687_wtuzp",
+      "name": "Audit User",
+      "email": "audit_1789702732686@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T03:38:52.687Z"
+    },
+    {
+      "id": "user_1789702837460_3fpi7",
+      "name": "Audit User",
+      "email": "audit_1789702837459@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T03:40:37.460Z"
+    }
+  ],
+  "userProgress": {
+    "user_1789702699710_47t5x": {
+      "userId": "user_1789702699710_47t5x",
+      "user": {
+        "id": "user_1789702699710_47t5x",
+        "name": "Audit User",
+        "email": "audit_1789702699710@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T03:38:19.711Z"
+    },
+    "user_1789702732687_wtuzp": {
+      "userId": "user_1789702732687_wtuzp",
+      "user": {
+        "id": "user_1789702732687_wtuzp",
+        "name": "Audit User",
+        "email": "audit_1789702732686@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T03:38:52.687Z"
+    },
+    "user_1789702837460_3fpi7": {
+      "userId": "user_1789702837460_3fpi7",
+      "user": {
+        "id": "user_1789702837460_3fpi7",
+        "name": "Audit User",
+        "email": "audit_1789702837459@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T03:40:37.460Z"
+    }
+  }
+}

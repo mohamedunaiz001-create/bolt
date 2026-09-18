@@ -11,6 +11,7 @@ export interface KnowledgeDocument {
   fileSize?: string;
   chunkCount: number;
   snippet?: string;
+  status?: "active" | "archived";
 }
 
 export interface KnowledgeChunk {
@@ -194,7 +195,49 @@ export interface TrainingRunState {
   }[];
 }
 
-export type TopicStatus = "not_started" | "learning" | "practicing" | "strong" | "needs_revision";
+export type TopicStatus = "not_started" | "learning" | "practicing" | "strong" | "needs_revision" | "insufficient_data";
+
+export interface AgentToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, any>;
+  result?: any;
+  status: "running" | "success" | "error";
+}
+
+export interface DailyMCQItem {
+  id: string;
+  articleId?: string;
+  headlineSource: string;
+  paper: "GS 1" | "GS 2" | "GS 3" | "GS 4" | "Prelims";
+  questionText: string;
+  options: {
+    key: "A" | "B" | "C" | "D";
+    text: string;
+  }[];
+  correctOption: "A" | "B" | "C" | "D";
+  explanation: string;
+  upscSyllabusLink: string;
+  difficulty: "Moderate" | "Challenging" | "UPSC Standard";
+  attempted?: {
+    selectedKey: "A" | "B" | "C" | "D";
+    isCorrect: boolean;
+    timestamp: string;
+  };
+}
+
+export interface ModelRegistryVersion {
+  version: string;
+  name: string;
+  dataset: string;
+  examplesCount: number;
+  trainingDate: string;
+  status: "active" | "archived" | "evaluating";
+  evalScoreMains: number; // e.g. 11.4 / 15
+  evalScoreMCQ: number; // e.g. 84%
+  adapterTag: string;
+  description: string;
+}
 
 export interface SubtopicItem {
   id: string;
@@ -305,6 +348,8 @@ export interface MainsAnswerEvaluation {
   needsImprovement: string[];
   missingDimensions: string[];
   repeatedWeaknesses?: string[];
+  weaknesses?: string[];
+  dimensions?: Record<string, number> | EvaluationCriteria;
   boltFeedback: string;
   studentAnswerText?: string;
 }
@@ -353,6 +398,7 @@ export interface ChatMessage {
     approxPage?: number;
     excerpt?: string;
   }[];
+  toolCalls?: AgentToolCall[];
   actionCards?: {
     type: "test" | "topic" | "model_answer";
     title: string;

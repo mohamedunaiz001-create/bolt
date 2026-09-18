@@ -11,6 +11,13 @@ import {
   BookOpen,
   ArrowRight,
   ShieldCheck,
+  Wrench,
+  CheckCircle2,
+  ChevronDown,
+  Globe,
+  FileText,
+  Bookmark,
+  HelpCircle,
 } from "lucide-react";
 import {
   ChatMessage,
@@ -21,8 +28,11 @@ import {
   MainsAnswerEvaluation,
   NewsArticle,
   PrelimsQuestion,
+  AgentToolCall,
 } from "../types";
 import { computeBoltAppContext } from "../services/appContextService";
+import { executeAgentTool, detectToolFromPrompt, BOLT_TOOL_DEFINITIONS } from "../services/boltAgentTools";
+import { saveFirebaseChatMessage } from "../services/firestoreService";
 
 interface BoltAssistantViewProps {
   user: UserProfile;
@@ -95,6 +105,11 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
   const [inputMessage, setInputMessage] = useState<string>("");
   const [mode, setMode] = useState<"public_admin" | "general">("public_admin");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [pendingSensitiveAction, setPendingSensitiveAction] = useState<{
+    toolName: string;
+    args: Record<string, any>;
+    prompt: string;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -130,6 +145,48 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
     setIsLoading(true);
 
     try {
+      // 1. Tool-Calling Check: Check if prompt warrants controlled agent tool execution
+      const detected = detectToolFromPrompt(query);
+      let executedToolCall: AgentToolCall | undefined;
+      let toolAugmentationText = "";
+
+      if (detected) {
+        const toolDef = BOLT_TOOL_DEFINITIONS.find((t) => t.name === detected.name);
+        if (toolDef?.permissionLevel === "sensitive") {
+          setPendingSensitiveAction({
+            toolName: detected.name,
+            args: detected.args,
+            prompt: toolDef.confirmationPrompt || `Confirm execution of ${detected.name}?`,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          const toolRes = await executeAgentTool(detected.name, detected.args, {
+            user,
+            topics,
+            evaluations,
+            articles,
+            questions,
+            mcqAttempts: [],
+            onNavigateTab,
+          });
+
+          executedToolCall = {
+            id: `call-${Date.now()}`,
+            name: detected.name,
+            arguments: detected.args,
+            result: toolRes.result,
+            status: "success",
+          };
+
+          toolAugmentationText = `\n\n> 🔧 **Agent Tool Executed: \`${detected.name}\`**\n> *Insight:* ${toolRes.summary}\n`;
+        } catch (tErr) {
+          console.warn("Tool execution error:", tErr);
+        }
+      }
+
       // Re-compute fresh live context on each message to ensure 100% sync
       const freshContext = computeBoltAppContext(user, topics, evaluations, articles, questions);
 
@@ -146,6 +203,7 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
           activeAdapter: activeModelConfig?.activeAdapter,
           temperature: activeModelConfig?.temperature ?? 0.7,
           appContext: freshContext,
+          toolExecution: executedToolCall ? { name: executedToolCall.name, result: executedToolCall.result } : undefined,
           currentContext: {
             user,
             optionalSubject: user.optionalSubject || "Public Administration",
@@ -170,30 +228,26 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
       const assistantMsg: ChatMessage = {
         id: "a-" + Date.now(),
         role: "assistant",
-        text: data.response || "I am analyzing your request. Please ask again.",
+        text: (executedToolCall ? toolAugmentationText + "\n" : "") + (data.response || "I am analyzing your request. Please ask again."),
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         mode,
         citations: data.citations || [],
+        toolCalls: executedToolCall ? [executedToolCall] : undefined,
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
+
+      // Save to Firestore if authenticated
+      if (user.id && !user.id.startsWith("guest")) {
+        saveFirebaseChatMessage(user.id, userMsg).catch(() => {});
+        saveFirebaseChatMessage(user.id, assistantMsg).catch(() => {});
+      }
     } catch (error) {
       console.error("Bolt chat error:", error);
       const fallbackMsg: ChatMessage = {
         id: "a-" + Date.now(),
         role: "assistant",
-        text: `### ⚡ Bolt Public Administration Response for ${user.name}
-
-Regarding your query on **${query}**:
-
-1. **Theoretical Grounding (Paper 1):** 
-In Public Administration, always frame this through the lens of classical vs modern behavioural paradigms (e.g. Herbert Simon's Bounded Rationality and Chester Barnard's informal organization).
-
-2. **Indian Administrative Reality (Paper 2):** 
-Cross-reference with Constitutional Articles (such as Article 311 for civil services or Article 243 for devolution) and 2nd ARC recommendations (4th Report on Ethics in Governance and 10th Report on Personnel Administration).
-
-3. **Mains Value Addition:**
-Use a visual 4-quadrant box diagram in the exam hall to score 12+ marks out of 15.`,
+        text: `⚠️ **BOLT is temporarily unable to reach the configured AI service. Your study data is safe.**\n\nYou can continue offline study or review your verified syllabus metrics below.\n\n### ⚡ Offline Public Administration Guidance:\nRegarding your query on **${query}**:\n\n1. **Theoretical Grounding (Paper 1):**\nAnchor your conceptual reasoning in classical vs behavioural paradigms (Herbert Simon's Bounded Rationality, Chester Barnard's informal organization).\n\n2. **Indian Administrative Reality (Paper 2):**\nCross-reference with Constitutional Articles (Art 311 for civil service safeguards, Art 243 for panchayati raj devolution) and 2nd ARC recommendations (Report 4 on Ethics and Report 10 on Personnel Administration).\n\n3. **Mains Value Addition:**\nDraw a visual schematic or comparative matrix in the exam hall to score 12+ marks.`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         mode,
       };
@@ -301,6 +355,70 @@ Use a visual 4-quadrant box diagram in the exam hall to score 12+ marks out of 1
                     : "bg-[#111723] text-slate-200 border border-[#1e293b] rounded-tl-none"
                 }`}
               >
+                {/* Agent Tool Execution Badge */}
+                {msg.toolCalls && msg.toolCalls.length > 0 && (
+                  <div className="space-y-2 pb-2">
+                    {msg.toolCalls.map((tc) => {
+                      const insight = (tc.result as any)?.traceInsight;
+                      return (
+                        <div
+                          key={tc.id}
+                          className="p-3 rounded-xl bg-[#0d1525] border border-blue-500/40 text-[11px] shadow-sm"
+                        >
+                          <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                            <div className="flex items-center space-x-2">
+                              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                              <span className="font-semibold text-blue-200">
+                                {insight?.headline || `⚡ BOLT verified tool execution: ${tc.name}`}
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold text-[10px] flex items-center space-x-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Verified Real Data</span>
+                            </span>
+                          </div>
+
+                          {insight?.bullets && (
+                            <div className="mt-2 space-y-1">
+                              {insight.bullets.map((b: string, bIdx: number) => (
+                                <div key={bIdx} className="flex items-start space-x-1.5 text-slate-300 text-[11px]">
+                                  <span className="text-emerald-400 font-bold">✓</span>
+                                  <span>{b.replace(/^✓\s*/, "")}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {insight?.findings && insight.findings.length > 0 && (
+                            <div className="mt-2 p-2 rounded-lg bg-red-950/30 border border-red-900/40 text-[11px]">
+                              <div className="font-semibold text-red-300 mb-1">Deficits requiring attention:</div>
+                              {insight.findings.map((f: string, fIdx: number) => (
+                                <div key={fIdx} className="text-red-200">• {f}</div>
+                              ))}
+                            </div>
+                          )}
+
+                          {insight?.recommendation && (
+                            <div className="mt-2 text-blue-300 italic text-[11px]">
+                              💡 {insight.recommendation}
+                            </div>
+                          )}
+
+                          <details className="mt-2 pt-1.5 border-t border-slate-800 text-[10px] text-slate-400">
+                            <summary className="cursor-pointer hover:text-slate-200 flex items-center gap-1 font-medium">
+                              <span>View technical analysis</span>
+                              <ChevronDown className="w-3 h-3" />
+                            </summary>
+                            <pre className="mt-1.5 p-2 bg-black/60 rounded text-[9px] font-mono text-slate-300 overflow-x-auto max-h-36">
+                              {JSON.stringify(tc.result, null, 2)}
+                            </pre>
+                          </details>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Text rendered */}
                 <div className="prose prose-invert prose-xs sm:prose-sm max-w-none whitespace-pre-wrap">
                   {msg.text}
@@ -309,32 +427,65 @@ Use a visual 4-quadrant box diagram in the exam hall to score 12+ marks out of 1
                 {/* Verified RAG Citations */}
                 {msg.citations && msg.citations.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-slate-800 space-y-2">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span>Verified Knowledge Sources ({msg.citations.length})</span>
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-amber-400">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Verified Knowledge Sources ({msg.citations.length})</span>
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-mono">High Confidence RAG</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {msg.citations.map((cite, cIdx) => (
-                        <div
-                          key={cIdx}
-                          className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-[11px] space-y-1 hover:border-amber-500/40 transition-colors"
-                        >
-                          <div className="flex items-center justify-between font-semibold text-slate-200">
-                            <span className="truncate pr-2">{cite.documentTitle}</span>
-                            <span className="text-[10px] text-amber-400 font-mono flex-shrink-0">
-                              p.{cite.approxPage || 1}
-                            </span>
+                      {msg.citations.map((cite, cIdx) => {
+                        const isCurrentAffairs =
+                          cite.category?.toLowerCase().includes("current") ||
+                          cite.documentTitle?.toLowerCase().includes("pib") ||
+                          cite.documentTitle?.toLowerCase().includes("hindu");
+                        const isUploaded =
+                          cite.category?.toLowerCase().includes("upload") ||
+                          cite.category?.toLowerCase().includes("custom");
+
+                        return (
+                          <div
+                            key={cIdx}
+                            className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-[11px] space-y-1 hover:border-amber-500/40 transition-colors"
+                          >
+                            <div className="flex items-center justify-between font-semibold text-slate-200">
+                              <span className="truncate pr-2">{cite.documentTitle}</span>
+                              <span className="text-[10px] text-amber-400 font-mono flex-shrink-0">
+                                p.{cite.approxPage || 1}
+                              </span>
+                            </div>
+                            {cite.excerpt && (
+                              <p className="text-[10px] text-slate-400 italic line-clamp-2">
+                                "{cite.excerpt}"
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between pt-1 text-[9px] text-slate-400">
+                              <span className="inline-flex items-center gap-1 font-semibold text-blue-300">
+                                {isUploaded ? (
+                                  <>
+                                    <FileText className="w-3 h-3 text-indigo-400" />
+                                    <span>📄 Uploaded material</span>
+                                  </>
+                                ) : isCurrentAffairs ? (
+                                  <>
+                                    <Globe className="w-3 h-3 text-cyan-400" />
+                                    <span>🌐 Current-affairs source</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Bookmark className="w-3 h-3 text-amber-400" />
+                                    <span>📚 UPSC/PYQ Canon</span>
+                                  </>
+                                )}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                                {cite.category}
+                              </span>
+                            </div>
                           </div>
-                          {cite.excerpt && (
-                            <p className="text-[10px] text-slate-400 italic line-clamp-2">
-                              "{cite.excerpt}"
-                            </p>
-                          )}
-                          <div className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">
-                            {cite.category}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -393,6 +544,56 @@ Use a visual 4-quadrant box diagram in the exam hall to score 12+ marks out of 1
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Sensitive Action Confirmation Dialog */}
+      {pendingSensitiveAction && (
+        <div className="mb-3 p-3.5 rounded-2xl bg-amber-950/50 border border-amber-500/60 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-start space-x-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-bold text-amber-200">Confirmation Required for Sensitive Action</h4>
+              <p className="text-[11px] text-slate-300">{pendingSensitiveAction.prompt}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 self-end sm:self-center">
+            <button
+              onClick={() => setPendingSensitiveAction(null)}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                const action = pendingSensitiveAction;
+                setPendingSensitiveAction(null);
+                try {
+                  const toolRes = await executeAgentTool(action.toolName, action.args, {
+                    user,
+                    topics,
+                    evaluations,
+                    articles,
+                    questions,
+                    mcqAttempts: [],
+                    onNavigateTab,
+                  });
+                  const confMsg: ChatMessage = {
+                    id: "c-" + Date.now(),
+                    role: "assistant",
+                    text: `✅ **Action Confirmed and Completed**: ${toolRes.summary}`,
+                    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                  };
+                  setMessages((prev) => [...prev, confMsg]);
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold shadow-md shadow-red-600/30 transition-colors"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Suggested Quick Prompt Chips */}
       <div className="py-2.5 overflow-x-auto flex items-center space-x-2 flex-shrink-0 scrollbar-none">

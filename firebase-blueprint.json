@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "collection": "users",
+      "fields": {
+        "uid": { "type": "string", "description": "Firebase user ID" },
+        "name": { "type": "string", "description": "Display name" },
+        "email": { "type": "string", "description": "User email" },
+        "targetYear": { "type": "number", "description": "UPSC Target Year" },
+        "optionalSubject": { "type": "string", "description": "Optional subject" },
+        "studyStreakDays": { "type": "number", "description": "Consecutive study days" },
+        "themeMode": { "type": "string", "description": "dark or light" },
+        "dailyGoalHours": { "type": "number", "description": "Target daily study hours" },
+        "updatedAt": { "type": "timestamp", "description": "Last profile update" }
+      }
+    },
+    "UserTopic": {
+      "collection": "users/{userId}/topics",
+      "fields": {
+        "id": { "type": "string", "description": "Topic ID (e.g. pa1-1)" },
+        "name": { "type": "string", "description": "Topic Title" },
+        "paper": { "type": "string", "description": "Paper 1 or Paper 2" },
+        "completionPercentage": { "type": "number", "description": "Real syllabus completion %" },
+        "mcqAccuracy": { "type": "number", "description": "Percentage accuracy on MCQs" },
+        "mainsAverageScore": { "type": "number", "description": "Average Mains score out of 15" },
+        "attemptsCount": { "type": "number", "description": "Total MCQs attempted" },
+        "mainsAttemptsCount": { "type": "number", "description": "Total Mains answers evaluated" },
+        "status": { "type": "string", "description": "strong | practicing | needs_revision | insufficient_data" },
+        "knowledgeScore": { "type": "number", "description": "Multi-factor real score (0-100)" },
+        "lastStudied": { "type": "string", "description": "ISO date string" },
+        "lastRevised": { "type": "string", "description": "ISO date string" },
+        "commonMistakes": { "type": "array", "description": "Recorded recurring mistakes" }
+      }
+    },
+    "MCQAttempt": {
+      "collection": "users/{userId}/mcq_attempts",
+      "fields": {
+        "id": { "type": "string", "description": "Attempt unique ID" },
+        "questionId": { "type": "string", "description": "Target question ID" },
+        "topicId": { "type": "string", "description": "Topic ID" },
+        "selectedOption": { "type": "number", "description": "Selected option index" },
+        "isCorrect": { "type": "boolean", "description": "Answer correctness" },
+        "timeSpentSec": { "type": "number", "description": "Time taken to answer" },
+        "timestamp": { "type": "string", "description": "ISO date string" }
+      }
+    },
+    "MainsSubmission": {
+      "collection": "users/{userId}/mains_submissions",
+      "fields": {
+        "id": { "type": "string", "description": "Submission ID" },
+        "questionId": { "type": "string", "description": "Question ID or PYQ" },
+        "questionText": { "type": "string", "description": "Full question statement" },
+        "studentAnswer": { "type": "string", "description": "Student submitted text" },
+        "score": { "type": "number", "description": "Overall score out of 15" },
+        "maxScore": { "type": "number", "description": "Max possible score (15)" },
+        "rubricScores": { "type": "map", "description": "7-dimension rubric scores" },
+        "feedback": { "type": "string", "description": "Comprehensive evaluation feedback" },
+        "strengths": { "type": "array", "description": "Identified strong points" },
+        "weaknesses": { "type": "array", "description": "Identified repeated weaknesses" },
+        "modelAnswer": { "type": "string", "description": "Reference model answer" },
+        "timestamp": { "type": "string", "description": "ISO date string" }
+      }
+    },
+    "ChatMessage": {
+      "collection": "users/{userId}/chat_messages",
+      "fields": {
+        "id": { "type": "string", "description": "Message ID" },
+        "role": { "type": "string", "description": "user | assistant | system" },
+        "content": { "type": "string", "description": "Message body" },
+        "toolCalls": { "type": "array", "description": "Executed agent tool calls" },
+        "timestamp": { "type": "string", "description": "ISO date string" }
+      }
+    }
+  }
+}

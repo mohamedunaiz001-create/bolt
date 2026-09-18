@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Zap,
   Flame,
@@ -12,7 +12,9 @@ import {
   Sparkles,
   Clock,
   Calendar,
+  Brain,
 } from "lucide-react";
+import { StudentIntelligenceModal } from "./StudentIntelligenceModal";
 import {
   UserProfile,
   SyllabusTopic,
@@ -51,6 +53,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onAskBolt = () => {},
   onStartTodayMCQs = () => onNavigate("prelims"),
 }) => {
+  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
+
   // Generate gamified milestones dynamically based on current user state
   const milestones = useMemo(() => {
     return generateMilestones(user, topics, evaluations);
@@ -208,13 +212,22 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   Public Administration Optional (Paper 1 & Paper 2)
                 </p>
               </div>
-              <button
-                onClick={() => onNavigate("learn")}
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1"
-              >
-                <span>Full Analysis</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setIsIntelligenceOpen(true)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 font-semibold flex items-center space-x-1.5 border border-purple-500/30 transition-colors"
+                >
+                  <Brain className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Cognitive Diagnostics</span>
+                </button>
+                <button
+                  onClick={() => onNavigate("learn")}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1"
+                >
+                  <span>Full Analysis</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Overall Progress Bar */}
@@ -499,6 +512,19 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Student Intelligence Engine Modal */}
+      <StudentIntelligenceModal
+        isOpen={isIntelligenceOpen}
+        onClose={() => setIsIntelligenceOpen(false)}
+        user={user}
+        topics={topics}
+        onAskBoltTopic={onAskBolt}
+        onPracticeTopic={() => {
+          setIsIntelligenceOpen(false);
+          onNavigate("prelims");
+        }}
+      />
     </div>
   );
 };

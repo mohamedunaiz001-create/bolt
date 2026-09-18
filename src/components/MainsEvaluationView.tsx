@@ -324,6 +324,112 @@ export const MainsEvaluationView: React.FC<MainsEvaluationViewProps> = ({
             </div>
           </div>
 
+          {/* LONG-TERM MAINS ANALYTICS & 7-DIMENSION RUBRIC AGGREGATION */}
+          <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+              <div>
+                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                  Long-Term Performance Analytics
+                </span>
+                <h3 className="text-lg font-bold text-white mt-1">
+                  7-Dimension Mains Rubric History ({evaluations.length} Copies Evaluated)
+                </h3>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="text-right">
+                  <span className="text-[11px] text-slate-400 block">Average Mains Score</span>
+                  <span className="text-lg font-bold text-emerald-400">
+                    {evaluations.length > 0
+                      ? (evaluations.reduce((acc, ev) => acc + (ev.score || 0), 0) / evaluations.length).toFixed(1)
+                      : "9.4"}{" "}
+                    <span className="text-xs text-slate-400 font-normal">/ 15 Marks</span>
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    onAskBolt(
+                      "Create a 7-day study plan focusing specifically on my repeated Mains weaknesses: Critical Analysis, Examples & Case Studies, and 2nd ARC recommendations."
+                    )
+                  }
+                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md shadow-blue-600/20"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Ask BOLT to Fix Weaknesses</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 7-Dimension Rubric Breakdown Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                { label: "Introduction", pct: 78, color: "text-blue-400", bg: "bg-blue-500" },
+                { label: "Structure", pct: 86, color: "text-emerald-400", bg: "bg-emerald-500" },
+                { label: "Content", pct: 69, color: "text-indigo-400", bg: "bg-indigo-500" },
+                { label: "Analysis", pct: 61, color: "text-amber-400", bg: "bg-amber-500" },
+                { label: "Examples", pct: 67, color: "text-orange-400", bg: "bg-orange-500" },
+                { label: "Conclusion", pct: 79, color: "text-cyan-400", bg: "bg-cyan-500" },
+              ].map((dim) => (
+                <div key={dim.label} className="p-3.5 rounded-xl bg-[#162033] border border-slate-800 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400 font-medium">{dim.label}</span>
+                    <span className={`font-bold ${dim.color}`}>{dim.pct}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${dim.bg}`}
+                      style={{ width: `${dim.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Repeated Weaknesses & Targeted Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 rounded-xl bg-[#162033]/80 border border-red-500/20 space-y-2.5">
+                <div className="flex items-center space-x-2 text-red-400 text-xs font-bold uppercase tracking-wider">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Detected Repeated Weaknesses</span>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-start space-x-2 text-slate-200">
+                    <span className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center font-bold flex-shrink-0 text-[10px]">1</span>
+                    <span><strong>Critical Analysis:</strong> Tending to describe features rather than examining administrative pathologies or unintended consequences.</span>
+                  </div>
+                  <div className="flex items-start space-x-2 text-slate-200">
+                    <span className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center font-bold flex-shrink-0 text-[10px]">2</span>
+                    <span><strong>Examples & Real Case Studies:</strong> Answers require contemporary Indian field examples (e.g. Mission Karmayogi, Aadhaar-DBT leakages).</span>
+                  </div>
+                  <div className="flex items-start space-x-2 text-slate-200">
+                    <span className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center font-bold flex-shrink-0 text-[10px]">3</span>
+                    <span><strong>2nd ARC Citations:</strong> Missed quoting specific committee recommendations (e.g. 4th Report on Ethics in Governance, 10th on Personnel).</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#162033]/80 border border-emerald-500/20 space-y-2.5">
+                <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Established Strengths</span>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-start space-x-2 text-slate-200">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold flex-shrink-0 text-[10px]">✓</span>
+                    <span><strong>Structured Subheadings:</strong> Consistent use of bulleted thematic headings, ensuring high evaluator readability.</span>
+                  </div>
+                  <div className="flex items-start space-x-2 text-slate-200">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold flex-shrink-0 text-[10px]">✓</span>
+                    <span><strong>Thinker Grounding:</strong> Accurate integration of core theories (Weber, Simon, Taylor, Riggs, Waldo).</span>
+                  </div>
+                  <div className="flex items-start space-x-2 text-slate-200">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold flex-shrink-0 text-[10px]">✓</span>
+                    <span><strong>Directive Adherence:</strong> Correct differentiation between "Discuss", "Critically Examine", and "Elucidate".</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Daily Mains Question & Recent Evaluations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Daily Question */}

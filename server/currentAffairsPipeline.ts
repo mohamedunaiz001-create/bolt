@@ -130,12 +130,67 @@ export async function executeNewsIngestionPipeline(): Promise<{
   };
 }
 
+export interface McqValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
 /**
- * Generates authentic UPSC Prelims MCQs directly based on the ingested current affairs.
+ * Strict UPSC Prelims MCQ validation logic:
+ * - Exactly 4 options with keys A, B, C, D
+ * - No duplicate choices
+ * - Non-empty questionText (>= 20 chars)
+ * - 1 correct option matching keys A, B, C, D
+ * - Non-empty explanation (>= 15 chars)
+ */
+export function validatePrelimsMcq(mcq: any): McqValidationResult {
+  const errors: string[] = [];
+  if (!mcq) {
+    return { isValid: false, errors: ["MCQ payload is null or undefined"] };
+  }
+  if (typeof mcq.questionText !== "string" || mcq.questionText.trim().length < 20) {
+    errors.push("questionText must be at least 20 characters long.");
+  }
+  if (!Array.isArray(mcq.options) || mcq.options.length !== 4) {
+    errors.push("MCQ must contain exactly 4 options.");
+  } else {
+    const keys = mcq.options.map((o: any) => o.key);
+    const validKeys = ["A", "B", "C", "D"];
+    const matchesKeys = validKeys.every((k) => keys.includes(k));
+    if (!matchesKeys) {
+      errors.push("Option keys must exactly be 'A', 'B', 'C', and 'D'.");
+    }
+    const texts = mcq.options.map((o: any) => (o.text || "").trim().toLowerCase());
+    if (texts.some((t: string) => t.length === 0)) {
+      errors.push("All options must contain non-empty text.");
+    }
+    if (new Set(texts).size !== 4) {
+      errors.push("Duplicate option choices detected; all 4 options must be distinct.");
+    }
+  }
+
+  if (!["A", "B", "C", "D"].includes(mcq.correctOption)) {
+    errors.push("correctOption must be one of 'A', 'B', 'C', or 'D'.");
+  }
+
+  if (typeof mcq.explanation !== "string" || mcq.explanation.trim().length < 15) {
+    errors.push("explanation must be at least 15 characters long.");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Generates authentic UPSC Prelims MCQs directly based on the ingested current affairs,
+ * enforcing strict validation and deduplication.
  */
 export function generateDailyCurrentAffairsMCQs(articles: NewsArticle[], count: number = 5): PrelimsQuestion[] {
   const targetArticles = articles.filter(a => a.prelimsTag || a.upscRelevance?.prelimsFact).slice(0, count * 2);
   const mcqs: PrelimsQuestion[] = [];
+  const existingSignatures = new Set(cachedMcqs.map((m) => m.questionText.slice(0, 60).toLowerCase().trim()));
 
   for (let i = 0; i < Math.min(count, targetArticles.length); i++) {
     const art = targetArticles[i];
@@ -143,14 +198,23 @@ export function generateDailyCurrentAffairsMCQs(articles: NewsArticle[], count: 
     const prelimsFact = art.upscRelevance?.prelimsFact || art.summary;
     const headline = art.headline;
 
-    mcqs.push({
+    const candidateQuestionText = `With reference to recent developments concerning "${headline}", consider the following statements:\n1. ${prelimsFact.split(".")[0] || "It relates to statutory guidelines notified under administrative policy."}.\n2. Implementation mandates approval from the relevant Union Regulatory Authority.\n\nWhich of the statements given above is/are correct?`;
+
+    // Deduplication check
+    const sig = candidateQuestionText.slice(0, 60).toLowerCase().trim();
+    if (existingSignatures.has(sig)) {
+      continue;
+    }
+    existingSignatures.add(sig);
+
+    const candidateMcq: PrelimsQuestion = {
       id: `mcq-ca-${Date.now()}-${i + 1}`,
       questionNumber: i + 1,
       subject: gsTag.includes("GS 1") ? "Modern History & Geography" : gsTag.includes("GS 3") ? "Economy & Environment" : "Indian Polity & Governance",
       topic: art.gsTags.join(", "),
       tags: [...art.gsTags, "Current Affairs", "Prelims 2026"],
       isCurrentAffairs: true,
-      questionText: `With reference to recent developments concerning "${headline}", consider the following statements:\n1. ${prelimsFact.split(".")[0] || "It relates to statutory guidelines notified under administrative policy."}.\n2. Implementation mandates approval from the relevant Union Regulatory Authority.\n\nWhich of the statements given above is/are correct?`,
+      questionText: candidateQuestionText,
       options: [
         { key: "A", text: "1 only" },
         { key: "B", text: "2 only" },
@@ -168,10 +232,20 @@ export function generateDailyCurrentAffairsMCQs(articles: NewsArticle[], count: 
       relatedConcept: "Regulatory Governance & Statutory Implementation",
       source: art.source,
       difficulty: i % 2 === 0 ? "Medium" : "Hard",
-    });
+    };
+
+    // Strict validation
+    const validation = validatePrelimsMcq(candidateMcq);
+    if (validation.isValid) {
+      mcqs.push(candidateMcq);
+    } else {
+      console.warn(`MCQ rejected due to validation failure:`, validation.errors);
+    }
   }
 
-  cachedMcqs = mcqs;
+  // Merge and retain recent validated MCQs
+  const mergedMcqs = [...mcqs, ...cachedMcqs].slice(0, 50);
+  cachedMcqs = mergedMcqs;
   saveCurrentAffairsToDisk(cachedArticles, cachedMcqs);
   return mcqs;
 }

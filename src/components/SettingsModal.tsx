@@ -31,7 +31,9 @@ import {
   Eye,
   Contrast,
   BookOpen,
+  Brain,
 } from "lucide-react";
+import { AiPlatformTab } from "./AiPlatformTab";
 import {
   UserProfile,
   LaptopSpecs,
@@ -62,7 +64,7 @@ interface SettingsModalProps {
   onToggleTheme?: (mode: AppThemeMode) => void;
 }
 
-type TabType = "models" | "hardware" | "training" | "python" | "profile" | "appearance";
+type TabType = "models" | "hardware" | "training" | "python" | "profile" | "appearance" | "ai_platform";
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -517,6 +519,21 @@ print(f"[*] Training {model_id} on UPSC Public Administration dataset...")
             <span>Theme & Accessibility</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">
               {selectedThemeMode === "light" ? "Light" : "Dark"}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("ai_platform")}
+            className={`py-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-colors ${
+              activeTab === "ai_platform"
+                ? "border-purple-500 text-purple-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Brain className="w-4 h-4 text-purple-400" />
+            <span>AI Platform & Datasets</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold">
+              Gateway
             </span>
           </button>
         </div>
@@ -1639,6 +1656,11 @@ print(f"[*] Training {model_id} on UPSC Public Administration dataset...")
                 </div>
               </div>
             </div>
+          )}
+
+          {/* TAB 7: AI PLATFORM, DATASET BUILDER & ASYNC WORKER */}
+          {activeTab === "ai_platform" && (
+            <AiPlatformTab onNotify={(msg) => alert(msg)} />
           )}
         </div>
 

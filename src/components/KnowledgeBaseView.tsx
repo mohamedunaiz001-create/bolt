@@ -15,6 +15,8 @@ import {
   FolderOpen,
   Info,
   ShieldCheck,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import { KnowledgeDocument, KnowledgeChunk } from "../types";
 
@@ -119,6 +121,27 @@ export function KnowledgeBaseView() {
       }
     } catch (err) {
       console.error("Failed to delete document:", err);
+    }
+  };
+
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+
+  const handleToggleArchive = async (docId: string, currentStatus?: string) => {
+    const shouldArchive = currentStatus !== "archived";
+    try {
+      const res = await fetch("/api/knowledge/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: docId, archive: shouldArchive }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === docId ? { ...d, status: shouldArchive ? "archived" : "active" } : d))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to toggle archive status:", err);
     }
   };
 
@@ -248,18 +271,58 @@ export function KnowledgeBaseView() {
       {/* TAB 1: INDEXED LIBRARY */}
       {activeTab === "library" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Layers className="w-5 h-5 text-amber-500" />
-              Active Knowledge Base
-            </h2>
-            <button
-              onClick={fetchDocuments}
-              className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Layers className="w-5 h-5 text-amber-500" />
+                Knowledge Base Repository
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Full document lifecycle: upload, semantic chunking, keyword extraction, search, inspection, archive, and deletion.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-0.5 text-xs font-medium">
+                <button
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    statusFilter === "all"
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  All ({documents.length})
+                </button>
+                <button
+                  onClick={() => setStatusFilter("active")}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    statusFilter === "active"
+                      ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  Active ({documents.filter((d) => d.status !== "archived").length})
+                </button>
+                <button
+                  onClick={() => setStatusFilter("archived")}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    statusFilter === "archived"
+                      ? "bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  Archived ({documents.filter((d) => d.status === "archived").length})
+                </button>
+              </div>
+
+              <button
+                onClick={fetchDocuments}
+                className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -281,63 +344,102 @@ export function KnowledgeBaseView() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group"
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                        {doc.category}
-                      </span>
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        {doc.chunkCount} chunks
-                      </span>
-                    </div>
+              {documents
+                .filter((doc) => {
+                  if (statusFilter === "active") return doc.status !== "archived";
+                  if (statusFilter === "archived") return doc.status === "archived";
+                  return true;
+                })
+                .map((doc) => {
+                  const isArchived = doc.status === "archived";
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`bg-white dark:bg-slate-900 rounded-xl border p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group ${
+                        isArchived
+                          ? "border-slate-200/60 dark:border-slate-800/60 opacity-75"
+                          : "border-slate-200 dark:border-slate-800"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              {doc.category}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                                isArchived
+                                  ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700"
+                                  : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40"
+                              }`}
+                            >
+                              {isArchived ? "Archived" : "Active"}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            {doc.chunkCount} chunks
+                          </span>
+                        </div>
 
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-base mb-1.5 line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                      {doc.title}
-                    </h3>
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-base mb-1.5 line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                          {doc.title}
+                        </h3>
 
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
-                      {doc.snippet || "Standard UPSC indexed reference notes."}
-                    </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
+                          {doc.snippet || "Standard UPSC indexed reference notes."}
+                        </p>
 
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {doc.tags?.slice(0, 4).map((tag, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60"
-                        >
-                          #{tag}
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {doc.tags?.slice(0, 4).map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3 flex items-center justify-between text-xs">
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          {doc.fileSize || "12 KB"}
                         </span>
-                      ))}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleInspect(doc)}
+                            className="px-2.5 py-1 rounded-lg text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 font-medium transition-all text-xs"
+                          >
+                            Inspect
+                          </button>
+                          <button
+                            onClick={() => handleToggleArchive(doc.id, doc.status)}
+                            className={`p-1.5 rounded-lg border transition-colors ${
+                              isArchived
+                                ? "text-amber-500 border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20"
+                                : "text-slate-400 border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
+                            }`}
+                            title={isArchived ? "Unarchive Document" : "Archive Document"}
+                          >
+                            {isArchived ? (
+                              <ArchiveRestore className="w-3.5 h-3.5" />
+                            ) : (
+                              <Archive className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(doc.id, doc.title)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            title="Delete Document"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3 flex items-center justify-between text-xs">
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      {doc.fileSize || "12 KB"}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleInspect(doc)}
-                        className="px-2.5 py-1 rounded-lg text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 font-medium transition-all"
-                      >
-                        Inspect Chunks
-                      </button>
-                      <button
-                        onClick={() => handleDelete(doc.id, doc.title)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
-                        title="Delete Document"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           )}
         </div>

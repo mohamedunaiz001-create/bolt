@@ -1,6 +1,34 @@
-import { UserProfile, SyllabusTopic, MainsAnswerEvaluation, TimetableSlot, StudySessionLog, UserFullProgressData } from "../types";
+import {
+  UserProfile,
+  SyllabusTopic,
+  MainsAnswerEvaluation,
+  TimetableSlot,
+  StudySessionLog,
+  UserFullProgressData,
+} from "../types";
 import { publicAdminSyllabus } from "../data/mockData";
 import { DEFAULT_TIMETABLE_SLOTS } from "../data/timetableData";
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  FirebaseUser,
+} from "../lib/firebase";
+import {
+  saveFirebaseUserProfile,
+  getFirebaseUserProfile,
+  saveFirebaseUserTopics,
+  getFirebaseUserTopics,
+  getFirebaseMainsSubmissions,
+  recordFirebaseMainsSubmission,
+  saveFirebaseTimetableSlots,
+  getFirebaseTimetableSlots,
+  getFirebaseStudySessions,
+} from "./firestoreService";
 
 const CURRENT_USER_KEY = "bolt_current_user";
 const USER_PROGRESS_KEY_PREFIX = "bolt_user_progress_";
@@ -17,12 +45,12 @@ export function getCleanSyllabus(): SyllabusTopic[] {
     mcqAccuracy: 0,
     mainsAverageScore: 0,
     attemptsCount: 0,
-    status: "learning" as const,
+    status: "not_started" as const,
     lastStudiedDate: undefined,
     lastRevisedDate: undefined,
     subtopics: topic.subtopics.map((sub) => ({
       ...sub,
-      status: "learning" as const,
+      status: "not_started" as const,
       confidence: 0,
     })),
   }));
@@ -55,10 +83,11 @@ export function getStoredCurrentUser(): UserProfile | null {
 }
 
 /**
- * Save user's full progress both locally and to the server
+ * Save user's full progress to Firebase Firestore with strict user isolation,
+ * plus local storage backup and Express server sync.
  */
 export async function saveUserProgress(progress: UserFullProgressData): Promise<boolean> {
-  const userId = progress.user.id || "guest";
+  const userId = progress.user.id || auth.currentUser?.uid || "guest";
 
   // 1. Immediate local cache write
   try {
@@ -68,10 +97,23 @@ export async function saveUserProgress(progress: UserFullProgressData): Promise<
     console.warn("Could not save to localStorage:", e);
   }
 
-  // 2. Persist to server API if user is authenticated (not guest)
+  // 2. Persist to Firebase Firestore if not guest
   if (userId && !userId.startsWith("guest")) {
     try {
-      const res = await fetch("/api/user/save-progress", {
+      await Promise.all([
+        saveFirebaseUserProfile(userId, progress.user),
+        saveFirebaseUserTopics(userId, progress.topics),
+        saveFirebaseTimetableSlots(userId, progress.timetableSlots),
+      ]);
+    } catch (e) {
+      console.warn("Firestore sync error (falling back to server endpoint):", e);
+    }
+  }
+
+  // 3. Persist to server API as secondary backup
+  if (userId && !userId.startsWith("guest")) {
+    try {
+      await fetch("/api/user/save-progress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -85,11 +127,8 @@ export async function saveUserProgress(progress: UserFullProgressData): Promise<
           bookmarks: progress.bookmarks,
         }),
       });
-      if (res.ok) {
-        return true;
-      }
     } catch (e) {
-      console.warn("Failed to persist progress to server, cached locally:", e);
+      console.warn("Server endpoint save failed, data is safe in Firestore/local:", e);
     }
   }
 
@@ -97,11 +136,56 @@ export async function saveUserProgress(progress: UserFullProgressData): Promise<
 }
 
 /**
- * Load user's full progress from the server (with localStorage fallback)
+ * Load user's full progress from Firebase Firestore first,
+ * falling back to the Express server and local storage.
  */
 export async function loadUserProgress(userId: string): Promise<UserFullProgressData | null> {
-  // Try server first if authenticated
   if (userId && !userId.startsWith("guest")) {
+    // 1. Try Firebase Firestore
+    try {
+      const [fireProfile, fireTopics, fireMains, fireSlots, fireSessions] = await Promise.all([
+        getFirebaseUserProfile(userId),
+        getFirebaseUserTopics(userId),
+        getFirebaseMainsSubmissions(userId),
+        getFirebaseTimetableSlots(userId),
+        getFirebaseStudySessions(userId),
+      ]);
+
+      if (fireProfile || (fireTopics && fireTopics.length > 0)) {
+        const fullData: UserFullProgressData = {
+          user: fireProfile || {
+            id: userId,
+            name: auth.currentUser?.displayName || "UPSC Aspirant",
+            email: auth.currentUser?.email || "",
+            target: "UPSC CSE 2026",
+            optionalSubject: "Public Administration",
+            studyStreakDays: 1,
+            totalStudyHours: 0,
+            questionsAttempted: 0,
+            mainsEvaluatedCount: fireMains.length,
+            overallAccuracy: 0,
+          },
+          topics: fireTopics.length > 0 ? fireTopics : getCleanSyllabus(),
+          evaluations: fireMains,
+          timetableSlots: fireSlots && fireSlots.length > 0 ? fireSlots : getCleanTimetableSlots(),
+          studySessions: fireSessions,
+          prelimsAttempts: {},
+          bookmarks: [],
+          lastSavedAt: new Date().toISOString(),
+        };
+
+        try {
+          localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`, JSON.stringify(fullData));
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fullData.user));
+        } catch {}
+
+        return fullData;
+      }
+    } catch (e) {
+      console.warn("Could not read from Firestore, trying Express API:", e);
+    }
+
+    // 2. Try Express server API
     try {
       const res = await fetch(`/api/user/progress?userId=${encodeURIComponent(userId)}`);
       if (res.ok) {
@@ -118,20 +202,15 @@ export async function loadUserProgress(userId: string): Promise<UserFullProgress
             bookmarks: p.bookmarks || [],
             lastSavedAt: p.updatedAt,
           };
-          // Sync to local cache
-          try {
-            localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`, JSON.stringify(fullData));
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fullData.user));
-          } catch {}
           return fullData;
         }
       }
     } catch (e) {
-      console.warn("Could not load progress from server, falling back to local storage:", e);
+      console.warn("Server API fallback failed:", e);
     }
   }
 
-  // Fallback to local storage
+  // 3. Fallback to local storage
   try {
     const raw = localStorage.getItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`);
     if (raw) {
@@ -145,7 +224,7 @@ export async function loadUserProgress(userId: string): Promise<UserFullProgress
 }
 
 /**
- * Register a new user account
+ * Register a new user account with Firebase Authentication
  */
 export async function registerAccount(params: {
   name: string;
@@ -157,7 +236,56 @@ export async function registerAccount(params: {
   const cleanTopics = getCleanSyllabus();
   const cleanSlots = getCleanTimetableSlots();
 
-  // Try server registration
+  // Try Firebase Auth
+  if (params.password) {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, params.email.trim(), params.password);
+      const userId = cred.user.uid;
+
+      const newUser: UserProfile = {
+        id: userId,
+        name: params.name.trim(),
+        email: params.email.trim(),
+        target: params.target || "UPSC CSE 2026",
+        optionalSubject: params.optionalSubject || "Public Administration",
+        studyStreakDays: 1,
+        totalStudyHours: 0,
+        questionsAttempted: 0,
+        mainsEvaluatedCount: 0,
+        overallAccuracy: 0,
+        themeMode: "dark",
+      };
+
+      const progress: UserFullProgressData = {
+        user: newUser,
+        topics: cleanTopics,
+        evaluations: [],
+        timetableSlots: cleanSlots,
+        studySessions: [],
+        prelimsAttempts: {},
+        bookmarks: [],
+        lastSavedAt: new Date().toISOString(),
+      };
+
+      // Save to Firestore
+      await saveFirebaseUserProfile(userId, newUser);
+      await saveFirebaseUserTopics(userId, cleanTopics);
+      await saveFirebaseTimetableSlots(userId, cleanSlots);
+
+      // Save to local cache
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+      localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`, JSON.stringify(progress));
+
+      return { success: true, user: newUser, progress };
+    } catch (err: any) {
+      console.warn("Firebase createUser failed:", err);
+      if (err.code === "auth/email-already-in-use") {
+        return { success: false, message: "An account with this email already exists. Please sign in instead." };
+      }
+    }
+  }
+
+  // Fallback to Express backend registration
   try {
     const res = await fetch("/api/auth/register", {
       method: "POST",
@@ -184,21 +312,16 @@ export async function registerAccount(params: {
         lastSavedAt: new Date().toISOString(),
       };
 
-      // Save to local cache
-      try {
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-        localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${user.id}`, JSON.stringify(progress));
-      } catch {}
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+      localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${user.id}`, JSON.stringify(progress));
 
       return { success: true, user, progress };
-    } else {
-      return { success: false, message: json.message || "Registration failed." };
     }
   } catch (e) {
-    console.warn("Server register failed, falling back to local store:", e);
+    console.warn("Server register fallback failed:", e);
   }
 
-  // Local fallback registration
+  // Local fallback
   const userId = `user_${Date.now()}`;
   const newUser: UserProfile = {
     id: userId,
@@ -206,7 +329,7 @@ export async function registerAccount(params: {
     email: params.email.trim(),
     target: params.target || "UPSC CSE 2026",
     optionalSubject: params.optionalSubject || "Public Administration",
-    studyStreakDays: 0,
+    studyStreakDays: 1,
     totalStudyHours: 0,
     questionsAttempted: 0,
     mainsEvaluatedCount: 0,
@@ -225,35 +348,66 @@ export async function registerAccount(params: {
     lastSavedAt: new Date().toISOString(),
   };
 
-  try {
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
-    localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`, JSON.stringify(progress));
-    // Save to accounts list
-    const existingAccountsRaw = localStorage.getItem(ACCOUNTS_KEY);
-    const accounts = existingAccountsRaw ? JSON.parse(existingAccountsRaw) : [];
-    accounts.push({
-      id: userId,
-      name: newUser.name,
-      email: newUser.email,
-      password: params.password || "",
-      target: newUser.target,
-      optionalSubject: newUser.optionalSubject,
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-  } catch {}
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+  localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`, JSON.stringify(progress));
 
   return { success: true, user: newUser, progress };
 }
 
 /**
- * Sign in an existing user and restore their saved progress
+ * Sign in an existing user with Firebase Auth or fallback
  */
 export async function loginAccount(params: {
   email: string;
   password?: string;
 }): Promise<{ success: boolean; message?: string; user?: UserProfile; progress?: UserFullProgressData }> {
-  // 1. Try server login
+  // 1. Try Firebase Auth
+  if (params.password) {
+    try {
+      const cred = await signInWithEmailAndPassword(auth, params.email.trim(), params.password);
+      const userId = cred.user.uid;
+      const progress = await loadUserProgress(userId);
+
+      if (progress) {
+        return { success: true, user: progress.user, progress };
+      }
+
+      // Default user if no progress doc yet
+      const defaultUser: UserProfile = {
+        id: userId,
+        name: cred.user.displayName || params.email.split("@")[0],
+        email: params.email,
+        target: "UPSC CSE 2026",
+        optionalSubject: "Public Administration",
+        studyStreakDays: 1,
+        totalStudyHours: 0,
+        questionsAttempted: 0,
+        mainsEvaluatedCount: 0,
+        overallAccuracy: 0,
+      };
+
+      return {
+        success: true,
+        user: defaultUser,
+        progress: {
+          user: defaultUser,
+          topics: getCleanSyllabus(),
+          evaluations: [],
+          timetableSlots: getCleanTimetableSlots(),
+          studySessions: [],
+          prelimsAttempts: {},
+          bookmarks: [],
+        },
+      };
+    } catch (err: any) {
+      console.warn("Firebase signInWithEmailAndPassword failed:", err);
+      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        return { success: false, message: "Invalid email or password. Please verify your credentials." };
+      }
+    }
+  }
+
+  // 2. Try Express server API
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -275,57 +429,93 @@ export async function loginAccount(params: {
         lastSavedAt: rawP?.updatedAt || new Date().toISOString(),
       };
 
-      try {
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-        localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${user.id}`, JSON.stringify(progress));
-      } catch {}
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+      localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${user.id}`, JSON.stringify(progress));
 
       return { success: true, user, progress };
-    } else {
-      // If server returned explicit error (like wrong password)
-      if (json.message) {
-        return { success: false, message: json.message };
-      }
     }
   } catch (e) {
-    console.warn("Server login request failed, checking local accounts:", e);
+    console.warn("Server login fallback failed:", e);
   }
 
-  // 2. Local fallback
+  // 3. Local storage accounts check
   try {
     const existingAccountsRaw = localStorage.getItem(ACCOUNTS_KEY);
     const accounts = existingAccountsRaw ? JSON.parse(existingAccountsRaw) : [];
     const matched = accounts.find((a: any) => a.email.toLowerCase() === params.email.trim().toLowerCase());
 
     if (!matched) {
-      return { success: false, message: "No account found with this email. Please check your credentials or create a new account." };
+      return { success: false, message: "No account found with this email. Please create a new account." };
     }
 
     if (matched.password && params.password && matched.password !== params.password) {
       return { success: false, message: "Invalid password. Please check your credentials." };
     }
 
-    // Load saved progress from local store
     const localProgressRaw = localStorage.getItem(`${USER_PROGRESS_KEY_PREFIX}${matched.id}`);
-    let progress: UserFullProgressData;
-    if (localProgressRaw) {
-      progress = JSON.parse(localProgressRaw);
-    } else {
-      const userObj: UserProfile = {
-        id: matched.id,
-        name: matched.name,
-        email: matched.email,
-        target: matched.target || "UPSC CSE 2026",
-        optionalSubject: matched.optionalSubject || "Public Administration",
-        studyStreakDays: 0,
+    const progress: UserFullProgressData = localProgressRaw
+      ? JSON.parse(localProgressRaw)
+      : {
+          user: {
+            id: matched.id,
+            name: matched.name,
+            email: matched.email,
+            target: matched.target || "UPSC CSE 2026",
+            optionalSubject: matched.optionalSubject || "Public Administration",
+            studyStreakDays: 1,
+            totalStudyHours: 0,
+            questionsAttempted: 0,
+            mainsEvaluatedCount: 0,
+            overallAccuracy: 0,
+          },
+          topics: getCleanSyllabus(),
+          evaluations: [],
+          timetableSlots: getCleanTimetableSlots(),
+          studySessions: [],
+          prelimsAttempts: {},
+          bookmarks: [],
+        };
+
+    return { success: true, user: progress.user, progress };
+  } catch {}
+
+  return { success: false, message: "Authentication failed. Please check your network connection." };
+}
+
+/**
+ * Sign in using Google OAuth with Firebase
+ */
+export async function signInWithGoogle(): Promise<{
+  success: boolean;
+  message?: string;
+  user?: UserProfile;
+  progress?: UserFullProgressData;
+}> {
+  try {
+    const cred = await signInWithPopup(auth, googleProvider);
+    const fbUser = cred.user;
+    const userId = fbUser.uid;
+
+    let progress = await loadUserProgress(userId);
+
+    if (!progress) {
+      const newUser: UserProfile = {
+        id: userId,
+        name: fbUser.displayName || "UPSC Aspirant",
+        email: fbUser.email || "",
+        avatarUrl: fbUser.photoURL || undefined,
+        target: "UPSC CSE 2026",
+        optionalSubject: "Public Administration",
+        studyStreakDays: 1,
         totalStudyHours: 0,
         questionsAttempted: 0,
         mainsEvaluatedCount: 0,
         overallAccuracy: 0,
         themeMode: "dark",
       };
+
       progress = {
-        user: userObj,
+        user: newUser,
         topics: getCleanSyllabus(),
         evaluations: [],
         timetableSlots: getCleanTimetableSlots(),
@@ -334,22 +524,39 @@ export async function loginAccount(params: {
         bookmarks: [],
         lastSavedAt: new Date().toISOString(),
       };
+
+      await saveFirebaseUserProfile(userId, newUser);
+      await saveFirebaseUserTopics(userId, progress.topics);
+      await saveFirebaseTimetableSlots(userId, progress.timetableSlots);
     }
 
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(progress.user));
+    localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`, JSON.stringify(progress));
+
     return { success: true, user: progress.user, progress };
-  } catch (e: any) {
-    return { success: false, message: e.message || "Failed to sign in." };
+  } catch (err: any) {
+    console.warn("Google sign-in failed:", err);
+    return { success: false, message: err.message || "Google sign-in was cancelled or failed." };
   }
 }
 
 /**
- * Sign out the current user
+ * Sign out current user
  */
-export function logoutCurrentUser(): void {
+export async function logoutAccount(): Promise<void> {
   try {
-    localStorage.removeItem(CURRENT_USER_KEY);
-  } catch {}
+    await signOut(auth);
+  } catch (e) {
+    console.warn("Firebase sign-out error:", e);
+  }
+  localStorage.removeItem(CURRENT_USER_KEY);
 }
 
-export const logoutAccount = logoutCurrentUser;
+/**
+ * Listen for persistent Firebase Auth state changes
+ */
+export function subscribeToAuthState(
+  onUserChanged: (user: FirebaseUser | null) => void
+): () => void {
+  return onAuthStateChanged(auth, onUserChanged);
+}
