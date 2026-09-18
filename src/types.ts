@@ -1,4 +1,44 @@
-export type NavigationTab = "home" | "learn" | "knowledge" | "prelims" | "mains" | "news" | "schedule" | "planner" | "bolt";
+export type NavigationTab = "home" | "learn" | "knowledge" | "knowledgeGraph" | "prelims" | "mains" | "news" | "schedule" | "planner" | "bolt";
+
+export type GraphNodeType = "topic" | "thinker" | "pyq" | "concept";
+
+export interface KnowledgeGraphNode {
+  id: string;
+  title: string;
+  subtitle?: string;
+  type: GraphNodeType;
+  paper?: "Paper 1" | "Paper 2" | "Cross-Paper" | "GS 4 / Ethics";
+  unit?: string;
+  year?: number;
+  marks?: number;
+  importance: "High Yield" | "Core Doctrine" | "Frequent PYQ" | "Emerging Trend";
+  summary: string;
+  keyThemes?: string[];
+  keyQuotes?: string[];
+  crossPaperBridge?: string;
+  pyqPrompt?: string;
+  modelAnswerTips?: string[];
+  x?: number;
+  y?: number;
+}
+
+export interface KnowledgeGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  relationship: "theorized_by" | "tested_in_pyq" | "conceptual_foundation" | "critiques" | "applied_to_paper2" | "synergistic_with";
+  description?: string;
+}
+
+export interface ThematicCluster {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+  primaryNodeId: string;
+  connectedNodeIds: string[];
+}
 
 export interface KnowledgeDocument {
   id: string;
@@ -584,5 +624,97 @@ export interface UserFullProgressData {
   bookmarks?: string[];
   lastSavedAt?: string;
 }
+
+// ----------------------------------------------------
+// CANONICAL STUDENT PROFILE & DATA ENGINE (Phase 2)
+// ----------------------------------------------------
+
+export interface CanonicalStudentProfile {
+  userId: string;
+  name: string;
+  email: string;
+  exam: string;
+  attemptYear: number;
+  optionalSubject: string;
+  dailyStudyHoursGoal: number;
+  studyPreferences: {
+    preferredStudyTime: "morning" | "afternoon" | "night" | "flexible";
+    pace: "intensive" | "balanced" | "working_professional";
+    focusAreas: string[];
+    enableAdaptiveNotifications: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Canonical Syllabus Hierarchy: Exam -> Subject -> Paper -> Unit -> Topic -> Subtopic
+export interface SyllabusSubtopic {
+  id: string;
+  title: string;
+  pyqFrequency: number;
+  isCompleted?: boolean;
+}
+
+export interface SyllabusUnitNode {
+  id: string;
+  unitNumber: number;
+  title: string;
+  topics: {
+    id: string;
+    title: string;
+    subtopics: SyllabusSubtopic[];
+  }[];
+}
+
+export interface SyllabusPaperHierarchy {
+  paperId: string;
+  paperName: string; // e.g. "Paper 1: Administrative Theory"
+  units: SyllabusUnitNode[];
+}
+
+export interface SyllabusSubjectHierarchy {
+  subjectName: string; // e.g. "Public Administration"
+  papers: SyllabusPaperHierarchy[];
+}
+
+// ----------------------------------------------------
+// SEPARATED METRICS & REVISION ENGINE (Phase 3 & 4)
+// ----------------------------------------------------
+
+export interface SeparatedTopicMetrics {
+  topicId: string;
+  topicName: string;
+  paper: string;
+  unit: string;
+  syllabusCompletionPct: number; // Reading / syllabus covered: 0 - 100%
+  knowledgeEstimatePct: number; // Diagnostic performance-derived: 0 - 100%
+  mcqAccuracyPct: number | null; // Null if no attempts yet
+  mainsAverageScore: number | null; // e.g. 10.2 / 15 or null
+  revisionRetentionPct: number; // Ebbinghaus retention: 0 - 100%
+  status: "Weak" | "Very weak" | "Improving" | "Declining" | "Strong" | "Mastered" | "Insufficient data";
+  signals: {
+    attemptCount: number;
+    mistakeCount: number;
+    lastStudied?: string;
+    lastRevised?: string;
+    trend: "improving" | "stable" | "declining" | "unknown";
+  };
+}
+
+export interface RevisionQueueItem {
+  id: string;
+  topicId: string;
+  topicName: string;
+  paper: string;
+  unit: string;
+  lastStudiedDate: string;
+  lastRevisedDate?: string;
+  nextRevisionDate: string;
+  revisionCount: number;
+  retentionEstimate: number; // 0 to 100%
+  urgency: "overdue" | "due_today" | "due_soon" | "scheduled";
+  difficulty: "high" | "medium" | "low";
+}
+
 
 

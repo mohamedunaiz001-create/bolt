@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { execSync, execFileSync } from "child_process";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
@@ -616,6 +617,140 @@ app.get("/api/bolt/topic-diagnostic", (req, res) => {
   const isWeak = req.query.isWeak === "true";
   const diagnostic = computeTopicDiagnostic(topicName, isWeak);
   res.json({ success: true, diagnostic });
+});
+
+// ----------------------------------------------------
+// CURRICULUM KNOWLEDGE GRAPH API (PERSISTENT DATA STORE)
+// ----------------------------------------------------
+
+const KG_STORE_PATH = path.join(process.cwd(), "data", "knowledge_graph_store.json");
+
+function getKnowledgeGraphStore(): { nodes: any[]; edges: any[]; clusters: any[]; updatedAt?: string } {
+  try {
+    if (fs.existsSync(KG_STORE_PATH)) {
+      const raw = fs.readFileSync(KG_STORE_PATH, "utf-8");
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error("Failed to read knowledge_graph_store.json:", e);
+  }
+  return { nodes: [], edges: [], clusters: [] };
+}
+
+function saveKnowledgeGraphStore(data: { nodes: any[]; edges: any[]; clusters: any[]; updatedAt?: string }) {
+  try {
+    fs.writeFileSync(KG_STORE_PATH, JSON.stringify(data, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Failed to write knowledge_graph_store.json:", e);
+  }
+}
+
+// GET full knowledge graph
+app.get("/api/curriculum/knowledge-graph", (_req, res) => {
+  const store = getKnowledgeGraphStore();
+  res.json({
+    success: true,
+    nodes: store.nodes || [],
+    edges: store.edges || [],
+    clusters: store.clusters || [],
+    updatedAt: store.updatedAt || new Date().toISOString(),
+  });
+});
+
+// POST / PUT node
+app.post("/api/curriculum/knowledge-graph/nodes", (req, res) => {
+  try {
+    const node = req.body;
+    if (!node || !node.id || !node.title) {
+      return res.status(400).json({ success: false, message: "Valid node with id and title is required." });
+    }
+    const store = getKnowledgeGraphStore();
+    const existingIndex = store.nodes.findIndex((n: any) => n.id === node.id);
+    if (existingIndex >= 0) {
+      store.nodes[existingIndex] = { ...store.nodes[existingIndex], ...node };
+    } else {
+      store.nodes.push(node);
+    }
+    store.updatedAt = new Date().toISOString();
+    saveKnowledgeGraphStore(store);
+    res.json({ success: true, node });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// POST batch positions (when user repositions nodes on canvas)
+app.post("/api/curriculum/knowledge-graph/nodes/batch-positions", (req, res) => {
+  try {
+    const { positions } = req.body; // Array<{ id: string; x: number; y: number }>
+    if (!Array.isArray(positions)) {
+      return res.status(400).json({ success: false, message: "Positions array required." });
+    }
+    const store = getKnowledgeGraphStore();
+    const posMap = new Map<string, { x: number; y: number }>();
+    positions.forEach((p) => posMap.set(p.id, { x: p.x, y: p.y }));
+
+    store.nodes = store.nodes.map((n: any) => {
+      const pos = posMap.get(n.id);
+      return pos ? { ...n, x: pos.x, y: pos.y } : n;
+    });
+    store.updatedAt = new Date().toISOString();
+    saveKnowledgeGraphStore(store);
+    res.json({ success: true, count: positions.length });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// POST / PUT edge
+app.post("/api/curriculum/knowledge-graph/edges", (req, res) => {
+  try {
+    const edge = req.body;
+    if (!edge || !edge.id || !edge.source || !edge.target) {
+      return res.status(400).json({ success: false, message: "Valid edge with id, source, and target is required." });
+    }
+    const store = getKnowledgeGraphStore();
+    const existingIndex = store.edges.findIndex((e: any) => e.id === edge.id);
+    if (existingIndex >= 0) {
+      store.edges[existingIndex] = { ...store.edges[existingIndex], ...edge };
+    } else {
+      store.edges.push(edge);
+    }
+    store.updatedAt = new Date().toISOString();
+    saveKnowledgeGraphStore(store);
+    res.json({ success: true, edge });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// DELETE node
+app.delete("/api/curriculum/knowledge-graph/nodes/:id", (req, res) => {
+  try {
+    const nodeId = req.params.id;
+    const store = getKnowledgeGraphStore();
+    store.nodes = store.nodes.filter((n: any) => n.id !== nodeId);
+    store.edges = store.edges.filter((e: any) => e.source !== nodeId && e.target !== nodeId);
+    store.updatedAt = new Date().toISOString();
+    saveKnowledgeGraphStore(store);
+    res.json({ success: true, deletedNodeId: nodeId });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// DELETE edge
+app.delete("/api/curriculum/knowledge-graph/edges/:id", (req, res) => {
+  try {
+    const edgeId = req.params.id;
+    const store = getKnowledgeGraphStore();
+    store.edges = store.edges.filter((e: any) => e.id !== edgeId);
+    store.updatedAt = new Date().toISOString();
+    saveKnowledgeGraphStore(store);
+    res.json({ success: true, deletedEdgeId: edgeId });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
 // ----------------------------------------------------

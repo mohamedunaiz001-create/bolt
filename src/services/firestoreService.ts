@@ -21,6 +21,9 @@ import {
   ChatMessage,
   ModelRegistryVersion,
   DailyMCQItem,
+  KnowledgeGraphNode,
+  KnowledgeGraphEdge,
+  ThematicCluster,
 } from "../types";
 
 /**
@@ -260,5 +263,155 @@ export async function updateModelVersionStatus(versionId: string, status: "activ
     await updateDoc(versionDoc, { status, updatedAt: serverTimestamp() });
   } catch (e) {
     console.warn("Could not update model version in Firestore:", e);
+  }
+}
+
+// ----------------------------------------------------
+// CURRICULUM KNOWLEDGE GRAPH DYNAMIC PERSISTENCE
+// ----------------------------------------------------
+
+/**
+ * Loads Knowledge Graph items (nodes, edges, thematic clusters)
+ * Queries Firestore first, syncing with server database store as reliable full-stack backup.
+ */
+export async function getKnowledgeGraphData(): Promise<{
+  nodes: KnowledgeGraphNode[];
+  edges: KnowledgeGraphEdge[];
+  clusters: ThematicCluster[];
+}> {
+  // 1. First attempt to query Firestore collections
+  try {
+    const [nodesSnap, edgesSnap, clustersSnap] = await Promise.all([
+      getDocs(collection(db, "knowledge_nodes")),
+      getDocs(collection(db, "knowledge_edges")),
+      getDocs(collection(db, "knowledge_clusters")),
+    ]);
+
+    if (!nodesSnap.empty) {
+      const nodes = nodesSnap.docs.map((d) => d.data() as KnowledgeGraphNode);
+      const edges = edgesSnap.docs.map((d) => d.data() as KnowledgeGraphEdge);
+      const clusters = clustersSnap.docs.map((d) => d.data() as ThematicCluster);
+      return { nodes, edges, clusters };
+    }
+  } catch (firestoreErr) {
+    console.info("Firestore knowledge graph query not yet populated or permissions restricted, using live API store:", firestoreErr);
+  }
+
+  // 2. Fetch from Express API backing store
+  try {
+    const res = await fetch("/api/curriculum/knowledge-graph");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.nodes)) {
+        return {
+          nodes: data.nodes as KnowledgeGraphNode[],
+          edges: (data.edges || []) as KnowledgeGraphEdge[],
+          clusters: (data.clusters || []) as ThematicCluster[],
+        };
+      }
+    }
+  } catch (apiErr) {
+    console.warn("API knowledge graph fetch failed:", apiErr);
+  }
+
+  return { nodes: [], edges: [], clusters: [] };
+}
+
+/**
+ * Persist or update a node into Firestore & backend database
+ */
+export async function saveKnowledgeGraphNode(node: KnowledgeGraphNode): Promise<boolean> {
+  let savedFirestore = false;
+  try {
+    const nodeDoc = doc(db, "knowledge_nodes", node.id);
+    await setDoc(nodeDoc, { ...node, updatedAt: serverTimestamp() }, { merge: true });
+    savedFirestore = true;
+  } catch (e) {
+    console.info("Could not write node to Firestore directly:", e);
+  }
+
+  try {
+    await fetch("/api/curriculum/knowledge-graph/nodes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(node),
+    });
+  } catch (e) {
+    console.warn("Could not save node to server store:", e);
+  }
+
+  return savedFirestore;
+}
+
+/**
+ * Persist batch positions (when user arranges nodes on interactive SVG)
+ */
+export async function saveKnowledgeGraphBatchPositions(
+  positions: Array<{ id: string; x: number; y: number }>
+): Promise<boolean> {
+  try {
+    await fetch("/api/curriculum/knowledge-graph/nodes/batch-positions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ positions }),
+    });
+    return true;
+  } catch (e) {
+    console.warn("Could not save batch node positions:", e);
+    return false;
+  }
+}
+
+/**
+ * Persist or update an edge
+ */
+export async function saveKnowledgeGraphEdge(edge: KnowledgeGraphEdge): Promise<boolean> {
+  try {
+    const edgeDoc = doc(db, "knowledge_edges", edge.id);
+    await setDoc(edgeDoc, { ...edge, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) {
+    console.info("Could not write edge to Firestore directly:", e);
+  }
+
+  try {
+    await fetch("/api/curriculum/knowledge-graph/edges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edge),
+    });
+    return true;
+  } catch (e) {
+    console.warn("Could not save edge to server store:", e);
+    return false;
+  }
+}
+
+/**
+ * Delete a node from database
+ */
+export async function deleteKnowledgeGraphNode(nodeId: string): Promise<boolean> {
+  try {
+    await fetch(`/api/curriculum/knowledge-graph/nodes/${nodeId}`, {
+      method: "DELETE",
+    });
+    return true;
+  } catch (e) {
+    console.warn("Could not delete node:", e);
+    return false;
+  }
+}
+
+/**
+ * Delete an edge from database
+ */
+export async function deleteKnowledgeGraphEdge(edgeId: string): Promise<boolean> {
+  try {
+    await fetch(`/api/curriculum/knowledge-graph/edges/${edgeId}`, {
+      method: "DELETE",
+    });
+    return true;
+  } catch (e) {
+    console.warn("Could not delete edge:", e);
+    return false;
   }
 }

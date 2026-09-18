@@ -27,6 +27,149 @@ import { searchKnowledgeChunks } from "./ragService";
 import { StudentIntelligenceEngine, CANONICAL_TOPIC_GRAPH } from "./studentIntelligence";
 import { loadCurrentAffairsFromDisk } from "./currentAffairsPipeline";
 
+export type ToolPermissionLevel = "READ_ONLY" | "WRITE" | "DESTRUCTIVE";
+
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  permission: ToolPermissionLevel;
+  requiresConfirmation?: boolean;
+  inputSchema: Record<string, string>;
+  outputSchema: Record<string, string>;
+}
+
+export const BOLT_TOOL_REGISTRY: Record<string, ToolDefinition> = {
+  searchKnowledge: {
+    name: "searchKnowledge",
+    description: "Hybrid semantic & keyword search across 2nd ARC, Thinkers, and notes corpus",
+    permission: "READ_ONLY",
+    inputSchema: { query: "string", topK: "number" },
+    outputSchema: { citations: "Citation[]" },
+  },
+  getSyllabus: {
+    name: "getSyllabus",
+    description: "Retrieve hierarchical syllabus tree for Paper 1 and Paper 2",
+    permission: "READ_ONLY",
+    inputSchema: { paper: "string?" },
+    outputSchema: { units: "SyllabusUnitNode[]" },
+  },
+  getTopicProgress: {
+    name: "getTopicProgress",
+    description: "Retrieve separated completion, knowledge score, and retention for a specific topic",
+    permission: "READ_ONLY",
+    inputSchema: { topicId: "string" },
+    outputSchema: { completion: "number", knowledge: "number", retention: "number", status: "string" },
+  },
+  getWeakAreas: {
+    name: "getWeakAreas",
+    description: "Retrieve topics needing intervention based on multi-signal diagnostics",
+    permission: "READ_ONLY",
+    inputSchema: { limit: "number?" },
+    outputSchema: { weakAreas: "object[]" },
+  },
+  getStrongAreas: {
+    name: "getStrongAreas",
+    description: "Retrieve mastered topics with high MCQ accuracy and solid Mains scores",
+    permission: "READ_ONLY",
+    inputSchema: { limit: "number?" },
+    outputSchema: { strongAreas: "object[]" },
+  },
+  getRevisionQueue: {
+    name: "getRevisionQueue",
+    description: "Retrieve today's spaced repetition queue (Overdue, Due today, Due soon, Scheduled)",
+    permission: "READ_ONLY",
+    inputSchema: { filterUrgency: "string?" },
+    outputSchema: { queue: "RevisionQueueItem[]" },
+  },
+  getStudyHistory: {
+    name: "getStudyHistory",
+    description: "Retrieve recent Pomodoro and deep work study session logs",
+    permission: "READ_ONLY",
+    inputSchema: { days: "number?" },
+    outputSchema: { sessions: "object[]", totalHours: "number" },
+  },
+  getMCQHistory: {
+    name: "getMCQHistory",
+    description: "Retrieve student's recent Prelims MCQ attempts and accuracy by subject",
+    permission: "READ_ONLY",
+    inputSchema: { topicId: "string?" },
+    outputSchema: { totalAttempts: "number", accuracyPct: "number?" },
+  },
+  getMainsHistory: {
+    name: "getMainsHistory",
+    description: "Retrieve past 7-dimension Mains evaluations, score trends, and recurring flaws",
+    permission: "READ_ONLY",
+    inputSchema: { limit: "number?" },
+    outputSchema: { evaluations: "object[]", averageScore: "number?" },
+  },
+  getCurrentAffairs: {
+    name: "getCurrentAffairs",
+    description: "Fetch live UPSC-classified current affairs from The Hindu, ET, Livemint & PIB",
+    permission: "READ_ONLY",
+    inputSchema: { category: "string?" },
+    outputSchema: { articles: "object[]" },
+  },
+  generateMCQ: {
+    name: "generateMCQ",
+    description: "Generate 4-option UPSC Prelims MCQ with syllabus linkage and explanation",
+    permission: "WRITE",
+    inputSchema: { topic: "string", difficulty: "string" },
+    outputSchema: { question: "object" },
+  },
+  evaluateAnswer: {
+    name: "evaluateAnswer",
+    description: "Run 7-dimension 15-mark Mains evaluation with strengths, flaws, and model upgrade",
+    permission: "WRITE",
+    inputSchema: { questionText: "string", answerText: "string" },
+    outputSchema: { score: "number", dimensionScores: "object", modelUpgrade: "string" },
+  },
+  generateModelAnswer: {
+    name: "generateModelAnswer",
+    description: "Generate ideal 15-mark UPSC answer with thinker citations, 2nd ARC references, and diagrams",
+    permission: "WRITE",
+    inputSchema: { questionText: "string", wordCount: "number?" },
+    outputSchema: { modelAnswer: "string", thinkersCited: "string[]" },
+  },
+  createStudyPlan: {
+    name: "createStudyPlan",
+    description: "Create adaptive daily or weekly syllabus timetable protecting revision slots",
+    permission: "WRITE",
+    inputSchema: { availableHours: "number", targetDays: "number" },
+    outputSchema: { planId: "string", scheduledUnits: "object[]" },
+  },
+  createRevisionPlan: {
+    name: "createRevisionPlan",
+    description: "Generate spaced repetition schedule based on Ebbinghaus forgetting curve",
+    permission: "WRITE",
+    inputSchema: { urgency: "string?" },
+    outputSchema: { revisionTasks: "object[]" },
+  },
+  deleteDocument: {
+    name: "deleteDocument",
+    description: "Remove uploaded document and all indexed vector embeddings from RAG corpus",
+    permission: "DESTRUCTIVE",
+    requiresConfirmation: true,
+    inputSchema: { documentId: "string" },
+    outputSchema: { success: "boolean" },
+  },
+  deleteHistory: {
+    name: "deleteHistory",
+    description: "Clear candidate conversation history and context trace",
+    permission: "DESTRUCTIVE",
+    requiresConfirmation: true,
+    inputSchema: { confirm: "boolean" },
+    outputSchema: { success: "boolean" },
+  },
+  deleteAccount: {
+    name: "deleteAccount",
+    description: "Permanently delete user profile, evaluations, and progress records",
+    permission: "DESTRUCTIVE",
+    requiresConfirmation: true,
+    inputSchema: { confirmationPhrase: "string" },
+    outputSchema: { success: "boolean" },
+  },
+};
+
 export interface StrictBoltContext {
   student: {
     name: string;
@@ -37,8 +180,9 @@ export interface StrictBoltContext {
   masterySummary: {
     syllabusCompletion: number;
     knowledgeMastery: number;
-    mcqAccuracy: number;
-    mainsAverage: number;
+    mcqAccuracy: number | null;
+    mainsAverage: number | null;
+    dataConfidence: "sufficient" | "insufficient_data";
   };
   weakAreas: string[];
   revisionDue: string[];
@@ -117,12 +261,14 @@ export class BoltAgentRuntime {
         knowledgeMastery: intel.overallKnowledgeMastery,
         mcqAccuracy: intel.mcqOverallAccuracy,
         mainsAverage: intel.mainsOverallAverage,
+        dataConfidence: intel.dataConfidence,
       },
       weakAreas: intel.topWeakAreas.map((w) => `${w.topic} (${w.mastery}% mastery)`),
       revisionDue: intel.criticalRevisionTopics,
       recentActivity: [
-        `Evaluated Mains answer on ${intel.recentLearningLoop?.questionText?.slice(0, 35) || "Administrative Thought"}`,
-        `Reviewed 12 flashcards on Thinkers`,
+        intel.recentLearningLoop
+          ? `Evaluated Mains answer on ${intel.recentLearningLoop.questionText.slice(0, 35)}... (Score: ${intel.recentLearningLoop.score}/15)`
+          : "Logged diagnostic study session on Public Administration",
       ],
       retrievedKnowledge: citations,
       currentAffairs: articles,
@@ -141,14 +287,14 @@ export class BoltAgentRuntime {
     const context = this.buildStrictContext(candidateData, userMessage);
     const executedSteps: AgentExecutionStep[] = [];
 
-    // 1. Tool Intent Detection
+    // 1. Tool Intent Detection & Dispatch
     const qLower = userMessage.toLowerCase();
 
     if (qLower.includes("weak") || qLower.includes("where am i struggling") || qLower.includes("progress")) {
       executedSteps.push({
         toolName: "getWeakAreas",
         toolInput: { candidate: context.student.name },
-        toolOutputSummary: `Found ${context.weakAreas.length} weak areas: ${context.weakAreas.join(", ")}`,
+        toolOutputSummary: `Found ${context.weakAreas.length} weak areas: ${context.weakAreas.join(", ") || "None recorded yet"}`,
         verified: true,
       });
     }
@@ -171,14 +317,25 @@ export class BoltAgentRuntime {
       });
     }
 
+    // Transparent Execution Summary
+    executedSteps.unshift({
+      toolName: "analyzeContextTrace",
+      toolInput: { student: context.student.name, optional: context.student.optional },
+      toolOutputSummary: `BOLT analyzed: ✓ ${CANONICAL_TOPIC_GRAPH.length} topics, ✓ ${candidateData?.prelimsAttempts ? Object.keys(candidateData.prelimsAttempts).length : 0} MCQs, ✓ ${candidateData?.evaluations?.length || 0} Mains answers, ✓ ${context.retrievedKnowledge.length} citations.`,
+      verified: true,
+    });
+
     // 2. Synthesize System Instruction from Strict Protocol
+    const mcqStr = context.masterySummary.mcqAccuracy !== null ? `${context.masterySummary.mcqAccuracy}%` : "Insufficient data";
+    const mainsStr = context.masterySummary.mainsAverage !== null ? `${context.masterySummary.mainsAverage} / 15` : "Insufficient data";
+
     const systemPrompt = `You are BOLT, the intelligent UPSC CSE AI brain specializing in Public Administration and General Studies.
 STRICT CONTEXT PROTOCOL:
 Student: ${context.student.name} | Target: ${context.student.exam} (${context.student.targetYear}) | Optional: ${context.student.optional}
 - Syllabus Completion: ${context.masterySummary.syllabusCompletion}%
 - Evaluated Knowledge Mastery: ${context.masterySummary.knowledgeMastery}%
-- MCQ Accuracy: ${context.masterySummary.mcqAccuracy}%
-- Mains Average: ${context.masterySummary.mainsAverage} / 15
+- MCQ Accuracy: ${mcqStr}
+- Mains Average: ${mainsStr}
 - Weak Topics: ${context.weakAreas.join("; ") || "None"}
 - Revision Due: ${context.revisionDue.join("; ") || "None"}
 

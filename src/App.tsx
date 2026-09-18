@@ -8,6 +8,7 @@ import { NewsView } from "./components/NewsView";
 import { TimetableAndTimerView } from "./components/TimetableAndTimerView";
 import { BoltAssistantView } from "./components/BoltAssistantView";
 import { KnowledgeBaseView } from "./components/KnowledgeBaseView";
+import { KnowledgeGraphVisualization } from "./components/KnowledgeGraphVisualization";
 import { SettingsModal } from "./components/SettingsModal";
 import { AuthModal } from "./components/AuthModal";
 import {
@@ -442,6 +443,7 @@ export default function App() {
             topics={topics}
             articles={articles}
             evaluations={evaluations}
+            studySessions={studySessions}
             onNavigate={(tab) => setActiveTab(tab)}
             onAskBoltAboutWeakness={handleAskBoltAboutWeakness}
             onStartRevision={() => setActiveTab("learn")}
@@ -462,6 +464,14 @@ export default function App() {
 
         {activeTab === "knowledge" && (
           <KnowledgeBaseView />
+        )}
+
+        {activeTab === "knowledgeGraph" && (
+          <KnowledgeGraphVisualization
+            user={user}
+            onAskBoltTopic={(topicOrThinker) => handleAskBoltAboutWeakness(topicOrThinker)}
+            onPracticePYQ={() => setActiveTab("mains")}
+          />
         )}
 
         {activeTab === "prelims" && (

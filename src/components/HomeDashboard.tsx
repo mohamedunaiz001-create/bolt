@@ -15,12 +15,14 @@ import {
   Brain,
 } from "lucide-react";
 import { StudentIntelligenceModal } from "./StudentIntelligenceModal";
+import { StudentIntelligenceDashboard } from "./StudentIntelligenceDashboard";
 import {
   UserProfile,
   SyllabusTopic,
   NavigationTab,
   NewsArticle,
   MainsAnswerEvaluation,
+  StudySessionLog,
 } from "../types";
 import { MilestonesSection } from "./MilestonesSection";
 import { DailyNewsDashboardSection } from "./DailyNewsDashboardSection";
@@ -33,6 +35,7 @@ interface HomeDashboardProps {
   topics: SyllabusTopic[];
   articles?: NewsArticle[];
   evaluations?: MainsAnswerEvaluation[];
+  studySessions?: StudySessionLog[];
   onNavigate: (tab: NavigationTab) => void;
   onAskBoltAboutWeakness: (weaknessName: string) => void;
   onStartRevision: () => void;
@@ -46,6 +49,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   topics,
   articles = mockNewsArticles,
   evaluations = [],
+  studySessions = [],
   onNavigate,
   onAskBoltAboutWeakness,
   onStartRevision,
@@ -192,6 +196,17 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         onNavigate={onNavigate}
         onAskBolt={onAskBolt}
         onStartTodayMCQs={onStartTodayMCQs}
+      />
+
+      {/* Unified Student Intelligence Dashboard: 4 Required Dimensions */}
+      <StudentIntelligenceDashboard
+        user={user}
+        topics={topics}
+        evaluations={evaluations}
+        studySessions={studySessions}
+        onNavigate={onNavigate}
+        onAskBoltTopic={onAskBoltAboutWeakness}
+        onOpenDiagnosticModal={() => setIsIntelligenceOpen(true)}
       />
 
       {/* Main Grid: Syllabus Progress & Today's Target */}

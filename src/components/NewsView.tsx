@@ -50,10 +50,24 @@ const DEFAULT_PRESET_FEEDS: SavedFeed[] = [
     category: "Editorials",
   },
   {
+    id: "preset-et",
+    name: "Economic Times - Economy & Policy",
+    source: "Government Sources",
+    url: "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms",
+    category: "Economy & Governance",
+  },
+  {
+    id: "preset-livemint",
+    name: "Livemint - Politics & Governance",
+    source: "Government Sources",
+    url: "https://www.livemint.com/rss/politics",
+    category: "Polity & Governance",
+  },
+  {
     id: "preset-pib",
     name: "PIB - Official Press Releases",
     source: "PIB",
-    url: "https://archive.pib.gov.in/rss/rss.aspx",
+    url: "https://pib.gov.in/press-releases",
     category: "Government Sources",
   },
   {
@@ -434,9 +448,33 @@ export const NewsView: React.FC<NewsViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  setFeedSourceInput("Government Sources");
+                  setFeedUrlInput("https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms");
+                  handleAddAndFetchFeed("https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms", "Government Sources");
+                }}
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-[#182338] hover:bg-[#202f4a] text-amber-300 border border-amber-500/30 transition-colors flex items-center space-x-1"
+              >
+                <span>Economic Times (Economy)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFeedSourceInput("Government Sources");
+                  setFeedUrlInput("https://www.livemint.com/rss/politics");
+                  handleAddAndFetchFeed("https://www.livemint.com/rss/politics", "Government Sources");
+                }}
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-[#182338] hover:bg-[#202f4a] text-purple-300 border border-purple-500/30 transition-colors flex items-center space-x-1"
+              >
+                <span>Livemint (Polity)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
                   setFeedSourceInput("PIB");
-                  setFeedUrlInput("https://archive.pib.gov.in/rss/rss.aspx");
-                  handleAddAndFetchFeed("https://archive.pib.gov.in/rss/rss.aspx", "PIB");
+                  setFeedUrlInput("https://pib.gov.in/press-releases");
+                  handleAddAndFetchFeed("https://pib.gov.in/press-releases", "PIB");
                 }}
                 className="text-[11px] px-2.5 py-1 rounded-lg bg-[#182338] hover:bg-[#202f4a] text-amber-300 border border-amber-500/30 transition-colors flex items-center space-x-1"
               >

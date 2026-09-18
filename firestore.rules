@@ -79,5 +79,21 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthenticated();
     }
+
+    // Public curriculum Knowledge Graph (read-only for all students, authenticated write for updates)
+    match /knowledge_nodes/{nodeId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /knowledge_edges/{edgeId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /knowledge_clusters/{clusterId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
   }
 }

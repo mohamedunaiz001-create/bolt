@@ -70,6 +70,49 @@
         "toolCalls": { "type": "array", "description": "Executed agent tool calls" },
         "timestamp": { "type": "string", "description": "ISO date string" }
       }
+    },
+    "KnowledgeGraphNode": {
+      "collection": "knowledge_nodes",
+      "fields": {
+        "id": { "type": "string", "description": "Unique node ID" },
+        "title": { "type": "string", "description": "Node title" },
+        "subtitle": { "type": "string", "description": "Unit or thinker distinction" },
+        "type": { "type": "string", "description": "topic | thinker | concept | pyq" },
+        "paper": { "type": "string", "description": "Paper 1 | Paper 2 | GS 4 / Ethics" },
+        "unit": { "type": "string", "description": "Syllabus unit code" },
+        "importance": { "type": "string", "description": "Core Doctrine | High Yield | Frequent PYQ" },
+        "summary": { "type": "string", "description": "Academic overview" },
+        "keyThemes": { "type": "array", "description": "Core themes" },
+        "keyQuotes": { "type": "array", "description": "Memorable quotes" },
+        "crossPaperBridge": { "type": "string", "description": "Cross-paper application link" },
+        "pyqPrompt": { "type": "string", "description": "UPSC question statement" },
+        "modelAnswerTips": { "type": "array", "description": "Answer structuring guidance" },
+        "year": { "type": "number", "description": "PYQ year" },
+        "marks": { "type": "number", "description": "PYQ marks" },
+        "x": { "type": "number", "description": "Coordinate X" },
+        "y": { "type": "number", "description": "Coordinate Y" }
+      }
+    },
+    "KnowledgeGraphEdge": {
+      "collection": "knowledge_edges",
+      "fields": {
+        "id": { "type": "string", "description": "Unique edge ID" },
+        "source": { "type": "string", "description": "Source node ID" },
+        "target": { "type": "string", "description": "Target node ID" },
+        "label": { "type": "string", "description": "Relationship label" },
+        "relationship": { "type": "string", "description": "Relationship category" }
+      }
+    },
+    "ThematicCluster": {
+      "collection": "knowledge_clusters",
+      "fields": {
+        "id": { "type": "string", "description": "Cluster ID" },
+        "name": { "type": "string", "description": "Cluster name" },
+        "badge": { "type": "string", "description": "Badge description" },
+        "description": { "type": "string", "description": "Thematic explanation" },
+        "primaryNodeId": { "type": "string", "description": "Anchor node ID" },
+        "connectedNodeIds": { "type": "array", "description": "Node IDs in cluster" }
+      }
     }
   }
 }

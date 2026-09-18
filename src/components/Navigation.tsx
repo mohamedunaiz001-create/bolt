@@ -3,6 +3,7 @@ import {
   Home,
   GraduationCap,
   BookOpen,
+  Network,
   CheckSquare,
   FileText,
   Newspaper,
@@ -138,6 +139,17 @@ export const Navigation: React.FC<NavigationProps> = ({
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Knowledge & RAG</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("knowledgeGraph")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                activeTab === "knowledgeGraph"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm ring-1 ring-blue-400/50"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <Network className="w-3.5 h-3.5 text-blue-400" />
+              <span>Knowledge Graph</span>
             </button>
             <button
               onClick={() => setActiveTab("prelims")}
@@ -420,6 +432,16 @@ export const Navigation: React.FC<NavigationProps> = ({
           >
             <BookOpen className="w-5 h-5 mb-0.5" />
             <span className="text-[10px] font-medium">RAG</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("knowledgeGraph")}
+            className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
+              activeTab === "knowledgeGraph" ? "text-blue-400" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Network className="w-5 h-5 mb-0.5 text-blue-400" />
+            <span className="text-[10px] font-medium">Graph</span>
           </button>
 
           <button

@@ -31,6 +31,24 @@ export interface DatasetItem {
   tags: string[];
 }
 
+export interface TrainingLossPoint {
+  step: number;
+  epoch: number;
+  trainLoss: number;
+  valLoss: number;
+  learningRate: number;
+}
+
+export interface BenchmarkMetrics {
+  totalQuestions: number;
+  accuracy: number; // e.g. 88%
+  thinkerCitationDensity: number; // e.g. 2.4 citations per answer
+  secondArcCitationRate: number; // e.g. 84%
+  rubricCalibration: number; // e.g. 91%
+  overallScore: number; // 0 to 100%
+  status: "PASS" | "FAIL";
+}
+
 export interface TrainingJob {
   id: string;
   datasetVersion: string;
@@ -48,7 +66,9 @@ export interface TrainingJob {
   status: "queued" | "preparing_dataset" | "loading_model" | "training" | "validation" | "benchmark" | "completed" | "failed";
   progressPercent: number; // 0 to 100
   currentStageMessage: string;
-  benchmarkScore?: number; // 0 to 100
+  lossHistory: TrainingLossPoint[];
+  currentLoss?: number;
+  benchmarkResults?: BenchmarkMetrics;
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
@@ -62,13 +82,7 @@ export interface ModelRegistryEntry {
   adapterName: string;
   datasetVersion: string;
   hyperparameters: Record<string, any>;
-  benchmarkResults: {
-    ragPrecision: number;
-    thinkerGrounding: number;
-    rubricCalibration: number;
-    overallScore: number;
-    status: "PASS" | "FAIL";
-  };
+  benchmarkResults: BenchmarkMetrics;
   createdDate: string;
   status: "active" | "evaluation" | "archived";
 }
@@ -143,10 +157,12 @@ const INITIAL_REGISTRY: ModelRegistryEntry[] = [
       quantization: "4bit_nf4",
     },
     benchmarkResults: {
-      ragPrecision: 92,
-      thinkerGrounding: 89,
-      rubricCalibration: 94,
-      overallScore: 91,
+      totalQuestions: 25,
+      accuracy: 88,
+      thinkerCitationDensity: 2.3,
+      secondArcCitationRate: 84,
+      rubricCalibration: 92,
+      overallScore: 89,
       status: "PASS",
     },
     createdDate: "2026-09-10",
@@ -166,10 +182,12 @@ const INITIAL_REGISTRY: ModelRegistryEntry[] = [
       quantization: "4bit_nf4",
     },
     benchmarkResults: {
-      ragPrecision: 95,
-      thinkerGrounding: 93,
-      rubricCalibration: 96,
-      overallScore: 94,
+      totalQuestions: 25,
+      accuracy: 92,
+      thinkerCitationDensity: 2.7,
+      secondArcCitationRate: 89,
+      rubricCalibration: 95,
+      overallScore: 93,
       status: "PASS",
     },
     createdDate: "2026-09-16",
@@ -291,6 +309,8 @@ export class ModelPlatformService {
       status: "queued",
       progressPercent: 0,
       currentStageMessage: "Job queued for GPU worker allocation",
+      lossHistory: [],
+      currentLoss: undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -329,8 +349,31 @@ export class ModelPlatformService {
         job.currentStageMessage = step.message;
         job.progressPercent = step.progress;
 
+        // Generate realistic loss curve during training stage
+        if (step.status === "training" || step.status === "validation") {
+          const lr = job.hyperparameters.learningRate;
+          job.lossHistory = [
+            { step: 25, epoch: 0.5, trainLoss: 2.45, valLoss: 2.38, learningRate: lr },
+            { step: 50, epoch: 1.0, trainLoss: 1.89, valLoss: 1.82, learningRate: lr },
+            { step: 75, epoch: 1.5, trainLoss: 1.42, valLoss: 1.39, learningRate: lr * 0.8 },
+            { step: 100, epoch: 2.0, trainLoss: 1.15, valLoss: 1.18, learningRate: lr * 0.6 },
+            { step: 125, epoch: 2.5, trainLoss: 0.98, valLoss: 1.05, learningRate: lr * 0.4 },
+            { step: 150, epoch: 3.0, trainLoss: 0.87, valLoss: 0.96, learningRate: lr * 0.2 },
+          ];
+          job.currentLoss = 0.87;
+        }
+
         if (step.status === "completed") {
-          job.benchmarkScore = 93;
+          const benchmarkResults: BenchmarkMetrics = {
+            totalQuestions: 25,
+            accuracy: 89,
+            thinkerCitationDensity: 2.5,
+            secondArcCitationRate: 86,
+            rubricCalibration: 93,
+            overallScore: 90,
+            status: "PASS",
+          };
+          job.benchmarkResults = benchmarkResults;
           job.completedAt = new Date().toISOString();
 
           // Register in Model Registry under "evaluation" status (never auto-activate!)
@@ -341,13 +384,7 @@ export class ModelPlatformService {
             adapterName: job.adapterName,
             datasetVersion: job.datasetVersion,
             hyperparameters: job.hyperparameters,
-            benchmarkResults: {
-              ragPrecision: 94,
-              thinkerGrounding: 92,
-              rubricCalibration: 95,
-              overallScore: 93,
-              status: "PASS",
-            },
+            benchmarkResults,
             createdDate: new Date().toISOString().slice(0, 10),
             status: "evaluation",
           };
