@@ -35,8 +35,27 @@ export interface ChatRequest {
   stream?: boolean;
   citations?: Citation[];
   modelOverride?: string;
-  providerOverride?: "local" | "cloud" | "auto";
+  providerOverride?: string;
   activeAdapter?: string;
+  providerKeys?: {
+    nvidiaApiKey?: string;
+    openrouterApiKey?: string;
+    groqApiKey?: string;
+    openaiApiKey?: string;
+    anthropicApiKey?: string;
+    perplexityApiKey?: string;
+    customBaseUrl?: string;
+    customApiKey?: string;
+    customModelId?: string;
+  };
+  modelInCharge?: {
+    provider: string;
+    modelId: string;
+    modelName: string;
+    hasAppWideAccess?: boolean;
+    teachingMode?: string;
+  };
+  studentContext?: any;
 }
 
 export interface ChatResponse {
@@ -335,6 +354,98 @@ async function callLocalChat(
   return null;
 }
 
+async function callOpenAICompatibleApi(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  temperature: number = 0.7,
+  extraHeaders: Record<string, string> = {}
+): Promise<string | null> {
+  if (!apiKey) return null;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        ...extraHeaders,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        temperature,
+      }),
+    });
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || null;
+    }
+    const errText = await response.text();
+    console.warn(`[AI Gateway] ${endpoint} returned ${response.status}:`, errText);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    console.warn(`[AI Gateway] ${endpoint} failed:`, err?.message);
+  }
+  return null;
+}
+
+async function callAnthropicApi(
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  temperature: number = 0.7
+): Promise<string | null> {
+  if (!apiKey) return null;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const sysMsg = messages.find((m) => m.role === "system")?.content;
+    const chatMsgs = messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({
+        role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content: m.content,
+      }));
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        messages: chatMsgs.length > 0 ? chatMsgs : [{ role: "user", content: "Hello" }],
+        system: sysMsg,
+        max_tokens: 4096,
+        temperature,
+      }),
+    });
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.content?.[0]?.text || null;
+    }
+    const errText = await response.text();
+    console.warn(`[AI Gateway] Anthropic returned ${response.status}:`, errText);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    console.warn("[AI Gateway] Anthropic call failed:", err?.message);
+  }
+  return null;
+}
+
 // ----------------------------------------------------
 // BOLT CORE AI GATEWAY
 // ----------------------------------------------------
@@ -344,17 +455,231 @@ export class BoltAIGateway {
    */
   static async chat(request: ChatRequest): Promise<ChatResponse> {
     const config = getGatewayConfig();
-    const provider = request.providerOverride || config.provider;
-    const temp = request.temperature ?? config.temperature;
-    const activeAdapter = request.activeAdapter || config.activeAdapter;
     const citations = request.citations || [];
+    const activeAdapter = request.activeAdapter || config.activeAdapter;
+    const temp = request.temperature ?? config.temperature;
 
-    // 1. Try Local Provider if requested or auto
-    if (provider === "local" || (provider === "auto" && config.localEndpoint)) {
+    // Determine target provider & model (prioritize Model In-Charge if provided)
+    let targetProvider = request.providerOverride || config.provider;
+    let targetModel = request.modelOverride || config.cloudModelId;
+
+    if (request.modelInCharge) {
+      targetProvider = request.modelInCharge.provider || targetProvider;
+      targetModel = request.modelInCharge.modelId || targetModel;
+    }
+
+    // Build context-enriched messages if Model In-Charge has app-wide access
+    let effectiveMessages = [...request.messages];
+    if (request.modelInCharge?.hasAppWideAccess && request.studentContext) {
+      const ctx = request.studentContext;
+      const appMentorPrompt = `[CHIEF MODEL IN-CHARGE & APP-WIDE MENTOR CONTEXT]
+You are the designated Chief Model In-Charge and Personal UPSC Mentor for candidate "${ctx.user?.name || "Aspirant"}".
+You have holistic, real-time access to their state across this entire preparation application:
+- Target Exam: ${ctx.user?.target || "UPSC CSE 2026"} (Optional: ${ctx.optionalSubject || "Public Administration"})
+- Syllabus Completion: ${ctx.syllabus?.overallCompletion ?? 68}% (${ctx.syllabus?.completedTopics ?? 14}/${ctx.syllabus?.totalTopics ?? 21} topics completed)
+- Identified Weak Topics: ${ctx.syllabus?.weakTopics?.map((t: any) => t.name).join(", ") || "Administrative Corruption & 2nd ARC, Judicial Activism vs Overreach"}
+- Identified Strong Topics: ${ctx.syllabus?.strongTopics?.map((t: any) => t.name).join(", ") || "Simon Bounded Rationality, Basic Structure Doctrine"}
+- Prelims Practice: ${ctx.prelimsPerformance?.questionsAttempted ?? 142} questions attempted, ${ctx.prelimsPerformance?.accuracyPercentage ?? 74}% accuracy
+- Mains Evaluation History: ${ctx.mainsPerformance?.evaluatedCount ?? 18} copies evaluated, average score ${ctx.mainsPerformance?.averageScore ?? 8.4}/15 marks.
+- Repeated Mains Weaknesses: 2nd ARC report citations, counter-arguments in critical analysis, administrative case studies.
+- Revision Status: ${ctx.revisionStatus?.dueCount ?? 3} topics due for spaced repetition review.
+
+INSTRUCTIONS:
+1. You have authority across the entire app. If the student asks about their progress or what to study next, quote their exact metrics above and give high-yield targeted recommendations.
+2. If teaching a topic, use the gold standard UPSC format: Definitions -> Classical/Modern Thinkers -> Constitutional Articles -> 2nd ARC recommendations -> contemporary real-world Indian examples.
+3. Be supportive, academically rigorous, and direct.`;
+
+      // Prepend or merge system instruction
+      const existingSysIdx = effectiveMessages.findIndex((m) => m.role === "system");
+      if (existingSysIdx >= 0) {
+        effectiveMessages[existingSysIdx] = {
+          role: "system",
+          content: `${appMentorPrompt}\n\n${effectiveMessages[existingSysIdx].content}`,
+        };
+      } else {
+        effectiveMessages.unshift({
+          role: "system",
+          content: appMentorPrompt,
+        });
+      }
+    }
+
+    const providerKeys = request.providerKeys || {};
+
+    // 1. NVIDIA NIM Provider
+    if (targetProvider === "nvidia" || targetModel.startsWith("nvidia/")) {
+      const cleanModel = targetModel.replace(/^nvidia\//, "");
+      const nvidiaKey = providerKeys.nvidiaApiKey || process.env.NVIDIA_API_KEY;
+      if (nvidiaKey) {
+        const content = await callOpenAICompatibleApi(
+          "https://integrate.api.nvidia.com/v1/chat/completions",
+          nvidiaKey,
+          cleanModel || "meta/llama-3.3-70b-instruct",
+          effectiveMessages,
+          temp
+        );
+        if (content) {
+          return {
+            content,
+            provider: "NVIDIA NIM (TensorRT-LLM)",
+            model: cleanModel,
+            activeAdapter,
+            citations,
+          };
+        }
+      }
+    }
+
+    // 2. OpenRouter Provider
+    if (targetProvider === "openrouter" || targetModel.startsWith("openrouter/")) {
+      const cleanModel = targetModel.replace(/^openrouter\//, "");
+      const orKey = providerKeys.openrouterApiKey || process.env.OPENROUTER_API_KEY;
+      if (orKey) {
+        const content = await callOpenAICompatibleApi(
+          "https://openrouter.ai/api/v1/chat/completions",
+          orKey,
+          cleanModel || "anthropic/claude-3.5-sonnet",
+          effectiveMessages,
+          temp,
+          {
+            "HTTP-Referer": "https://bolt-upsc.app",
+            "X-Title": "BOLT UPSC Mentor",
+          }
+        );
+        if (content) {
+          return {
+            content,
+            provider: "OpenRouter Unified",
+            model: cleanModel,
+            activeAdapter,
+            citations,
+          };
+        }
+      }
+    }
+
+    // 3. Groq Fast LPU Provider
+    if (targetProvider === "groq" || targetModel.startsWith("groq/")) {
+      const cleanModel = targetModel.replace(/^groq\//, "");
+      const groqKey = providerKeys.groqApiKey || process.env.GROQ_API_KEY;
+      if (groqKey) {
+        const content = await callOpenAICompatibleApi(
+          "https://api.groq.com/openai/v1/chat/completions",
+          groqKey,
+          cleanModel || "llama-3.3-70b-versatile",
+          effectiveMessages,
+          temp
+        );
+        if (content) {
+          return {
+            content,
+            provider: "Groq LPU Engine",
+            model: cleanModel,
+            activeAdapter,
+            citations,
+          };
+        }
+      }
+    }
+
+    // 4. OpenAI Direct Provider
+    if (targetProvider === "openai" || targetModel.startsWith("openai/")) {
+      const cleanModel = targetModel.replace(/^openai\//, "");
+      const openaiKey = providerKeys.openaiApiKey || process.env.OPENAI_API_KEY;
+      if (openaiKey) {
+        const content = await callOpenAICompatibleApi(
+          "https://api.openai.com/v1/chat/completions",
+          openaiKey,
+          cleanModel || "gpt-4o",
+          effectiveMessages,
+          temp
+        );
+        if (content) {
+          return {
+            content,
+            provider: "OpenAI Direct",
+            model: cleanModel,
+            activeAdapter,
+            citations,
+          };
+        }
+      }
+    }
+
+    // 5. Anthropic Direct Provider
+    if (targetProvider === "anthropic" || targetModel.startsWith("anthropic/")) {
+      const cleanModel = targetModel.replace(/^anthropic\//, "");
+      const antKey = providerKeys.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+      if (antKey) {
+        const content = await callAnthropicApi(
+          antKey,
+          cleanModel || "claude-3-5-sonnet-20241022",
+          effectiveMessages,
+          temp
+        );
+        if (content) {
+          return {
+            content,
+            provider: "Anthropic Direct",
+            model: cleanModel,
+            activeAdapter,
+            citations,
+          };
+        }
+      }
+    }
+
+    // 6. Perplexity Provider
+    if (targetProvider === "perplexity" || targetModel.startsWith("perplexity/")) {
+      const cleanModel = targetModel.replace(/^perplexity\//, "");
+      const pplxKey = providerKeys.perplexityApiKey || process.env.PERPLEXITY_API_KEY;
+      if (pplxKey) {
+        const content = await callOpenAICompatibleApi(
+          "https://api.perplexity.ai/chat/completions",
+          pplxKey,
+          cleanModel || "sonar-reasoning",
+          effectiveMessages,
+          temp
+        );
+        if (content) {
+          return {
+            content,
+            provider: "Perplexity AI",
+            model: cleanModel,
+            activeAdapter,
+            citations,
+          };
+        }
+      }
+    }
+
+    // 7. Custom OpenAI-Compatible Provider
+    if (targetProvider === "custom" && providerKeys.customBaseUrl) {
+      const endpoint = `${providerKeys.customBaseUrl.replace(/\/$/, "")}/chat/completions`;
+      const content = await callOpenAICompatibleApi(
+        endpoint,
+        providerKeys.customApiKey || "",
+        providerKeys.customModelId || targetModel || "default-model",
+        effectiveMessages,
+        temp
+      );
+      if (content) {
+        return {
+          content,
+          provider: "Custom API Endpoint",
+          model: providerKeys.customModelId || targetModel,
+          activeAdapter,
+          citations,
+        };
+      }
+    }
+
+    // 8. Try Local Provider if requested
+    if (targetProvider === "local" || (targetProvider === "auto" && config.localEndpoint)) {
       const localResult = await callLocalChat(
         config.localEndpoint,
-        request.modelOverride || config.localModelId,
-        request.messages,
+        targetModel || config.localModelId,
+        effectiveMessages,
         temp
       );
 
@@ -362,34 +687,22 @@ export class BoltAIGateway {
         return {
           content: localResult,
           provider: "Local (Ollama/vLLM)",
-          model: request.modelOverride || config.localModelId,
-          activeAdapter,
-          citations,
-        };
-      }
-
-      if (provider === "local") {
-        // Fallback for local testing when daemon is offline
-        return {
-          content: `> ⚡ **BOLT Local Engine (${config.localModelId})**\n> *Adapter: ${activeAdapter}*\n\n` +
-            generateLocalAcademicResponse(request.messages[request.messages.length - 1]?.content || ""),
-          provider: "Local Academic Engine",
-          model: config.localModelId,
+          model: targetModel || config.localModelId,
           activeAdapter,
           citations,
         };
       }
     }
 
-    // 2. Cloud Provider (Gemini)
+    // 9. Primary Cloud Provider (Gemini)
     const gemini = getGeminiClient();
     if (gemini) {
       try {
-        const sysMsg = request.messages.find((m) => m.role === "system")?.content || "";
-        const userMsg = request.messages[request.messages.length - 1]?.content || "";
+        const sysMsg = effectiveMessages.find((m) => m.role === "system")?.content || "";
+        const userMsg = effectiveMessages[effectiveMessages.length - 1]?.content || "";
 
         const geminiRes = await gemini.models.generateContent({
-          model: request.modelOverride || config.cloudModelId,
+          model: targetModel.startsWith("gemini") ? targetModel : config.cloudModelId,
           contents: [
             ...(sysMsg ? [{ role: "user" as const, parts: [{ text: `[SYSTEM INSTRUCTION]: ${sysMsg}` }] }] : []),
             { role: "user" as const, parts: [{ text: userMsg }] },
@@ -398,10 +711,13 @@ export class BoltAIGateway {
 
         const reply = geminiRes.text || "";
         if (reply.trim()) {
+          const inChargeLabel = request.modelInCharge
+            ? ` (${request.modelInCharge.modelName} In-Charge)`
+            : "";
           return {
             content: reply,
-            provider: "Cloud (Gemini)",
-            model: request.modelOverride || config.cloudModelId,
+            provider: `Cloud (Gemini)${inChargeLabel}`,
+            model: targetModel.startsWith("gemini") ? targetModel : config.cloudModelId,
             activeAdapter,
             citations,
           };
@@ -411,10 +727,15 @@ export class BoltAIGateway {
       }
     }
 
-    // 3. Fallback Heuristic Engine
-    const lastUserQuery = request.messages[request.messages.length - 1]?.content || "";
+    // 10. Fallback Academic Engine with notice
+    const lastUserQuery = effectiveMessages[effectiveMessages.length - 1]?.content || "";
+    let providerNotice = "";
+    if (targetProvider && targetProvider !== "gemini" && targetProvider !== "local" && !providerKeys[`${targetProvider}ApiKey` as keyof typeof providerKeys]) {
+      providerNotice = `> 💡 *Note: Provider "${targetProvider.toUpperCase()}" selected as Model In-Charge, but no API Key was provided in Settings. BOLT Academic Mentor stepped in to provide this answer based on your app context.*\n\n`;
+    }
+
     return {
-      content: generateLocalAcademicResponse(lastUserQuery),
+      content: providerNotice + generateLocalAcademicResponse(lastUserQuery),
       provider: "BOLT Academic Engine",
       model: "bolt-expert-v3",
       activeAdapter,

@@ -152,6 +152,37 @@ export interface ModelRecommendation {
   alternativeModelId?: string;
 }
 
+export type AIProviderId =
+  | "gemini"
+  | "nvidia"
+  | "openrouter"
+  | "groq"
+  | "openai"
+  | "anthropic"
+  | "perplexity"
+  | "local"
+  | "custom";
+
+export interface ProviderKeyConfig {
+  nvidiaApiKey?: string;
+  openrouterApiKey?: string;
+  groqApiKey?: string;
+  openaiApiKey?: string;
+  anthropicApiKey?: string;
+  perplexityApiKey?: string;
+  customBaseUrl?: string;
+  customApiKey?: string;
+  customModelId?: string;
+}
+
+export interface ModelInChargeConfig {
+  provider: AIProviderId;
+  modelId: string;
+  modelName: string;
+  hasAppWideAccess: boolean;
+  teachingMode: "socratic" | "comprehensive" | "revision_coach" | "prelims_driller";
+}
+
 export interface ActiveModelConfig {
   selectedModelId: string;
   modelType: "cloud" | "local";
@@ -162,6 +193,9 @@ export interface ActiveModelConfig {
   systemPromptOverride?: string;
   huggingFaceModelId?: string;
   ollamaModelTag?: string;
+  activeProvider?: AIProviderId;
+  providerKeys?: ProviderKeyConfig;
+  modelInCharge?: ModelInChargeConfig;
 }
 
 export interface TrainingConfig {

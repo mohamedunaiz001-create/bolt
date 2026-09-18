@@ -293,9 +293,9 @@ export const MainsEvaluationView: React.FC<MainsEvaluationViewProps> = ({
               </div>
             </div>
 
-            {/* Visual Simulated Answer Sheet with Red Markings (Matching Screenshot 3) */}
-            <div className="lg:col-span-5 relative">
-              <div className="bg-white rounded-xl p-5 shadow-2xl text-slate-800 text-xs font-serif leading-relaxed transform rotate-1 border border-slate-300 select-none pointer-events-none">
+            {/* Visual Simulated Answer Sheet with Red Markings (Clean, Straight, High-Contrast Alignment) */}
+            <div className="lg:col-span-5 relative flex items-center justify-center">
+              <div className="w-full bg-white rounded-xl p-5 shadow-2xl text-slate-800 text-xs font-serif leading-relaxed border border-slate-300 select-none">
                 <div className="text-[10px] text-slate-400 mb-2 font-mono">UPSC MAINS ANSWER SHEET • GS / OPTIONAL</div>
                 <div className="border-b border-slate-200 pb-2 mb-3">
                   <p className="font-sans font-bold text-slate-900 text-xs">
@@ -702,8 +702,8 @@ export const MainsEvaluationView: React.FC<MainsEvaluationViewProps> = ({
 
       {/* UPLOAD ANSWER MODAL (Matching Screenshot 1 Modal) */}
       {isUploadModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#111723] rounded-2xl border border-[#1e293b] max-w-xl w-full p-6 space-y-5 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#111723] rounded-2xl border border-[#1e293b] max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl relative my-auto">
             <button
               onClick={() => setIsUploadModalOpen(false)}
               className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg"
@@ -813,7 +813,7 @@ export const MainsEvaluationView: React.FC<MainsEvaluationViewProps> = ({
       {/* MODEL ANSWER DETAIL MODAL (Matching Screenshot 2) */}
       {activeModelAnswer && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-[#0e141f] rounded-2xl border border-[#1e293b] max-w-4xl w-full p-6 sm:p-8 space-y-6 shadow-2xl relative my-auto">
+          <div className="bg-[#0e141f] rounded-2xl border border-[#1e293b] max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl relative my-auto">
             <button
               onClick={() => setActiveModelAnswer(null)}
               className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800/60"
@@ -957,7 +957,7 @@ export const MainsEvaluationView: React.FC<MainsEvaluationViewProps> = ({
       {/* EVALUATION DETAIL MODAL */}
       {activeEvaluationDetail && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-[#0e141f] rounded-2xl border border-[#1e293b] max-w-3xl w-full p-6 space-y-6 shadow-2xl relative my-auto">
+          <div className="bg-[#0e141f] rounded-2xl border border-[#1e293b] max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl relative my-auto">
             <button
               onClick={() => setActiveEvaluationDetail(null)}
               className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800/60"

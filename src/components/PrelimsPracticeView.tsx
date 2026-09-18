@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -16,6 +16,8 @@ import {
   Compass,
   Calendar,
   Filter,
+  Trophy,
+  ListOrdered,
 } from "lucide-react";
 import { PrelimsQuestion } from "../types";
 
@@ -166,16 +168,34 @@ export const PrelimsPracticeView: React.FC<PrelimsPracticeViewProps> = ({
 
   const effectiveQuestions = filteredQuestions.length > 0 ? filteredQuestions : allAvailableQuestions;
 
+  // Session question count selection (5, 10, 15, 20, 25, 50, all, custom)
+  const [sessionLimit, setSessionLimit] = useState<number | "all">(10);
+  const [customLimitInput, setCustomLimitInput] = useState<string>("");
+
+  const activeQuestions = useMemo(() => {
+    if (sessionLimit === "all") return effectiveQuestions;
+    return effectiveQuestions.slice(0, Math.min(sessionLimit, effectiveQuestions.length));
+  }, [effectiveQuestions, sessionLimit]);
+
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>({});
   const [revealedQuestions, setRevealedQuestions] = useState<Record<string, boolean>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
 
-  // Reset index if filtered list shrinks
-  const safeIndex = Math.min(currentIndex, effectiveQuestions.length - 1);
-  const currentQ = effectiveQuestions[safeIndex] || effectiveQuestions[0];
+  // Reset index if session shrinks
+  const safeIndex = Math.min(currentIndex, Math.max(0, activeQuestions.length - 1));
+  const currentQ = activeQuestions[safeIndex] || activeQuestions[0];
   const selectedOption = selectedAnswers[currentQ?.id];
   const isRevealed = revealedQuestions[currentQ?.id] || Boolean(selectedOption);
+
+  // Calculate session statistics
+  const answeredInSession = activeQuestions.filter((q) => Boolean(selectedAnswers[q.id])).length;
+  const correctInSession = activeQuestions.filter((q) => selectedAnswers[q.id] === q.correctOption).length;
+  const incorrectInSession = answeredInSession - correctInSession;
+  const sessionCompleted = activeQuestions.length > 0 && answeredInSession === activeQuestions.length;
+  const sessionMarks = +(correctInSession * 2 - incorrectInSession * 0.66).toFixed(2);
+  const maxPossibleMarks = activeQuestions.length * 2;
+  const sessionAccuracy = answeredInSession > 0 ? Math.round((correctInSession / answeredInSession) * 100) : 0;
 
   const handleSelectOption = (key: "A" | "B" | "C" | "D") => {
     if (!currentQ) return;
@@ -184,6 +204,15 @@ export const PrelimsPracticeView: React.FC<PrelimsPracticeViewProps> = ({
     setRevealedQuestions((prev) => ({ ...prev, [currentQ.id]: true }));
     if (isFirstAttempt && onRecordAnswer) {
       onRecordAnswer(currentQ.id, key === currentQ.correctOption);
+    }
+  };
+
+  const handleApplyCustomLimit = () => {
+    const val = parseInt(customLimitInput, 10);
+    if (!isNaN(val) && val > 0) {
+      setSessionLimit(val);
+      setCurrentIndex(0);
+      setCustomLimitInput("");
     }
   };
 
@@ -274,17 +303,165 @@ export const PrelimsPracticeView: React.FC<PrelimsPracticeViewProps> = ({
         </div>
       </div>
 
+      {/* Test Question Count / Session Size Selection Bar */}
+      <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-4 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <span className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+              <ListOrdered className="w-4 h-4" />
+            </span>
+            <div>
+              <h4 className="text-xs font-bold text-white">
+                Test Session Size: Select How Many Questions To Attend
+              </h4>
+              <p className="text-[11px] text-slate-400">
+                Choose batch size or custom question count ({effectiveQuestions.length} total questions available)
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              Attending {activeQuestions.length} of {effectiveQuestions.length} Qs
+            </span>
+          </div>
+        </div>
+
+        {/* Preset Session Size Buttons & Custom Input */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {[
+            { val: 5, label: "5 Qs (Speed Blitz)" },
+            { val: 10, label: "10 Qs (Sprint)" },
+            { val: 15, label: "15 Qs (Standard)" },
+            { val: 20, label: "20 Qs (Mini-Mock)" },
+            { val: 25, label: "25 Qs (Sectional)" },
+            { val: 50, label: "50 Qs (Half Mock)" },
+            { val: "all", label: `All Available (${effectiveQuestions.length} Qs)` },
+          ].map((opt) => (
+            <button
+              key={String(opt.val)}
+              onClick={() => {
+                setSessionLimit(opt.val as any);
+                setCurrentIndex(0);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                sessionLimit === opt.val
+                  ? "bg-indigo-600 text-white font-bold shadow-md ring-2 ring-indigo-400"
+                  : "bg-[#162033] text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+
+          {/* Custom Question Count Input */}
+          <div className="flex items-center space-x-1.5 ml-auto">
+            <input
+              type="number"
+              min={1}
+              max={effectiveQuestions.length}
+              value={customLimitInput}
+              onChange={(e) => setCustomLimitInput(e.target.value)}
+              placeholder="Custom #"
+              className="w-20 px-2.5 py-1 rounded-lg bg-[#0e141f] border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              onClick={handleApplyCustomLimit}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+            >
+              Set
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Session Completion Summary Banner */}
+      {sessionCompleted && (
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-950/60 via-[#13232a] to-blue-950/60 border border-emerald-500/40 p-5 space-y-4 shadow-xl animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/20 pb-3">
+            <div className="flex items-center space-x-3">
+              <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <Trophy className="w-6 h-6" />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  Test Session Completed! ({activeQuestions.length} Questions)
+                </h3>
+                <p className="text-xs text-emerald-300/80">
+                  UPSC Standard Marking Applied (+2.0 Correct, -0.66 Negative)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block uppercase">Net Score</span>
+                <span className="text-xl font-extrabold text-emerald-400">
+                  {sessionMarks} <span className="text-xs text-slate-400 font-normal">/ {maxPossibleMarks}</span>
+                </span>
+              </div>
+              <div className="text-right pl-3 border-l border-slate-800">
+                <span className="text-[10px] text-slate-400 block uppercase">Accuracy</span>
+                <span className="text-xl font-extrabold text-blue-400">{sessionAccuracy}%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="p-2.5 rounded-xl bg-[#0e141f]/80 border border-emerald-500/20">
+              <span className="text-xs text-emerald-400 font-bold block">{correctInSession} Correct</span>
+              <span className="text-[10px] text-slate-400">+{correctInSession * 2} Marks</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[#0e141f]/80 border border-red-500/20">
+              <span className="text-xs text-red-400 font-bold block">{incorrectInSession} Incorrect</span>
+              <span className="text-[10px] text-slate-400">-{(incorrectInSession * 0.66).toFixed(2)} Marks</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-[#0e141f]/80 border border-slate-800">
+              <span className="text-xs text-slate-300 font-bold block">{activeQuestions.length} Total</span>
+              <span className="text-[10px] text-slate-400">Attended All</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <span className="text-xs text-slate-400">
+              Great work! Review your detailed answers below or start another batch.
+            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  setSelectedAnswers({});
+                  setRevealedQuestions({});
+                  setCurrentIndex(0);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+              >
+                Re-attempt Session
+              </button>
+              <button
+                onClick={() => {
+                  setSessionLimit(sessionLimit === "all" ? 10 : sessionLimit);
+                  setCurrentIndex(0);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/30"
+              >
+                Next Practice Set
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Question Navigator (Matching Screenshot 4) */}
       <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3 text-xs">
-          <span className="text-slate-400 font-medium">Question Navigator</span>
+          <span className="text-slate-400 font-medium">Session Question Navigator</span>
           <span className="text-blue-400 font-bold">
-            {Object.keys(selectedAnswers).length} / {effectiveQuestions.length} Answered
+            {answeredInSession} / {activeQuestions.length} Answered ({sessionAccuracy}% Accuracy)
           </span>
         </div>
 
         <div className="flex items-center space-x-2 overflow-x-auto pb-1.5 scrollbar-thin">
-          {effectiveQuestions.map((q, idx) => {
+          {activeQuestions.map((q, idx) => {
             const hasAnswered = Boolean(selectedAnswers[q.id]);
             const isQCorrect = selectedAnswers[q.id] === q.correctOption;
             const isCurrent = safeIndex === idx;
@@ -304,7 +481,7 @@ export const PrelimsPracticeView: React.FC<PrelimsPracticeViewProps> = ({
                     : "bg-[#162033] text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800"
                 }`}
               >
-                <span>{q.questionNumber || idx + 1}</span>
+                <span>{idx + 1}</span>
                 {isFlagged && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full ring-2 ring-[#111723]" />
                 )}
@@ -320,7 +497,7 @@ export const PrelimsPracticeView: React.FC<PrelimsPracticeViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <span className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">
-              Q{currentQ.questionNumber || safeIndex + 1} of {effectiveQuestions.length}
+              Q{safeIndex + 1} of {activeQuestions.length}
             </span>
             <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-semibold border border-slate-700">
               {currentQ.subject}
@@ -480,8 +657,8 @@ export const PrelimsPracticeView: React.FC<PrelimsPracticeViewProps> = ({
             </button>
 
             <button
-              onClick={() => setCurrentIndex((prev) => Math.min(effectiveQuestions.length - 1, prev + 1))}
-              disabled={safeIndex >= effectiveQuestions.length - 1}
+              onClick={() => setCurrentIndex((prev) => Math.min(activeQuestions.length - 1, prev + 1))}
+              disabled={safeIndex >= activeQuestions.length - 1}
               className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold flex items-center space-x-1.5 shadow-md shadow-blue-600/30 transition-colors"
             >
               <span>Next</span>
