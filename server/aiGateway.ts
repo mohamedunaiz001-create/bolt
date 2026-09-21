@@ -36,6 +36,7 @@ export type GatewayProvider =
   | "perplexity"
   | "xai"
   | "cohere"
+  | "nvidia"
   | "local"
   | "custom"
   | "cloud";
@@ -176,6 +177,7 @@ export function getGatewayConfig(): AIGatewayConfig {
 
 export function updateGatewayConfig(updates: Partial<AIGatewayConfig>): AIGatewayConfig {
   currentConfig = { ...currentConfig, ...updates };
+  resetGeminiAccessStatus();
   return { ...currentConfig };
 }
 
@@ -320,9 +322,73 @@ export function rerankDocuments(
 // ----------------------------------------------------
 // PROVIDER ADAPTERS: GEMINI, OPENAI, ANTHROPIC & LOCAL INFERENCE
 // ----------------------------------------------------
+
+export function isPermanentAuthOrAccessError(err: any): boolean {
+  if (!err) return false;
+  const status = err?.status || err?.code || err?.statusCode || (err?.error && (err.error.code || err.error.status));
+  if (status === 403 || status === 401 || status === "PERMISSION_DENIED" || status === "UNAUTHENTICATED") {
+    return true;
+  }
+  const str = (err?.message || String(err)).toLowerCase();
+  if (
+    str.includes("permission_denied") ||
+    str.includes("denied access") ||
+    str.includes("api key not valid") ||
+    str.includes("api_key_invalid") ||
+    str.includes("unauthenticated") ||
+    str.includes("consumer_invalid") ||
+    str.includes("project has been denied access")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+interface GeminiAccessState {
+  lastChecked: number;
+  isDenied: boolean;
+  reason?: string;
+}
+
+let defaultGeminiAccessState: GeminiAccessState = {
+  lastChecked: 0,
+  isDenied: false,
+};
+
+export function recordGeminiAccessFailure(reason: string, customApiKey?: string) {
+  if (!customApiKey || !customApiKey.trim()) {
+    defaultGeminiAccessState = {
+      lastChecked: Date.now(),
+      isDenied: true,
+      reason,
+    };
+  }
+}
+
+export function resetGeminiAccessStatus() {
+  defaultGeminiAccessState = {
+    lastChecked: 0,
+    isDenied: false,
+  };
+}
+
+export function isGeminiKeyDenied(customApiKey?: string): boolean {
+  if (customApiKey && customApiKey.trim()) {
+    return false;
+  }
+  // If the default environment project was denied access (403), avoid hammering it repeatedly for 5 minutes
+  if (defaultGeminiAccessState.isDenied && Date.now() - defaultGeminiAccessState.lastChecked < 300000) {
+    return true;
+  }
+  return false;
+}
+
 export function getGeminiClient(customApiKey?: string): GoogleGenAI | null {
   const apiKey = (customApiKey && customApiKey.trim()) || process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+    return null;
+  }
+  if (!customApiKey && isGeminiKeyDenied()) {
     return null;
   }
   return new GoogleGenAI({
@@ -475,6 +541,7 @@ export interface OpenAICompatibleMetadata {
   defaultModel: string;
   keyPrefix?: string;
   keyName: string;
+  envVar?: string;
 }
 
 export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadata> = {
@@ -484,6 +551,7 @@ export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadat
     defaultModel: "gpt-4o-mini",
     keyPrefix: "sk-",
     keyName: "OpenAI API Key (sk-...)",
+    envVar: "OPENAI_API_KEY",
   },
   groq: {
     displayName: "Groq LPU",
@@ -491,6 +559,7 @@ export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadat
     defaultModel: "llama-3.3-70b-versatile",
     keyPrefix: "gsk_",
     keyName: "Groq API Key (gsk_...)",
+    envVar: "GROQ_API_KEY",
   },
   openrouter: {
     displayName: "OpenRouter",
@@ -498,6 +567,7 @@ export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadat
     defaultModel: "deepseek/deepseek-r1",
     keyPrefix: "sk-or-",
     keyName: "OpenRouter API Key (sk-or-...)",
+    envVar: "OPENROUTER_API_KEY",
   },
   deepseek: {
     displayName: "DeepSeek",
@@ -505,18 +575,21 @@ export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadat
     defaultModel: "deepseek-chat",
     keyPrefix: "sk-",
     keyName: "DeepSeek API Key (sk-...)",
+    envVar: "DEEPSEEK_API_KEY",
   },
   mistral: {
     displayName: "Mistral AI",
     defaultEndpoint: "https://api.mistral.ai/v1",
     defaultModel: "mistral-large-latest",
     keyName: "Mistral API Key",
+    envVar: "MISTRAL_API_KEY",
   },
   together: {
     displayName: "Together AI",
     defaultEndpoint: "https://api.together.xyz/v1",
     defaultModel: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     keyName: "Together AI API Key",
+    envVar: "TOGETHER_API_KEY",
   },
   perplexity: {
     displayName: "Perplexity AI",
@@ -524,6 +597,7 @@ export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadat
     defaultModel: "sonar-pro",
     keyPrefix: "pplx-",
     keyName: "Perplexity API Key (pplx-...)",
+    envVar: "PERPLEXITY_API_KEY",
   },
   xai: {
     displayName: "xAI (Grok)",
@@ -531,6 +605,15 @@ export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadat
     defaultModel: "grok-2-latest",
     keyPrefix: "xai-",
     keyName: "xAI API Key (xai-...)",
+    envVar: "XAI_API_KEY",
+  },
+  nvidia: {
+    displayName: "NVIDIA NIM",
+    defaultEndpoint: "https://integrate.api.nvidia.com/v1",
+    defaultModel: "meta/llama-3.3-70b-instruct",
+    keyPrefix: "nvapi-",
+    keyName: "NVIDIA API Key (nvapi-...)",
+    envVar: "NVIDIA_API_KEY",
   },
   custom: {
     displayName: "Custom Endpoint",
@@ -636,29 +719,55 @@ export async function testConnection(params: {
           timestamp: new Date().toISOString(),
         };
       }
-      const client = new GoogleGenAI({ apiKey: key });
-      const effectiveModel = modelId.startsWith("gemini") ? modelId : "gemini-3.8-flash";
-      const { result, usedModel } = await executeGeminiWithFailover(
-        client,
-        effectiveModel,
-        (mId) =>
-          client.models.generateContent({
-            model: mId,
-            contents: "Ping. Respond strictly with: OK",
-          }),
-        { timeoutMs: 12000, label: "test-connection" }
-      );
-      const latencyMs = Date.now() - startTime;
-      return {
-        success: true,
-        connected: true,
-        latencyMs,
-        message: `Successfully connected to Google Gemini (${usedModel}). AI inference is active and ready.`,
-        provider: "Google Gemini",
-        model: usedModel,
-        reply: result.text?.trim() || "OK",
-        timestamp: new Date().toISOString(),
-      };
+      try {
+        const client = new GoogleGenAI({ apiKey: key });
+        const effectiveModel = modelId.startsWith("gemini") ? modelId : "gemini-3.8-flash";
+        const { result, usedModel } = await executeGeminiWithFailover(
+          client,
+          effectiveModel,
+          (mId) =>
+            client.models.generateContent({
+              model: mId,
+              contents: "Ping. Respond strictly with: OK",
+            }),
+          { timeoutMs: 12000, label: "test-connection" }
+        );
+        const latencyMs = Date.now() - startTime;
+        resetGeminiAccessStatus();
+        return {
+          success: true,
+          connected: true,
+          latencyMs,
+          message: `Successfully connected to Google Gemini (${usedModel}). AI inference is active and ready.`,
+          provider: "Google Gemini",
+          model: usedModel,
+          reply: result.text?.trim() || "OK",
+          timestamp: new Date().toISOString(),
+        };
+      } catch (err: any) {
+        const latencyMs = Date.now() - startTime;
+        if (isPermanentAuthOrAccessError(err)) {
+          recordGeminiAccessFailure(err?.message || "Permission Denied", params.apiKey);
+          return {
+            success: false,
+            connected: false,
+            latencyMs,
+            message: "Google Gemini returned 403 (Project access denied / permission restricted). The project associated with this key is not authorized for Gemini API. Please paste your personal Google AI Studio API Key in the field above, or select another provider (such as NVIDIA NIM, Groq, OpenAI, or the offline Academic Engine).",
+            provider: "Google Gemini",
+            model: modelId,
+            timestamp: new Date().toISOString(),
+          };
+        }
+        return {
+          success: false,
+          connected: false,
+          latencyMs,
+          message: err?.message || `Failed to establish connection to Google Gemini`,
+          provider: "Google Gemini",
+          model: modelId,
+          timestamp: new Date().toISOString(),
+        };
+      }
     }
 
     if (provider === "anthropic") {
@@ -750,16 +859,16 @@ export async function testConnection(params: {
       throw new Error(`Ollama daemon at ${endpoint} returned HTTP ${res.status}`);
     }
 
-    // Check OpenAI-compatible providers: openai, groq, openrouter, deepseek, mistral, together, perplexity, xai, custom
+    // Check OpenAI-compatible providers: openai, groq, openrouter, deepseek, mistral, together, perplexity, xai, nvidia, custom
     const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
     if (compatMeta) {
-      const key = params.apiKey?.trim();
+      const key = params.apiKey?.trim() || (compatMeta.envVar ? process.env[compatMeta.envVar]?.trim() : undefined);
       if (provider !== "custom" && !key) {
         return {
           success: false,
           connected: false,
           latencyMs: Date.now() - startTime,
-          message: `${compatMeta.keyName} is required. Please paste your API key in settings.`,
+          message: `${compatMeta.keyName} is required. Please paste your API key in settings or define ${compatMeta.envVar || "an environment variable"}.`,
           provider: compatMeta.displayName,
           model: modelId || compatMeta.defaultModel,
           timestamp: new Date().toISOString(),
@@ -860,6 +969,14 @@ export async function executeGeminiWithFailover<T>(
     } catch (err: any) {
       lastError = err;
       const errMsg = err?.message || String(err);
+
+      // Auth, permission, or quota denial is project-wide and permanent across models.
+      // Stop failover immediately to avoid redundant failing requests and noisy error logs.
+      if (isPermanentAuthOrAccessError(err)) {
+        recordGeminiAccessFailure(errMsg);
+        throw err;
+      }
+
       if (i < candidates.length - 1) {
         console.warn(
           `[GeminiFailover] Model "${modelId}" transient failure: ${errMsg.slice(0, 140)}. Automatically failing over to next model "${candidates[i + 1]}"...`
@@ -998,15 +1115,16 @@ export class BoltAIGateway {
       }
     }
 
-    // 3. OpenAI-Compatible Providers (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, Perplexity, xAI, Custom)
+    // 3. OpenAI-Compatible Providers (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, Perplexity, xAI, NVIDIA, Custom)
     const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
     if (compatMeta) {
       try {
         const endpoint = baseUrl?.trim() || compatMeta.defaultEndpoint;
         const model = request.modelOverride || compatMeta.defaultModel;
+        const effectiveApiKey = apiKey || (compatMeta.envVar ? process.env[compatMeta.envVar]?.trim() : undefined);
         const content = await callOpenAICompatibleChat({
           endpoint,
-          apiKey,
+          apiKey: effectiveApiKey,
           model,
           messages: request.messages,
           temperature: temp,
@@ -1110,8 +1228,9 @@ export class BoltAIGateway {
             citations,
           };
         }
-      } catch (err) {
-        console.warn("Cloud Gemini generation failed across fallback models, falling back to academic engine:", err);
+      } catch (err: any) {
+        const reason = err?.message?.slice(0, 120) || "Service unavailable";
+        console.warn(`[AI Gateway] Cloud Gemini inference unavailable (${reason}). Transitioning to academic engine.`);
       }
     }
 
@@ -1195,8 +1314,9 @@ export class BoltAIGateway {
               citations: request.citations || [],
             };
           }
-        } catch (err) {
-          console.warn("Gemini stream failed, falling back to buffered delivery:", err);
+        } catch (err: any) {
+          const reason = err?.message?.slice(0, 120) || "Service unavailable";
+          console.warn(`[AI Gateway] Gemini streaming unavailable (${reason}). Transitioning to buffered delivery.`);
         }
       }
     }
@@ -1322,16 +1442,17 @@ export class BoltAIGateway {
       }
     }
 
-    // 3. OpenAI-Compatible Providers (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, Perplexity, xAI, Custom)
+    // 3. OpenAI-Compatible Providers (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, Perplexity, xAI, NVIDIA, Custom)
     const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
     if (compatMeta) {
       try {
         const endpoint = baseUrl?.trim() || compatMeta.defaultEndpoint;
         const model = request.modelOverride || compatMeta.defaultModel;
+        const effectiveApiKey = apiKey || (compatMeta.envVar ? process.env[compatMeta.envVar]?.trim() : undefined);
 
         const text = await callOpenAICompatibleChat({
           endpoint,
-          apiKey,
+          apiKey: effectiveApiKey,
           model,
           messages: [{ role: "user", content: prompt }],
           responseFormat: request.responseFormat,
@@ -1397,8 +1518,9 @@ export class BoltAIGateway {
           provider: "Google Gemini",
           model: usedModel,
         };
-      } catch (err) {
-        console.warn("AI Gateway generate failed across fallback models:", err);
+      } catch (err: any) {
+        const reason = err?.message?.slice(0, 120) || "Service unavailable";
+        console.warn(`[AI Gateway] Gemini generate unavailable (${reason}). Falling back to structured BOLT engine.`);
       }
     }
 
@@ -1477,10 +1599,11 @@ Return ONLY valid JSON matching this exact structure:
           const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
           const endpoint = baseUrl?.trim() || compatMeta.defaultEndpoint;
           const model = rubric.modelOverride || compatMeta.defaultModel;
+          const effectiveApiKey = apiKey || (compatMeta.envVar ? process.env[compatMeta.envVar]?.trim() : undefined);
 
           rawJson = await callOpenAICompatibleChat({
             endpoint,
-            apiKey,
+            apiKey: effectiveApiKey,
             model,
             messages: [{ role: "user", content: prompt }],
             responseFormat: "json",
@@ -1552,8 +1675,9 @@ Return ONLY valid JSON matching this exact structure:
             };
           }
         }
-      } catch (err) {
-        console.warn("AI Mains Evaluation call failed, using rule-based evaluator:", err);
+      } catch (err: any) {
+        const reason = err?.message?.slice(0, 120) || "Service unavailable";
+        console.warn(`[AI Gateway] Gemini evaluation unavailable (${reason}). Falling back to rule-based evaluator.`);
       }
     }
 
@@ -1643,7 +1767,104 @@ function evaluateRuleBasedMains(
 function generateLocalAcademicResponse(query: string): string {
   const q = query.toLowerCase().trim();
 
-  // 1. Weak areas / Diagnostic
+  // 1. In-App Access & Help across Application Modules
+  if (
+    q.includes("app") ||
+    q.includes("how do i use") ||
+    q.includes("help me in") ||
+    q.includes("what can you do") ||
+    q.includes("capabilities") ||
+    q.includes("access to app") ||
+    q.includes("tour")
+  ) {
+    return `### ⚡ BOLT AI In-App Command Center & Access Guide
+
+I am designed to be your full-spectrum co-pilot across this entire workspace. I don't just answer questions—I have live access to your study records and can guide you directly through every tool in this application:
+
+---
+
+#### 1. 🎯 Prelims MCQ Simulator
+- **What it does:** Generates authentic 4-option UPSC Prelims questions with detailed explanations, syllabus linkage, and trap-option analysis.
+- **How I help:** I can generate custom drills for your weakest topics, analyze option elimination strategies, and review error patterns.
+- [⚡ Practice Prelims MCQs](#action:prelims)
+
+#### 2. 📝 Mains 7-Dimension Evaluator
+- **What it does:** Grades handwritten or typed answers against the official UPSC criteria (Content Demand, Conceptual Clarity, Analysis, Thinkers/Examples, Structure, Introduction, and Conclusion) with scores out of 15 marks.
+- **How I help:** Paste or draft your answer here or in the Mains room. I identify missing constitutional dimensions, recommend administrative thinkers, and formulate upgraded model answers.
+- [📝 Open Mains Evaluation Room](#action:mains)
+
+#### 3. 📅 Adaptive Study Planner & Timetable
+- **What it does:** Schedules your daily study sessions, protects revision slots using the **Ebbinghaus Forgetting Curve**, and keeps track of syllabus targets.
+- **How I help:** Tell me how many hours you have available this week, and I will balance new theoretical units with required active recall.
+- [📅 View & Customize Timetable](#action:planner)
+
+#### 4. 🗺️ Concept Knowledge Graph
+- **What it does:** An interactive 2D conceptual canvas linking Public Administration thinkers (Simon, Weber, Barnard, Riggs) to Indian administrative institutions (Cabinet Secretariat, Articles 311, 280), and past UPSC questions.
+- **How I help:** I point out cross-paper bridges (Paper 1 ↔ Paper 2) and thematic clusters to enrich your Mains answers.
+- [🗺️ Open Concept Knowledge Graph](#action:knowledgeGraph)
+
+#### 5. 📊 Granular Syllabus & Progress Diagnostics
+- **What it does:** Differentiates between what you have read (**Syllabus Completion**) and what you have mastered through testing (**Knowledge Mastery**).
+- **How I help:** Ask me *"Where am I lagging?"* to pinpoint exact chapters needing attention.
+- [📊 View Syllabus Progress](#action:learn)
+
+#### 6. 📖 NCERT Foundation & Quizzes
+- **What it does:** Foundational summaries and self-assessment quizzes for Classes 6–12 across History, Polity, Economy, and Geography.
+- **How I help:** Test your foundational clarity before tackling advanced optional topics.
+- [📖 Study NCERT Foundation](#action:ncert)
+
+#### 7. 📜 Historical PYQs Archive (1800s to Modern)
+- **What it does:** Explores 19th-century civil service examinations, early republic trends, and modern peripheral questions.
+- [📜 Historical PYQs Archive](#action:pyqs)
+
+#### 8. 📰 Curated Current Affairs & Daily MCQs
+- **What it does:** Daily curated editorials from The Hindu, Livemint, and PIB mapped directly to GS 1, 2, 3, and 4.
+- [📰 Read Today's News & Editorials](#action:news)
+
+#### 9. 📚 2nd ARC & Commission Knowledge Base
+- **What it does:** Searchable repository of the 2nd Administrative Reforms Commission (Reports 1 to 15), Sarkaria Commission, and Punchhi Commission.
+- [📚 Search 2nd ARC Corpus](#action:knowledge)
+
+#### 10. ⏱️ Focus Timer & ⚙️ AI Engine Settings
+- [⏱️ Open Focus Timer](#action:schedule) &nbsp;|&nbsp; [⚙️ Configure Model & API Keys](#action:settings)
+
+---
+
+Tell me what you'd like to work on right now, or click any button above to jump straight into that workspace!`;
+  }
+
+  // 2. Claude-style Conversational Greetings & Study Partnership
+  if (
+    q === "hi" ||
+    q === "hello" ||
+    q === "hey" ||
+    q.includes("talk with me") ||
+    q.includes("talk to me") ||
+    q.includes("who are you") ||
+    q.includes("claude")
+  ) {
+    return `### Hello! It's wonderful to connect with you.
+
+I am **BOLT**, your dedicated UPSC mentor, intellectual sounding board, and in-app study partner. 
+
+Think of me as a thoughtful academic coach who combines the analytical rigor and warmth of an experienced civil services mentor with live, real-time access to your study dashboard across this platform.
+
+#### Here is how we can collaborate today:
+1. **Dissect Complex Ideas:** Whether you are wrestling with Herbert Simon's Bounded Rationality, Fred Riggs' Prismatic Model, or Article 311 safeguards, we can break them down into crystalline, memorable insights connected to contemporary governance.
+2. **Stress-Test Your Understanding:** We can run rapid Prelims MCQ drills, debate policy dilemmas, or draft Mains arguments.
+3. **Audit Your Strategy:** I can analyze your syllabus completion, highlight overdue revision topics, and adjust your study plan based on your recent performance.
+4. **Navigate the App:** Whenever you want to test yourself or study a specific module, I can guide you right into the right room.
+
+What's on your mind today? Are we exploring a new concept, practicing questions, or organizing your study roadmap?
+
+> 💡 **Quick Launchpad:**
+> - [⚡ Practice Prelims MCQs](#action:prelims)
+> - [📝 Evaluate a Mains Answer](#action:mains)
+> - [📅 Review Today's Timetable](#action:planner)
+> - [🗺️ Explore Concept Knowledge Graph](#action:knowledgeGraph)`;
+  }
+
+  // 3. Weak areas / Diagnostic
   if (q.includes("weak") || q.includes("struggling") || q.includes("progress") || q.includes("diagnostic")) {
     return `### 📊 Diagnostic Evaluation & Strategic Guidance
 

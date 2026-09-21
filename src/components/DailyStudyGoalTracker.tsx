@@ -44,10 +44,11 @@ export const DailyStudyGoalTracker: React.FC<DailyStudyGoalTrackerProps> = ({
   onNavigate,
   className = "",
 }) => {
-  // Goal in hours (defaults to user.dailyStudyHoursGoal || saved in localStorage || 6)
+  // Goal in hours (defaults to user.dailyStudyGoal || user.dailyStudyHoursGoal || saved in localStorage || 6)
   const [goalHours, setGoalHours] = useState<number>(() => {
-    if (user.dailyStudyHoursGoal && user.dailyStudyHoursGoal > 0) {
-      return user.dailyStudyHoursGoal;
+    const userGoal = user.dailyStudyGoal || user.dailyStudyHoursGoal;
+    if (userGoal && userGoal > 0) {
+      return userGoal;
     }
     try {
       const saved = localStorage.getItem(GOAL_STORAGE_KEY);
@@ -67,6 +68,15 @@ export const DailyStudyGoalTracker: React.FC<DailyStudyGoalTrackerProps> = ({
   const [quickSubject, setQuickSubject] = useState<StudySubjectCategory>("pub_ad");
   const [quickTopic, setQuickTopic] = useState("Public Administration Core Revision");
   const [quickMinutes, setQuickMinutes] = useState(45);
+
+  // Synchronize when user profile updates
+  useEffect(() => {
+    const userGoal = user.dailyStudyGoal || user.dailyStudyHoursGoal;
+    if (userGoal && userGoal > 0) {
+      setGoalHours(userGoal);
+      setTempGoalInput(userGoal.toString());
+    }
+  }, [user.dailyStudyGoal, user.dailyStudyHoursGoal]);
 
   // Today's formatted date
   const todayStr = useMemo(() => {
@@ -131,6 +141,7 @@ export const DailyStudyGoalTracker: React.FC<DailyStudyGoalTrackerProps> = ({
     if (onUpdateUser) {
       onUpdateUser({
         ...user,
+        dailyStudyGoal: validatedGoal,
         dailyStudyHoursGoal: validatedGoal,
       });
     }

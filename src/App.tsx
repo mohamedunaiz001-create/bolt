@@ -23,6 +23,7 @@ import {
   mainsPYQsList,
 } from "./data/upscData";
 import { DEFAULT_TIMETABLE_SLOTS } from "./data/timetableData";
+import { getInitialStudySessions } from "./data/initialStudySessions";
 import {
   NavigationTab,
   PrelimsQuestion,
@@ -148,9 +149,12 @@ export default function App() {
   const [studySessions, setStudySessions] = useState<StudySessionLog[]>(() => {
     try {
       const saved = localStorage.getItem("bolt_study_sessions");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {}
-    return [];
+    return getInitialStudySessions();
   });
 
   // Modals & prompts

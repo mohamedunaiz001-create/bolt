@@ -10,6 +10,8 @@
         "optionalSubject": { "type": "string", "description": "Optional subject" },
         "studyStreakDays": { "type": "number", "description": "Consecutive study days" },
         "themeMode": { "type": "string", "description": "dark or light" },
+        "dailyStudyGoal": { "type": "number", "description": "Daily study goal in hours" },
+        "dailyStudyHoursGoal": { "type": "number", "description": "Daily study goal in hours" },
         "dailyGoalHours": { "type": "number", "description": "Target daily study hours" },
         "updatedAt": { "type": "timestamp", "description": "Last profile update" }
       }

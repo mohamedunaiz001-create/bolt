@@ -76,28 +76,31 @@ export const BoltAssistantView: React.FC<BoltAssistantViewProps> = ({
     {
       id: "m-1",
       role: "assistant",
-      text: `Hello ${user.name}! I am **BOLT**, your dedicated UPSC mentor and preparation companion.
+      text: `### Hello ${user.name || "Aspirant"}! I am **BOLT**, your UPSC Civil Services preparation brain and in-app mentor.
 
-I have real-time access to your entire study workspace:
+I communicate with you as an intellectual partner—with the depth, analytical nuance, warmth, and clarity of Claude—while maintaining live, real-time access to your actual study dashboard:
+
 - **Syllabus completion:** ${liveContext.syllabus.overallCompletion}% overall (Paper 1: ${liveContext.syllabus.paper1Completion}%, Paper 2: ${liveContext.syllabus.paper2Completion}%)
 - **Critical weak units:** ${
         liveContext.syllabus.weakTopics.map((w) => `${w.name} (${w.score}%)`).join(", ") ||
         "Administrative Thought, Accountability & Control"
       }
-- **Strong areas:** ${
+- **Established strong areas:** ${
         liveContext.syllabus.strongTopics.map((s) => `${s.name} (${s.score}%)`).join(", ") ||
         "Administrative Behaviour, Constitutional Framework"
       }
 - **Practice record:** ${liveContext.prelimsPerformance.questionsAttempted} MCQs attempted • ${liveContext.prelimsPerformance.accuracyPercentage}% accuracy
 - **Mains evaluations:** ${liveContext.mainsPerformance.evaluatedCount} answers evaluated (${liveContext.mainsPerformance.averageScore}/15 average)
 
-You can ask me to:
-- **Diagnose weak spots** and formulate tailored revision schedules
-- **Evaluate your Mains answers** against UPSC 7-dimension rubrics
-- **Generate topper model answers** with flowcharts and 2nd ARC citations
-- **Navigate directly to any section** using interactive action links below
+#### How I Can Help You Across the App:
+I have direct, bidirectional access to every single tool in this application. You can ask me to navigate to any section, diagnose weak areas, or run practice drills:
 
-[⚡ Practice Prelims MCQs](#action:prelims) &nbsp; [📝 Evaluate Mains Answer](#action:mains) &nbsp; [📅 View Study Planner](#action:planner)`,
+> 💡 **Quick Launchpad:**
+> - [⚡ Practice Prelims MCQs](#action:prelims)
+> - [📝 Open Mains Evaluation Room](#action:mains)
+> - [📅 View & Customize Timetable](#action:planner)
+> - [🗺️ Explore Concept Knowledge Graph](#action:knowledgeGraph)
+> - [📊 View Granular Syllabus Progress](#action:learn)`,
       timestamp: "Just now",
       mode: "public_admin",
       actionCards: [
@@ -114,6 +117,12 @@ You can ask me to:
           actionLabel: "View Model Answer",
           targetTab: "mains",
         },
+        {
+          type: "topic",
+          title: "In-App Capabilities Guide",
+          description: "Explore all 11 study tools and see how Bolt AI acts as your in-app co-pilot",
+          actionLabel: "App Capabilities Tour",
+        },
       ],
     },
   ]);
@@ -122,6 +131,7 @@ You can ask me to:
   const [mode, setMode] = useState<"public_admin" | "general">("public_admin");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showScrollBottom, setShowScrollBottom] = useState<boolean>(false);
+  const [showWorkspaceNavigator, setShowWorkspaceNavigator] = useState<boolean>(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] = useState<{
     toolName: string;
@@ -325,24 +335,114 @@ You can ask me to:
 
   const quickPrompts = [
     {
-      label: "Analyze my weak areas",
+      label: "⚡ How can you help me in this app?",
+      prompt: "How can you help me in this app? Give me a complete tour of your in-app capabilities, tools, and access.",
+    },
+    {
+      label: "📊 Where am I lagging?",
       prompt: "Analyze my Public Administration syllabus progress, topic knowledge scores, and critical weak units.",
     },
     {
-      label: "Why am I weak in Thinkers?",
-      prompt: "Why is my knowledge score in Administrative Thought low, and what specific steps should I take?",
+      label: "🎯 Practice 2 Prelims MCQs",
+      prompt: "Give me 2 high-yield UPSC Prelims MCQs on delegated legislation and administrative accountability with full explanations.",
     },
     {
-      label: "Model Answer: Herbert Simon",
+      label: "📝 Model Answer: Herbert Simon",
       prompt: "Give me a 15-marker UPSC Mains model answer for Herbert Simon's Bounded Rationality with diagram and 2nd ARC citations.",
     },
     {
-      label: "7-Day Targeted Study Plan",
-      prompt: "Create a 7-day personalized revision timetable targeting my weakest units in Paper 1 and Paper 2.",
+      label: "🗺️ Concept Knowledge Graph",
+      prompt: "Show me how the Concept Knowledge Graph connects Public Administration thinkers to Indian administration realities.",
     },
     {
-      label: "Today's UPSC Current Affairs",
-      prompt: "Summarize today's top editorial developments with 3 Prelims facts and 2 Mains Public Administration dimensions.",
+      label: "📅 Build my weekly study plan",
+      prompt: "Create a personalized 7-day revision timetable targeting my weakest units in Paper 1 and Paper 2.",
+    },
+  ];
+
+  const appWorkspaces: Array<{
+    id: NavigationTab;
+    label: string;
+    description: string;
+    icon: string;
+    suggestedPrompt: string;
+  }> = [
+    {
+      id: "prelims",
+      label: "Prelims Simulator",
+      description: "Timed 4-option MCQs with syllabus linkage & accuracy analysis",
+      icon: "🎯",
+      suggestedPrompt: "Quiz me on 2 high-yield Prelims MCQs for Indian Polity & Administration.",
+    },
+    {
+      id: "mains",
+      label: "Mains 7-Dimension Evaluator",
+      description: "Grade typed/handwritten answers with 7-dimension UPSC rubric",
+      icon: "📝",
+      suggestedPrompt: "How can I improve my score from 8 to 11 marks in a 15-mark Public Administration Mains answer?",
+    },
+    {
+      id: "planner",
+      label: "Study Timetable & Planner",
+      description: "Adaptive schedule with Ebbinghaus spaced-repetition slots",
+      icon: "📅",
+      suggestedPrompt: "Generate an adaptive study schedule for this week addressing my lowest-scoring units.",
+    },
+    {
+      id: "knowledgeGraph",
+      label: "Concept Knowledge Graph",
+      description: "2D interactive map of Thinkers, Articles, and Indian realities",
+      icon: "🗺️",
+      suggestedPrompt: "Explain the link between Chester Barnard's Zone of Indifference and street-level bureaucracy in India.",
+    },
+    {
+      id: "learn",
+      label: "Syllabus & Knowledge Mastery",
+      description: "Track Paper 1 & Paper 2 completion vs diagnostic mastery",
+      icon: "📊",
+      suggestedPrompt: "Break down the difference between my syllabus completion and knowledge mastery.",
+    },
+    {
+      id: "ncert",
+      label: "NCERT Foundation",
+      description: "Classes 6-12 foundational chapter summaries & diagnostic quizzes",
+      icon: "📖",
+      suggestedPrompt: "Give me a quick foundational drill on Indian Constitution at Work (NCERT Class 11).",
+    },
+    {
+      id: "pyqs",
+      label: "Historical PYQs Archive",
+      description: "Explore 19th-century, early republic, and modern peripheral questions",
+      icon: "📜",
+      suggestedPrompt: "What are the recurring themes in UPSC Public Administration PYQs over the last 10 years?",
+    },
+    {
+      id: "news",
+      label: "Curated Current Affairs",
+      description: "The Hindu, Livemint & PIB editorials mapped to GS papers with MCQs",
+      icon: "📰",
+      suggestedPrompt: "Summarize today's top editorial developments with 3 Prelims facts and 2 Mains Public Administration dimensions.",
+    },
+    {
+      id: "knowledge",
+      label: "2nd ARC Knowledge Base",
+      description: "Indexed 2nd ARC reports (Ethics, Personnel, Local Governance, RTI)",
+      icon: "📚",
+      suggestedPrompt: "What are the most important recommendations of the 2nd ARC 4th Report on Ethics in Governance?",
+    },
+    {
+      id: "schedule",
+      label: "Focus & Pomodoro Timer",
+      description: "Track deep study sessions and build consecutive study streaks",
+      icon: "⏱️",
+      suggestedPrompt: "How can I optimize my Pomodoro focus intervals for intense UPSC answer writing?",
+    },
+    {
+      id: "settings",
+      label: "AI Engine & Settings",
+      description: "Switch models (Gemini, Groq, OpenAI, Claude) and tune keys",
+      icon: "⚙️",
+      suggestedPrompt: "Show me my current active AI model settings and inference status.",
     },
   ];
 
@@ -365,13 +465,27 @@ You can ask me to:
               </span>
             </div>
             <p className="text-slate-400 text-xs truncate sm:whitespace-normal">
-              Context-aware UPSC preparation assistant with live access to your syllabus & performance data.
+              Claude-grade conversational mentor with live bidirectional access to your UPSC workspace & performance data.
             </p>
           </div>
         </div>
 
         {/* Action Controls & Mode Switcher */}
         <div className="flex items-center space-x-2 self-start sm:self-center flex-wrap gap-y-1">
+          <button
+            onClick={() => setShowWorkspaceNavigator((prev) => !prev)}
+            className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs transition-colors flex items-center gap-1.5 ${
+              showWorkspaceNavigator
+                ? "bg-blue-600/30 border-blue-500/50 text-blue-200 font-semibold"
+                : "bg-[#162033] hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white"
+            }`}
+            title="Explore all in-app study tools"
+          >
+            <Compass className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden sm:inline">App Tools</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono">11</span>
+          </button>
+
           <button
             onClick={handleClearChat}
             className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#162033] hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-colors flex items-center gap-1"
@@ -406,6 +520,69 @@ You can ask me to:
           </div>
         </div>
       </div>
+
+      {/* Expandable Workspace & Tools Directory */}
+      {showWorkspaceNavigator && (
+        <div className="mb-3 p-3.5 rounded-2xl bg-[#0f172a]/95 border border-blue-500/30 shadow-xl backdrop-blur-md flex-shrink-0 animate-fadeIn space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Compass className="w-4 h-4 text-blue-400" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider font-['Outfit']">
+                Bolt AI In-App Command Directory (11 Workspaces)
+              </h3>
+            </div>
+            <button
+              onClick={() => setShowWorkspaceNavigator(false)}
+              className="text-slate-400 hover:text-white text-xs font-medium px-2 py-0.5 rounded hover:bg-slate-800"
+            >
+              Close
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
+            {appWorkspaces.map((ws) => (
+              <div
+                key={ws.id}
+                className="p-2.5 rounded-xl bg-[#162033]/80 hover:bg-[#1f2d48] border border-slate-800/80 hover:border-blue-500/40 transition-all flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-sm">{ws.icon}</span>
+                    <span className="text-xs font-bold text-slate-200 group-hover:text-blue-300 transition-colors line-clamp-1">
+                      {ws.label}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                    {ws.description}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-800/60">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onNavigateTab(ws.id);
+                      setShowWorkspaceNavigator(false);
+                    }}
+                    className="flex-1 py-1 px-2 rounded-lg bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white text-[10px] font-semibold transition-colors text-center"
+                  >
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sendMessage(ws.suggestedPrompt);
+                      setShowWorkspaceNavigator(false);
+                    }}
+                    className="py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] transition-colors"
+                    title="Ask Bolt about this"
+                  >
+                    Ask Bolt
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Messages Scroll Area */}
       <div
@@ -578,6 +755,19 @@ You can ask me to:
                             >
                               <span>{children}</span>
                               <ArrowRight className="w-3 h-3 text-blue-400" />
+                            </button>
+                          );
+                        }
+                        if (href && href.startsWith("#prompt:")) {
+                          const promptText = decodeURIComponent(href.replace("#prompt:", ""));
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => sendMessage(promptText)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 my-1 mx-0.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/40 text-emerald-200 hover:text-white font-medium text-xs transition-all cursor-pointer shadow-sm"
+                            >
+                              <Sparkles className="w-3 h-3 text-emerald-400" />
+                              <span>{children}</span>
                             </button>
                           );
                         }

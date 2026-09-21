@@ -112,9 +112,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     name: user.name || "Aspirant",
     target: user.target || "UPSC CSE 2026",
     optionalSubject: user.optionalSubject || "Public Administration",
-    dailyStudyHoursGoal: user.dailyStudyHoursGoal || 6,
+    dailyStudyGoal: user.dailyStudyGoal || user.dailyStudyHoursGoal || 6,
+    dailyStudyHoursGoal: user.dailyStudyGoal || user.dailyStudyHoursGoal || 6,
   });
   const [profileSaved, setProfileSaved] = useState(false);
+
+  // Sync profile when user prop updates
+  useEffect(() => {
+    setProfileForm({
+      name: user.name || "Aspirant",
+      target: user.target || "UPSC CSE 2026",
+      optionalSubject: user.optionalSubject || "Public Administration",
+      dailyStudyGoal: user.dailyStudyGoal || user.dailyStudyHoursGoal || 6,
+      dailyStudyHoursGoal: user.dailyStudyGoal || user.dailyStudyHoursGoal || 6,
+    });
+  }, [user]);
 
   // Real backend dataset & training pipeline items
   const [datasetItems, setDatasetItems] = useState<any[]>([]);
@@ -211,12 +223,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    const goalVal = Number(profileForm.dailyStudyGoal || profileForm.dailyStudyHoursGoal) || 6;
     const updated: UserProfile = {
       ...user,
       name: profileForm.name.trim() || "Aspirant",
       target: profileForm.target.trim() || "UPSC CSE 2026",
       optionalSubject: profileForm.optionalSubject.trim() || "Public Administration",
-      dailyStudyHoursGoal: Number(profileForm.dailyStudyHoursGoal) || 6,
+      dailyStudyGoal: goalVal,
+      dailyStudyHoursGoal: goalVal,
     };
     onUpdateUser(updated);
     setProfileSaved(true);
@@ -1146,17 +1160,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Daily Study Hours Target</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">
+                    Daily Study Goal (in hours)
+                  </label>
+                  <span className="text-[11px] text-blue-400 font-semibold">
+                    {profileForm.dailyStudyGoal || profileForm.dailyStudyHoursGoal || 6} hrs/day
+                  </span>
+                </div>
                 <input
                   type="number"
-                  min="1"
-                  max="16"
-                  value={profileForm.dailyStudyHoursGoal}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, dailyStudyHoursGoal: Number(e.target.value) })
-                  }
+                  min="0.5"
+                  max="18"
+                  step="0.5"
+                  value={profileForm.dailyStudyGoal ?? profileForm.dailyStudyHoursGoal ?? 6}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setProfileForm({
+                      ...profileForm,
+                      dailyStudyGoal: val,
+                      dailyStudyHoursGoal: val,
+                    });
+                  }}
                   className="w-full px-3 py-2 rounded-lg bg-[#141b2a] border border-[#222f46] text-xs text-white focus:outline-none focus:border-blue-500"
                 />
+                <p className="text-[11px] text-slate-400">
+                  Target study hours per day. Displays a live progress bar on the Home Dashboard calculating progress from your logged study sessions.
+                </p>
               </div>
 
               <div className="flex items-center space-x-3 pt-2">

@@ -133,7 +133,8 @@ export interface UserProfile {
   mainsEvaluatedCount: number;
   overallAccuracy: number;
   themeMode?: AppThemeMode;
-  dailyStudyHoursGoal?: number;
+  dailyStudyGoal?: number; // Daily study target in hours
+  dailyStudyHoursGoal?: number; // Backwards-compatible alias
 }
 
 export interface AuthAccount {
@@ -198,6 +199,7 @@ export type AIProviderType =
   | "perplexity"
   | "xai"
   | "cohere"
+  | "nvidia"
   | "local"
   | "custom";
 
@@ -717,6 +719,7 @@ export interface CanonicalStudentProfile {
   exam: string;
   attemptYear: number;
   optionalSubject: string;
+  dailyStudyGoal?: number;
   dailyStudyHoursGoal: number;
   studyPreferences: {
     preferredStudyTime: "morning" | "afternoon" | "night" | "flexible";

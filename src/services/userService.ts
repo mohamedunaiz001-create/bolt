@@ -277,6 +277,8 @@ export async function registerAccount(params: {
         mainsEvaluatedCount: 0,
         overallAccuracy: 0,
         themeMode: "dark",
+        dailyStudyGoal: 6,
+        dailyStudyHoursGoal: 6,
       };
 
       const progress: UserFullProgressData = {

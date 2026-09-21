@@ -86,6 +86,26 @@ export const BOLT_TOOL_DEFINITIONS: BoltToolDefinition[] = [
 
   // 2. Syllabus
   {
+    name: "navigateApp",
+    category: "Study",
+    permissionLevel: "read",
+    description: "Navigate directly to any section of the app (prelims, mains, planner, knowledgeGraph, ncert, pyqs, news, materials, learn, settings, schedule, home).",
+    parameters: {
+      type: "object",
+      properties: {
+        tab: { type: "string", description: "Target navigation tab" },
+      },
+      required: ["tab"],
+    },
+  },
+  {
+    name: "getAppCapabilities",
+    category: "Knowledge",
+    permissionLevel: "read",
+    description: "Retrieve complete map of BOLT AI's in-app access, features, and capabilities across the platform.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
     name: "getSyllabus",
     category: "Syllabus",
     permissionLevel: "read",
@@ -408,8 +428,74 @@ export async function executeAgentTool(
     }
 
     // ----------------------------------------------------
-    // 2. Syllabus
+    // 2. Syllabus & App Navigation
     // ----------------------------------------------------
+    case "navigateApp": {
+      const tab = (args.tab || "home") as any;
+      if (ctx.onNavigateTab) {
+        ctx.onNavigateTab(tab);
+      }
+      const tabNames: Record<string, string> = {
+        prelims: "Prelims MCQ Simulator",
+        mains: "Mains 7-Dimension Evaluator",
+        planner: "Study Timetable & Spaced Repetition",
+        knowledgeGraph: "Interactive Concept Knowledge Graph",
+        learn: "Syllabus & Knowledge Progress",
+        ncert: "NCERT Foundation & Quizzes",
+        pyqs: "Historical PYQs Archive (1800s-Modern)",
+        news: "Current Affairs & Daily Editorials",
+        materials: "Study Materials & PDF RAG Repository",
+        schedule: "Focus Session & Pomodoro Timer",
+        settings: "AI Engine & Model Settings",
+        knowledge: "2nd ARC & Commission Reports",
+        home: "Study Dashboard Overview",
+      };
+      const title = tabNames[tab] || tab;
+      return {
+        result: { navigatedTo: tab, tabTitle: title },
+        summary: `Navigated to ${title} section.`,
+        traceInsight: {
+          headline: `🚀 In-App Navigation: ${title}`,
+          bullets: [
+            `✓ Opened ${title} workspace`,
+            `✓ Synced with student progress & active session state`,
+          ],
+          recommendation: `You are now in the ${title} workspace. Feel free to ask Bolt for guidance or practice prompts here!`,
+          rawDetails: { tab, title },
+        },
+      };
+    }
+
+    case "getAppCapabilities": {
+      return {
+        result: {
+          capabilities: [
+            { name: "Prelims Simulator", tab: "prelims", desc: "Adaptive 4-option MCQs with syllabus linkage and performance analytics" },
+            { name: "Mains 7-Dimension Evaluator", tab: "mains", desc: "Evaluates handwritten/typed answers against official UPSC rubrics with thinker upgrades" },
+            { name: "Study Planner & Timetable", tab: "planner", desc: "Ebbinghaus spaced-repetition scheduler and syllabus completion planner" },
+            { name: "Concept Knowledge Graph", tab: "knowledgeGraph", desc: "Interactive graph linking Administrative Thinkers, Articles, and Indian realities" },
+            { name: "Syllabus Progress Tracker", tab: "learn", desc: "Granular Paper 1 & Paper 2 unit completion and knowledge score diagnostics" },
+            { name: "NCERT Foundation", tab: "ncert", desc: "Foundational summaries and chapter quizzes across History, Polity, Economy & Geography" },
+            { name: "Historical PYQs Archive", tab: "pyqs", desc: "Curated 19th-century, pre-independence, and modern peripheral questions" },
+            { name: "Curated Current Affairs", tab: "news", desc: "Editorials from The Hindu, Livemint, PIB mapped to GS papers with daily MCQs" },
+            { name: "2nd ARC Knowledge Base", tab: "knowledge", desc: "Indexed 2nd ARC reports (Ethics, Personnel, Local Governance, RTI, etc.)" },
+            { name: "Focus & Pomodoro Timer", tab: "schedule", desc: "Track deep study sessions and build consecutive study streaks" },
+            { name: "AI Settings & Providers", tab: "settings", desc: "Configure Gemini, Groq, NVIDIA NIM, OpenAI, Anthropic, or local Ollama" },
+          ],
+        },
+        summary: `Retrieved BOLT AI's in-app access map and capabilities across 11 integrated workspace modules.`,
+        traceInsight: {
+          headline: `⚡ BOLT AI In-App Access & Capability Map`,
+          bullets: [
+            `✓ Direct access to 11 integrated UPSC study tools`,
+            `✓ Live bidirectional synchronization with student performance data`,
+            `✓ One-click navigation and interactive deep links in chat`,
+          ],
+          rawDetails: {},
+        },
+      };
+    }
+
     case "getSyllabus": {
       const paperFilter = args.paper;
       const filtered = paperFilter
@@ -864,6 +950,59 @@ export async function executeAgentTool(
  */
 export function detectToolFromPrompt(prompt: string): { name: string; args: Record<string, any> } | null {
   const p = prompt.toLowerCase();
+
+  // App Navigation & Assistant Guidance
+  if (
+    p.includes("what can you do in this app") ||
+    p.includes("help me in app") ||
+    p.includes("how do i use this app") ||
+    p.includes("app features") ||
+    p.includes("app capabilities") ||
+    p.includes("access to app") ||
+    p.includes("tour of the app")
+  ) {
+    return { name: "getAppCapabilities", args: {} };
+  }
+
+  if (p.includes("open prelims") || p.includes("go to prelims") || p.includes("start prelims") || p.includes("prelims simulator") || p.includes("practice test")) {
+    return { name: "navigateApp", args: { tab: "prelims" } };
+  }
+
+  if (p.includes("open mains") || p.includes("go to mains") || p.includes("evaluate my answer") || p.includes("write mains") || p.includes("mains room")) {
+    return { name: "navigateApp", args: { tab: "mains" } };
+  }
+
+  if (p.includes("open planner") || p.includes("go to planner") || p.includes("show timetable") || p.includes("my timetable") || p.includes("open schedule")) {
+    return { name: "navigateApp", args: { tab: "planner" } };
+  }
+
+  if (p.includes("open knowledge graph") || p.includes("show knowledge graph") || p.includes("concept graph") || p.includes("thinker graph") || p.includes("visualize thinkers")) {
+    return { name: "navigateApp", args: { tab: "knowledgeGraph" } };
+  }
+
+  if (p.includes("open ncert") || p.includes("go to ncert") || p.includes("ncert foundation") || p.includes("ncert chapter")) {
+    return { name: "navigateApp", args: { tab: "ncert" } };
+  }
+
+  if (p.includes("open pyqs") || p.includes("show pyqs") || p.includes("historical pyqs") || p.includes("pyq archive")) {
+    return { name: "navigateApp", args: { tab: "pyqs" } };
+  }
+
+  if (p.includes("open news") || p.includes("open current affairs") || p.includes("the hindu") || p.includes("pib updates")) {
+    return { name: "navigateApp", args: { tab: "news" } };
+  }
+
+  if (p.includes("open syllabus") || p.includes("go to syllabus") || p.includes("syllabus progress") || p.includes("open learn")) {
+    return { name: "navigateApp", args: { tab: "learn" } };
+  }
+
+  if (p.includes("open materials") || p.includes("upload pdf") || p.includes("study materials") || p.includes("custom notes")) {
+    return { name: "navigateApp", args: { tab: "materials" } };
+  }
+
+  if (p.includes("open settings") || p.includes("model settings") || p.includes("ai provider") || p.includes("change model") || p.includes("api key settings")) {
+    return { name: "navigateApp", args: { tab: "settings" } };
+  }
 
   if (p.includes("weak area") || p.includes("my weaknesses") || p.includes("where am i lagging") || p.includes("struggling with")) {
     return { name: "getWeakAreas", args: {} };

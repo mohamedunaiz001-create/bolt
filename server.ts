@@ -29,7 +29,7 @@ import {
   KnowledgeChunk,
 } from "./server/ragService";
 import { computeTopicDiagnostic } from "./server/knowledgeScoring";
-import { BoltAIGateway, getGatewayConfig, updateGatewayConfig, executeGeminiWithFailover } from "./server/aiGateway";
+import { BoltAIGateway, getGatewayConfig, updateGatewayConfig, executeGeminiWithFailover, getGeminiClient } from "./server/aiGateway";
 import { StudentIntelligenceEngine, CANONICAL_TOPIC_GRAPH } from "./server/studentIntelligence";
 import { BoltAgentRuntime } from "./server/boltAgentRuntime";
 import { ModelPlatformService } from "./server/modelPlatform";
@@ -84,22 +84,6 @@ app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 // Mount auth token extractor and general API rate limiter
 app.use(authenticateToken);
 app.use("/api/", generalApiLimiter);
-
-// Lazy initialize Gemini client
-function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    return null;
-  }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
-}
 
 // ----------------------------------------------------
 // API ROUTES: PRODUCTION MONITORING & HEALTH CHECKS
@@ -275,8 +259,9 @@ Return ONLY valid JSON matching this exact structure:
           const parsed = JSON.parse(jsonMatch[0]);
           return res.json({ success: true, mcq: parsed });
         }
-      } catch (geminiErr) {
-        console.warn("Gemini generation fallback engaged across all candidates:", geminiErr);
+      } catch (geminiErr: any) {
+        const reason = geminiErr?.message?.slice(0, 120) || "Service unavailable";
+        console.warn(`[Daily MCQ] Cloud inference unavailable (${reason}). Using curated UPSC question.`);
       }
     }
 
@@ -1652,8 +1637,73 @@ function generateContextualBoltResponse(msg: string, isPubAdmin: boolean, ctx: a
       relevantChunks.slice(0, 2).map((c: any) => `- **${c.documentTitle}** (*${c.category}*, approx. Page ${c.approxPage || 1})\n  > *"...${c.text.slice(0, 160).replace(/\n/g, ' ')}..."*`).join("\n");
   }
   
+  // App Help & Capabilities
+  if (
+    lower.includes("app") ||
+    lower.includes("how do i use") ||
+    lower.includes("help me in") ||
+    lower.includes("what can you do") ||
+    lower.includes("capabilities") ||
+    lower.includes("tour") ||
+    lower.includes("features")
+  ) {
+    return `### ⚡ BOLT AI In-App Command Center & Access Guide
+
+Hello ${user.name || "Aspirant"}! I am **Bolt**, your dedicated UPSC mentor and co-pilot across this entire workspace. I don't just answer questions—I have live, bidirectional access to your study records and can guide you directly into every tool:
+
+---
+
+#### 1. 🎯 Prelims MCQ Simulator
+- **What it does:** Dynamic, timed 4-option UPSC Prelims questions with detailed explanations, syllabus linkage, and option elimination rationales.
+- **How I help:** I analyze your error patterns and generate drills targeting your exact weak areas.
+- [⚡ Practice Prelims MCQs](#action:prelims)
+
+#### 2. 📝 Mains 7-Dimension Evaluator
+- **What it does:** Rigorously grades typed or handwritten answers against the 7-dimension UPSC rubric with marks out of 15 and thinker upgrades.
+- **How I help:** Submit an answer here or in the Mains room. I identify missing constitutional articles and administrative doctrines.
+- [📝 Open Mains Evaluation Room](#action:mains)
+
+#### 3. 📅 Adaptive Study Planner & Timetable
+- **What it does:** Schedules your daily study sessions with built-in **Ebbinghaus Spaced Repetition** to ensure high recall retention.
+- **How I help:** I align your timetable with your live syllabus coverage.
+- [📅 View & Customize Timetable](#action:planner)
+
+#### 4. 🗺️ Concept Knowledge Graph
+- **What it does:** Interactive 2D graph mapping Public Administration Thinkers, Constitutional Articles, and contemporary Indian governance.
+- **How I help:** I help you spot Paper 1 ↔ Paper 2 cross-linkages for high-scoring Mains answers.
+- [🗺️ Open Concept Knowledge Graph](#action:knowledgeGraph)
+
+#### 5. 📊 Granular Syllabus & Progress Diagnostics
+- **What it does:** Differentiates between what you have covered (**Syllabus Completion**) and your actual retention (**Knowledge Mastery**).
+- **How I help:** Ask me *"Where am I lagging?"* anytime.
+- [📊 View Syllabus Progress](#action:learn)
+
+#### 6. 📖 NCERT Foundation & Quizzes
+- **What it does:** Foundational summaries and chapter-end quizzes for Classes 6–12 across History, Polity, Economy, and Geography.
+- [📖 Study NCERT Foundation](#action:ncert)
+
+#### 7. 📜 Historical PYQs Archive
+- **What it does:** Explores 19th-century civil services examinations, early republic trends, and modern peripheral questions.
+- [📜 Historical PYQs Archive](#action:pyqs)
+
+#### 8. 📰 Curated Current Affairs & Daily MCQs
+- **What it does:** Daily editorials from The Hindu, Livemint, and PIB mapped to GS papers with instant MCQs.
+- [📰 Read Today's News & Editorials](#action:news)
+
+#### 9. 📚 2nd ARC & Thinker Knowledge Base
+- **What it does:** Comprehensive indexed corpus of the 2nd Administrative Reforms Commission reports and administrative theorists.
+- [📚 Search 2nd ARC Corpus](#action:knowledge)
+
+#### 10. ⏱️ Focus Timer & ⚙️ AI Engine Settings
+- [⏱️ Open Focus Timer](#action:schedule) &nbsp;|&nbsp; [⚙️ Configure Model & API Keys](#action:settings)
+
+---
+
+What would you like to explore right now? Click any button above or simply tell me what topic is on your mind!`;
+  }
+
   if (lower.includes("weak") || lower.includes("struggling") || lower.includes("analyze my progress") || lower.includes("ennoda knowledge")) {
-    return `### 📊 Bolt Diagnostic Analysis for ${user.name}
+    return `### 📊 Diagnostic Evaluation for ${user.name}
 
 Based on your current platform performance across **${attemptsCount} test attempts** and **${mainsCount} Mains evaluations**:
 
@@ -1662,20 +1712,25 @@ Based on your current platform performance across **${attemptsCount} test attemp
 - **Paper 2 (Indian Administration):** ${paper2Text}
 - **Current Prelims Accuracy:** ${prelimsAcc}
 
-#### ⚠️ Your Critical Weak Areas
+#### ⚠️ Critical Weak Areas Requiring Immediate Focus
 ${weakList.map((w: string, idx: number) => `${idx + 1}. **${w}**`).join("\n")}
 
-#### 🌟 Your Strong Areas
+#### 🌟 Established Strengths
 ${strongList.map((s: string) => `- **${s}**`).join("\n")}
 
-#### 🎯 Recommended Action for Today:
-1. Focus on weak area: **${weakList[0] || "Administrative Thought"}**.
-2. Practice 10 targeted MCQs and 1 structured Mains answer.
-3. Review your Thinker Flashcards to solidify concepts.`;
+#### 🎯 Recommended Action Plan for Today:
+1. **Targeted Revision**: Spend 45 minutes on **${weakList[0] || "Administrative Thought"}**.
+2. **Prelims Drill**: Practice 10 high-yield MCQs to test conceptual clarity.
+3. **Mains Synthesis**: Draft 1 structured 15-mark answer integrating 2nd ARC citations.
+
+> 💡 **Next Steps:**
+> - [⚡ Open Prelims Practice](#action:prelims)
+> - [📝 Submit Mains Answer for Evaluation](#action:mains)
+> - [📅 Add Revision Slot to Timetable](#action:planner)`;
   }
 
-  if (lower.includes("revision plan") || lower.includes("study plan") || lower.includes("what should i study")) {
-    return `### 📅 Bolt Personalized 7-Day Targeted Plan for ${user.name}
+  if (lower.includes("revision plan") || lower.includes("study plan") || lower.includes("what should i study") || lower.includes("timetable")) {
+    return `### 📅 High-Yield 7-Day Targeted Study Plan for ${user.name}
 
 Tailored strictly to address your weak spots in **Administrative Thinkers** & **Accountability**:
 
@@ -1685,7 +1740,11 @@ Tailored strictly to address your weak spots in **Administrative Thinkers** & **
 - **Day 4:** Indian Administration — Union Secretariat & Cabinet Secretariat role evolution.
 - **Day 5:** Civil Services in India — Article 311 constitutional safeguards & Lateral Entry debates.
 - **Day 6:** Full Paper 1 Sectional Test (100 Marks) under timed exam conditions.
-- **Day 7:** Comprehensive answer review with Bolt + Weak topic remediation.`;
+- **Day 7:** Comprehensive answer review with Bolt + Weak topic remediation.
+
+> 💡 **Manage Your Schedule:**
+> - [📅 View & Customize Timetable](#action:planner)
+> - [⏱️ Start a Timed Focus Session](#action:schedule)`;
   }
 
   if (lower.includes("simon") || lower.includes("bounded rationality")) {
@@ -1702,7 +1761,11 @@ Herbert Simon in *Administrative Behavior (1947)* demolished the Classical 'Econ
 **3. Application to UPSC Mains (Paper 1 & Paper 2 Linkage):**
 - *Paper 1:* Connects with decision premises (Fact vs Value). In public policy formulation, value premises often dominate factual analysis.
 - *Paper 2 (Indian Context):* Disaster management during flash floods (e.g. Wayanad/Himalayan floods) or emergency procurement during Covid-19 are classic examples of the District Magistrate satisficing under bounded rationality.
-- *Way Forward / Thinker Integration:* Yehezkel Dror's *Optimal Model* and Charles Lindblom's *Incrementalism (Muddling Through)* build upon Simon's critique.`;
+- *Way Forward / Thinker Integration:* Yehezkel Dror's *Optimal Model* and Charles Lindblom's *Incrementalism (Muddling Through)* build upon Simon's critique.
+
+> 💡 **Related Tools:**
+> - [📝 Evaluate Mains Answer on Herbert Simon](#action:mains)
+> - [🗺️ View Simon in Knowledge Graph](#action:knowledgeGraph)`;
   }
 
   if (lower.includes("weber") || lower.includes("bureaucracy") || lower.includes("ideal type")) {
@@ -1721,7 +1784,11 @@ Herbert Simon in *Administrative Behavior (1947)* demolished the Classical 'Econ
 
 **3. Indian Context (Paper 2):**
 - The "Steel Frame" (Sardar Patel's vision) versus the "Iron Cage" of red-tapism.
-- Shift from Weberian rule-bound bureaucracy to Citizen-Centric Governance (2nd ARC 12th Report), Mission Karmayogi, and lateral entry.`;
+- Shift from Weberian rule-bound bureaucracy to Citizen-Centric Governance (2nd ARC 12th Report), Mission Karmayogi, and lateral entry.
+
+> 💡 **Related Tools:**
+> - [📝 Submit an Answer on Weber](#action:mains)
+> - [📚 Search 2nd ARC Report 10 on Civil Service Reform](#action:knowledge)`;
   }
 
   if (lower.includes("article 311") || lower.includes("civil services") || lower.includes("doctrine of pleasure")) {
@@ -1738,7 +1805,11 @@ Herbert Simon in *Administrative Behavior (1947)* demolished the Classical 'Econ
 
 **3. Public Administration & 2nd ARC Recommendations:**
 - Balancing security of tenure (to foster fearless, honest advice) with accountability (weeding out corrupt/inefficient officers via FR 56(j) periodic reviews).
-- 2nd ARC (10th Report on *Refurbishing of Personnel Administration*) recommended streamlining disciplinary inquiries to prevent frivolous delays.`;
+- 2nd ARC (10th Report on *Refurbishing of Personnel Administration*) recommended streamlining disciplinary inquiries to prevent frivolous delays.
+
+> 💡 **Explore in App:**
+> - [⚡ Prelims Practice on Polity & Constitution](#action:prelims)
+> - [🗺️ Open Concept Knowledge Graph](#action:knowledgeGraph)`;
   }
 
   if (lower.includes("arc") || lower.includes("administrative reforms commission")) {
@@ -1759,21 +1830,33 @@ The 2nd ARC (chaired by Veerappa Moily) is indispensable for scoring in Public A
 4. **10th Report — Refurbishing Personnel Administration:**
    - Performance-related pay, domain specialization for civil servants, and 360-degree appraisal systems.
 5. **12th Report — Citizen Centric Administration:**
-   - Sevottam framework, Citizen Charters with grievance redressal timelines, and social audits.`;
+   - Sevottam framework, Citizen Charters with grievance redressal timelines, and social audits.
+
+> 💡 **Search Reports:**
+> - [📚 Open 2nd ARC Knowledge Base](#action:knowledge)
+> - [📝 Grade Answer on ARC Recommendations](#action:mains)`;
   }
 
-  return `Hello ${user.name}! I am **Bolt**, your dedicated UPSC mentor.
+  return `### Hello ${user.name || "Aspirant"}! It's a pleasure to work with you.
 
-I have real-time access to your study dashboard, syllabus progress, answer evaluations, and prelims accuracy. 
+I am **Bolt**, your dedicated UPSC Civil Services mentor and in-app co-pilot. 
 
-Here is what I can do for you right now:
-- **Analyze your syllabus completion & knowledge levels** across every subtopic.
-- **Evaluate handwritten or typed Mains answers** against UPSC criteria.
-- **Generate topper-standard Model Answers** with structured diagrams and thinker citations.
-- **Formulate personalized daily study targets** based on your identified weak areas.
-- **Explain complex Public Administration concepts** (Paper 1 & Paper 2).
+I speak with you as a thoughtful academic partner—articulate, empathetic, and rigorous—with live, real-time access to your study performance, syllabus progress, and test evaluations.
 
-What would you like to focus on today?`;
+#### How we can work together right now:
+- **Concept Deep Dives:** Demystify theoretical frameworks (Weber, Simon, Riggs, Follett) and connect them to Indian administrative realities.
+- **Prelims Precision:** Formulate high-yield 4-option MCQs to test option elimination and factual retention.
+- **Mains Answer Writing:** Score and elevate your answers against official UPSC rubrics with thinker upgrades.
+- **Timetable & Strategy:** Formulate adaptive study routines to eliminate weak areas and safeguard revision intervals.
+- **In-App Guide:** Navigate you to any tool or room across this application.
+
+What shall we tackle today?
+
+> 💡 **Quick Launchpad:**
+> - [⚡ Practice Prelims MCQs](#action:prelims)
+> - [📝 Evaluate Mains Answer](#action:mains)
+> - [📅 Review Study Timetable](#action:planner)
+> - [🗺️ Explore Concept Knowledge Graph](#action:knowledgeGraph)`;
 }
 
 function generateMainsEvaluationFallback(question: string, answerText: string, maxMarks: number, subject: string) {

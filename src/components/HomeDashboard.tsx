@@ -17,6 +17,11 @@ import {
   History,
   Newspaper,
   GraduationCap,
+  Sliders,
+  Plus,
+  Minus,
+  Check,
+  X,
 } from "lucide-react";
 import { StudentIntelligenceModal } from "./StudentIntelligenceModal";
 import { StudentIntelligenceDashboard } from "./StudentIntelligenceDashboard";
@@ -67,16 +72,84 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 }) => {
   const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
 
-  // Daily study goal calculations for top banner
-  const currentGoalHours = user.dailyStudyHoursGoal || 6;
+  // Daily study goal calculations for top banner and progress bar
+  const currentGoalHours = user.dailyStudyGoal || user.dailyStudyHoursGoal || 6;
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
-  const todayAchievedHours = useMemo(() => {
-    const mins = studySessions
-      .filter((s) => s.date === todayStr)
-      .reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
-    return parseFloat((mins / 60).toFixed(1));
+
+  // Filter study sessions achieved today based on study session logs
+  const todaySessions = useMemo(() => {
+    return (studySessions || []).filter((s) => {
+      if (s.date === todayStr) return true;
+      if (s.timestamp) {
+        try {
+          const sDate = new Date(s.timestamp);
+          if (!isNaN(sDate.getTime())) {
+            return sDate.toISOString().split("T")[0] === todayStr;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return false;
+    });
   }, [studySessions, todayStr]);
-  const todayGoalPercentage = currentGoalHours > 0 ? Math.min(Math.round((todayAchievedHours / currentGoalHours) * 100), 100) : 0;
+
+  const todayAchievedMinutes = useMemo(() => {
+    return todaySessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+  }, [todaySessions]);
+
+  const todayAchievedHours = useMemo(() => {
+    return parseFloat((todayAchievedMinutes / 60).toFixed(1));
+  }, [todayAchievedMinutes]);
+
+  const rawPercentage = currentGoalHours > 0 ? (todayAchievedHours / currentGoalHours) * 100 : 0;
+  const todayGoalPercentage = Math.round(rawPercentage);
+  const clampedGoalPercentage = Math.min(todayGoalPercentage, 100);
+  const isGoalAchieved = todayAchievedHours >= currentGoalHours;
+  const remainingHours = Math.max(0, parseFloat((currentGoalHours - todayAchievedHours).toFixed(1)));
+
+  // State for adjusting the profile's daily study goal inline
+  const [isAdjustingGoal, setIsAdjustingGoal] = useState(false);
+  const [tempGoal, setTempGoal] = useState<number>(currentGoalHours);
+
+  const handleSaveGoal = (newGoal: number) => {
+    const val = Math.max(0.5, Math.min(18, parseFloat(newGoal.toFixed(1))));
+    setTempGoal(val);
+    if (onUpdateUser) {
+      onUpdateUser({
+        ...user,
+        dailyStudyGoal: val,
+        dailyStudyHoursGoal: val,
+      });
+    }
+    setIsAdjustingGoal(false);
+  };
+
+  const handleQuickLog = (minutes: number, topicTitle: string) => {
+    const newSession: StudySessionLog = {
+      id: "sess-" + Date.now(),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      date: todayStr,
+      subject: "Public Administration Optional",
+      topic: topicTitle,
+      durationMinutes: minutes,
+      mode: "deep_work",
+    };
+    const updated = [newSession, ...(studySessions || [])];
+    if (onUpdateStudySessions) {
+      onUpdateStudySessions(updated);
+    }
+    try {
+      localStorage.setItem("bolt_study_sessions", JSON.stringify(updated));
+    } catch {}
+    if (onUpdateUser) {
+      const addedHours = parseFloat((minutes / 60).toFixed(2));
+      onUpdateUser({
+        ...user,
+        totalStudyHours: parseFloat(((user.totalStudyHours || 0) + addedHours).toFixed(1)),
+      });
+    }
+  };
 
   // Generate gamified milestones dynamically based on current user state
   const milestones = useMemo(() => {
@@ -160,23 +233,45 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <span className="text-[10px] text-emerald-400 font-medium">Consistent daily goal</span>
           </div>
 
-          <div className="bg-[#162033]/60 rounded-xl p-3 border border-slate-800/80">
-            <div className="flex items-center space-x-2 text-slate-400 text-xs">
-              <Clock className="w-4 h-4 text-blue-400" />
-              <span>Today's Study</span>
+          <div className="bg-[#162033]/60 rounded-xl p-3 border border-slate-800/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-slate-400 text-xs">
+                <div className="flex items-center space-x-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Today's Study</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {todaySessions.length} {todaySessions.length === 1 ? "log" : "logs"}
+                </span>
+              </div>
+              <p className="text-xl font-bold text-white mt-1">
+                {todayAchievedHours} <span className="text-xs font-normal text-slate-400">/ {currentGoalHours}h</span>
+              </p>
             </div>
-            <p className="text-xl font-bold text-white mt-1">
-              {todayAchievedHours} <span className="text-xs font-normal text-slate-400">/ {currentGoalHours}h</span>
-            </p>
-            <span
-              className={`text-[10px] font-medium ${
-                todayAchievedHours >= currentGoalHours ? "text-emerald-400" : "text-blue-400"
-              }`}
-            >
-              {todayAchievedHours >= currentGoalHours
-                ? "✓ Goal achieved today"
-                : `${todayGoalPercentage}% achieved`}
-            </span>
+            <div className="mt-2 space-y-1">
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    isGoalAchieved
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-400"
+                      : "bg-gradient-to-r from-blue-500 to-indigo-500"
+                  }`}
+                  style={{ width: `${clampedGoalPercentage}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span
+                  className={`font-semibold ${
+                    isGoalAchieved ? "text-emerald-400" : "text-blue-400"
+                  }`}
+                >
+                  {isGoalAchieved ? "✓ Goal Met" : `${todayGoalPercentage}% completed`}
+                </span>
+                <span className="text-slate-500">
+                  {isGoalAchieved ? "100%+" : `${remainingHours}h left`}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="bg-[#162033]/60 rounded-xl p-3 border border-slate-800/80">
@@ -208,6 +303,279 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
             <p className="text-xl font-bold text-amber-400 mt-1">{weakTopics.length} Topics</p>
             <span className="text-[10px] text-amber-300 font-medium">Spaced interval alert</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Prominent Daily Study Goal Progress Bar Section */}
+      <div className="rounded-2xl bg-gradient-to-br from-[#121a2a] via-[#101624] to-[#0c101a] border border-[#223250] p-5 sm:p-6 shadow-xl relative overflow-hidden">
+        {/* Ambient background glow */}
+        <div
+          className={`absolute -right-16 -top-16 w-64 h-64 rounded-full blur-3xl pointer-events-none ${
+            isGoalAchieved ? "bg-emerald-500/15" : "bg-blue-500/10"
+          }`}
+        />
+
+        <div className="relative z-10 space-y-4">
+          {/* Header Row: Title, Profile Daily Goal Target, and Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+            <div className="flex items-center space-x-3">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-transform ${
+                  isGoalAchieved
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-emerald-950/40"
+                    : "bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-blue-950/40"
+                }`}
+              >
+                <Target className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-base sm:text-lg font-bold text-white font-['Outfit']">
+                    Daily Study Goal Progress
+                  </h2>
+                  {isGoalAchieved ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Goal Achieved!</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                      In Progress
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Calculated from study session logs • Target:{" "}
+                  <strong className="text-slate-200">{currentGoalHours} hours/day</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Goal Controls & Actions */}
+            <div className="flex items-center space-x-2 self-start sm:self-center">
+              {!isAdjustingGoal ? (
+                <button
+                  onClick={() => {
+                    setTempGoal(currentGoalHours);
+                    setIsAdjustingGoal(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm"
+                  title="Modify your profile daily study goal in hours"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Adjust Goal ({currentGoalHours}h)</span>
+                </button>
+              ) : (
+                <div className="flex items-center space-x-1.5 bg-[#162033] border border-blue-500/60 rounded-xl p-1 shadow-lg">
+                  <button
+                    onClick={() =>
+                      setTempGoal((prev) => Math.max(1, parseFloat((prev - 0.5).toFixed(1))))
+                    }
+                    className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs transition-colors"
+                    title="Decrease goal by 30 mins"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    max="18"
+                    value={tempGoal}
+                    onChange={(e) => setTempGoal(parseFloat(e.target.value) || 1)}
+                    className="w-14 text-center bg-slate-900 border border-slate-700 rounded-lg text-xs font-bold text-white py-1 focus:outline-none focus:border-blue-500"
+                  />
+                  <span className="text-xs text-slate-400 font-semibold px-0.5">hrs</span>
+                  <button
+                    onClick={() =>
+                      setTempGoal((prev) => Math.min(18, parseFloat((prev + 0.5).toFixed(1))))
+                    }
+                    className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs transition-colors"
+                    title="Increase goal by 30 mins"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleSaveGoal(tempGoal)}
+                    className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors flex items-center space-x-1"
+                    title="Save to Profile"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAdjustingGoal(false)}
+                    className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition-colors"
+                    title="Cancel"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => onNavigate("planner")}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center space-x-1.5 transition-all shadow-md shadow-blue-500/20"
+                title="Open Study Planner & Pomodoro Timer"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Open Timer</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick presets when adjusting */}
+          {isAdjustingGoal && (
+            <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+              <span className="text-slate-400 font-medium">Quick Goal Presets:</span>
+              {[4, 6, 8, 10, 12].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => handleSaveGoal(preset)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                    currentGoalHours === preset
+                      ? "bg-blue-600 border-blue-400 text-white"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white"
+                  }`}
+                >
+                  {preset} hrs
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Primary Progress Bar Display */}
+          <div className="space-y-2.5">
+            {/* Numeric Indicators */}
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div className="flex items-baseline space-x-2">
+                <span className="text-3xl font-black text-white font-['Outfit'] tracking-tight">
+                  {todayAchievedHours}
+                </span>
+                <span className="text-sm font-semibold text-slate-400">
+                  / {currentGoalHours} hours completed
+                </span>
+                <span className="text-xs text-slate-500 font-medium">
+                  ({todayAchievedMinutes} mins logged today)
+                </span>
+                {todayGoalPercentage > 100 && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    +{todayGoalPercentage - 100}% extra study
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <span
+                  className={`text-xl font-black font-['Outfit'] ${
+                    isGoalAchieved ? "text-emerald-400" : "text-blue-400"
+                  }`}
+                >
+                  {todayGoalPercentage}%
+                </span>
+                <span className="text-xs font-semibold text-slate-300 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/80">
+                  {isGoalAchieved ? "Goal Accomplished" : `${remainingHours} hrs remaining`}
+                </span>
+              </div>
+            </div>
+
+            {/* The Visual Progress Bar */}
+            <div className="relative w-full h-5 bg-[#0b101b] rounded-full p-0.5 border border-slate-700/60 overflow-hidden shadow-inner">
+              {/* Background milestone tick markers */}
+              <div className="absolute inset-0 flex justify-between px-2 pointer-events-none opacity-20">
+                <div className="border-r border-slate-400 h-full" style={{ left: "25%" }} />
+                <div className="border-r border-slate-400 h-full" style={{ left: "50%" }} />
+                <div className="border-r border-slate-400 h-full" style={{ left: "75%" }} />
+              </div>
+
+              {/* Dynamic filled bar */}
+              <div
+                className={`h-full rounded-full transition-all duration-700 ease-out relative shadow-lg ${
+                  isGoalAchieved
+                    ? "bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 shadow-emerald-500/30"
+                    : todayGoalPercentage >= 50
+                    ? "bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-400 shadow-blue-500/30"
+                    : "bg-gradient-to-r from-amber-500 via-blue-500 to-indigo-600 shadow-blue-500/20"
+                }`}
+                style={{
+                  width: `${Math.max(clampedGoalPercentage, todayAchievedHours > 0 ? 3 : 0)}%`,
+                }}
+              >
+                {/* Active pulse glow on right tip */}
+                {todayAchievedHours > 0 && (
+                  <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/60 rounded-full animate-pulse" />
+                )}
+              </div>
+            </div>
+
+            {/* Milestones Scale Labels */}
+            <div className="flex justify-between text-[11px] text-slate-500 font-mono px-1">
+              <span>0h (0%)</span>
+              <span>{(currentGoalHours * 0.25).toFixed(1)}h (25%)</span>
+              <span>{(currentGoalHours * 0.5).toFixed(1)}h (50%)</span>
+              <span>{(currentGoalHours * 0.75).toFixed(1)}h (75%)</span>
+              <span className={isGoalAchieved ? "text-emerald-400 font-bold" : ""}>
+                {currentGoalHours}h (100%)
+              </span>
+            </div>
+          </div>
+
+          {/* Today's Logged Study Sessions Breakdown */}
+          <div className="pt-2 border-t border-slate-800/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+                <span>Today's Logged Sessions ({todaySessions.length})</span>
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Total: <strong className="text-white">{todayAchievedHours} hrs</strong> logged
+              </span>
+            </div>
+
+            {todaySessions.length > 0 ? (
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
+                {todaySessions.map((session, idx) => (
+                  <div
+                    key={session.id || idx}
+                    className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#151f32] border border-slate-800 text-xs text-slate-300 hover:border-slate-700 transition-colors"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                    <span className="font-bold text-white font-mono">{session.durationMinutes}m</span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-blue-300 font-medium truncate max-w-[200px] sm:max-w-xs">
+                      {session.topic || session.subject}
+                    </span>
+                    {session.timestamp && (
+                      <span className="text-[10px] text-slate-500 ml-1 font-mono">
+                        {session.timestamp}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-[#141b2a]/60 border border-dashed border-slate-800 text-xs text-slate-400">
+                <p>
+                  No study sessions recorded today yet. Launch the focus timer or add a session to
+                  track your progress against your {currentGoalHours}h target.
+                </p>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    onClick={() => handleQuickLog(45, "Public Administration Core Revision")}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+                  >
+                    + Log 45m Session
+                  </button>
+                  <button
+                    onClick={() => onNavigate("planner")}
+                    className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors"
+                  >
+                    Start Timer
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

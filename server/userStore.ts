@@ -52,6 +52,8 @@ export interface StoredUserProfile {
   mainsEvaluatedCount: number;
   overallAccuracy: number;
   themeMode?: "dark" | "light";
+  dailyStudyGoal?: number;
+  dailyStudyHoursGoal?: number;
 }
 
 export interface StoredUserProgress {
@@ -133,6 +135,8 @@ export function registerUser(params: {
     mainsEvaluatedCount: 0,
     overallAccuracy: 0,
     themeMode: "dark",
+    dailyStudyGoal: 6,
+    dailyStudyHoursGoal: 6,
   };
 
   const initialProgress: StoredUserProgress = {
