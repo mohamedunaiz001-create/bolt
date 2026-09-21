@@ -1,0 +1,26 @@
+# BOLT - UPSC Civil Services Academic Intelligence Engine
+# Core Python Requirements
+#
+# NOTE: BOLT's core engine, CLI, REST API server, and SQLite database run on 
+# pure Python 3.10+ Standard Library with ZERO required external packages!
+#
+# The dependencies below are optional production enhancements:
+
+# Optional: High-performance ASGI Web Framework
+# fastapi>=0.109.0
+# uvicorn>=0.27.0
+# requests>=2.31.0
+# pydantic>=2.5.0
+
+# Optional: LoRA & Deep Learning Fine-tuning Stack (see python/bolt_train.py)
+# torch>=2.1.0
+# transformers>=4.36.0
+# peft>=0.7.0
+# trl>=0.7.4
+# datasets>=2.16.0
+# bitsandbytes>=0.41.0
+# accelerate>=0.25.0
+
+# Optional: Testing & Code Quality
+# pytest>=7.4.0
+# flake8>=6.1.0

@@ -28,9 +28,13 @@ import {
   HelpCircle,
   Brain,
   X,
+  History,
+  Pencil,
+  Plus,
 } from "lucide-react";
 import {
   ChatMessage,
+  ChatThread,
   UserProfile,
   SyllabusTopic,
   NavigationTab,
@@ -42,6 +46,7 @@ import {
   TimetableSlot,
   StudySessionLog,
 } from "../types";
+import { ChatHistorySidebar } from "./ChatHistorySidebar";
 import { computeBoltAppContext } from "../services/appContextService";
 import { executeAgentTool, detectToolFromPrompt, BOLT_TOOL_DEFINITIONS } from "../services/boltAgentTools";
 import { saveFirebaseChatMessage } from "../services/firestoreService";
@@ -222,6 +227,93 @@ Abstract principles must be validated against field realities:
 > - [📅 Add to today's study schedule](#action:planner)`;
 }
 
+function getDefaultThreads(user: UserProfile, liveContext: any): ChatThread[] {
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+  const initialText = `### Hello ${user.name || "Aspirant"} — Welcome to BOLT
+
+I am your conversational mentor for the UPSC Civil Services Examination. I approach our sessions as an intellectual partnership—combining the warmth, active listening, and transparent step-by-step reasoning of Claude with real-time awareness of your active study dashboard:
+
+---
+
+### Step-by-Step Diagnostic of Your Live Preparation State
+
+#### Step 1: Active Metric Reflection
+I've reviewed your current progress across Paper 1 and Paper 2:
+- **Syllabus completion:** ${liveContext.syllabus.overallCompletion}% overall (Paper 1: ${liveContext.syllabus.paper1Completion}%, Paper 2: ${liveContext.syllabus.paper2Completion}%)
+- **Target areas requiring consolidation:** ${
+    liveContext.syllabus.weakTopics.map((w: any) => `${w.name} (${w.score}% mastery)`).join(", ") ||
+    "Administrative Thought, Accountability & Control"
+  }
+- **Consolidated foundations:** ${
+    liveContext.syllabus.strongTopics.map((s: any) => `${s.name} (${s.score}% mastery)`).join(", ") ||
+    "Administrative Behaviour, Constitutional Framework"
+  }
+- **Practice trajectory:** ${liveContext.prelimsPerformance.questionsAttempted} MCQs attempted (${liveContext.prelimsPerformance.accuracyPercentage}% accuracy) • ${liveContext.mainsPerformance.evaluatedCount} answers evaluated (${liveContext.mainsPerformance.averageScore}/15 average)
+
+#### Step 2: How We Can Work Together
+Whether you are deconstructing an elusive thinker like Herbert Simon or Fred Riggs, seeking feedback on a 15-mark Mains answer, or looking for an empathetic sounding board during an intense revision week, I am here to think through each problem with you step-by-step.
+
+#### Step 3: Collaborative Next Action
+What would serve your preparation best right now?
+> 💡 **Suggested First Steps:**
+> - Ask me: *"Analyze my weak areas and recommend what to revise first today"*
+> - Ask me: *"Explain Herbert Simon's Bounded Rationality with a 15-marker answer structure"*
+> - [⚡ Practice Prelims MCQs](#action:prelims) • [📝 Open Mains Evaluation Room](#action:mains) • [📅 View Timetable & Schedule](#action:planner)`;
+
+  const initialThought = extractOrGenerateThoughtProcess(
+    initialText,
+    "Initial candidate greeting, readiness evaluation, and live dashboard diagnostic",
+    user.optionalSubject || "Public Administration"
+  );
+
+  const thread1Messages: ChatMessage[] = [
+    {
+      id: "m-1",
+      role: "assistant",
+      text: initialText,
+      thoughtProcess: initialThought.thoughtProcess,
+      reasoningPhases: initialThought.reasoningPhases,
+      timestamp: "Just now",
+      mode: "public_admin",
+      actionCards: [
+        {
+          type: "topic",
+          title: "Public Administration Diagnostic",
+          description: "Analyze your knowledge level in Administrative Thought (Herbert Simon & Max Weber)",
+          actionLabel: "Analyze Weak Area",
+        },
+        {
+          type: "model_answer",
+          title: "Herbert Simon Model Answer",
+          description: "Inspect 15-mark structured model answer with diagram & 2nd ARC links",
+          actionLabel: "View Model Answer",
+          targetTab: "mains",
+        },
+        {
+          type: "topic",
+          title: "In-App Capabilities Guide",
+          description: "Explore all 11 study tools and see how Bolt AI acts as your in-app co-pilot",
+          actionLabel: "App Capabilities Tour",
+        },
+      ],
+    },
+  ];
+
+  return [
+    {
+      id: "thread-diagnostic",
+      title: "UPSC Preparation Diagnostic & Strategy",
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      messages: thread1Messages,
+      mode: "public_admin",
+    },
+  ];
+}
+
 export const BoltAssistantView: React.FC<BoltAssistantViewProps> = ({
   user,
   topics,
@@ -243,77 +335,182 @@ export const BoltAssistantView: React.FC<BoltAssistantViewProps> = ({
   const [showPromptModal, setShowPromptModal] = useState<boolean>(false);
   const [expandAllThoughts, setExpandAllThoughts] = useState<boolean>(false);
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const initialText = `### Hello ${user.name || "Aspirant"} — Welcome to BOLT
-
-I am your conversational mentor for the UPSC Civil Services Examination. I approach our sessions as an intellectual partnership—combining the warmth, active listening, and transparent step-by-step reasoning of Claude with real-time awareness of your active study dashboard:
-
----
-
-### Step-by-Step Diagnostic of Your Live Preparation State
-
-#### Step 1: Active Metric Reflection
-I've reviewed your current progress across Paper 1 and Paper 2:
-- **Syllabus completion:** ${liveContext.syllabus.overallCompletion}% overall (Paper 1: ${liveContext.syllabus.paper1Completion}%, Paper 2: ${liveContext.syllabus.paper2Completion}%)
-- **Target areas requiring consolidation:** ${
-        liveContext.syllabus.weakTopics.map((w) => `${w.name} (${w.score}% mastery)`).join(", ") ||
-        "Administrative Thought, Accountability & Control"
+  // Chat threads persistent state (purges mock threads)
+  const [threads, setThreads] = useState<ChatThread[]>(() => {
+    try {
+      const saved = localStorage.getItem("bolt_chat_threads_v1");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const clean = parsed.filter(
+            (t: any) =>
+              t &&
+              t.id !== "thread-herbert-simon" &&
+              t.id !== "thread-ethics-2ndarc"
+          );
+          if (clean.length > 0) {
+            if (clean.length !== parsed.length) {
+              localStorage.setItem("bolt_chat_threads_v1", JSON.stringify(clean));
+            }
+            return clean;
+          }
+        }
       }
-- **Consolidated foundations:** ${
-        liveContext.syllabus.strongTopics.map((s) => `${s.name} (${s.score}% mastery)`).join(", ") ||
-        "Administrative Behaviour, Constitutional Framework"
-      }
-- **Practice trajectory:** ${liveContext.prelimsPerformance.questionsAttempted} MCQs attempted (${liveContext.prelimsPerformance.accuracyPercentage}% accuracy) • ${liveContext.mainsPerformance.evaluatedCount} answers evaluated (${liveContext.mainsPerformance.averageScore}/15 average)
-
-#### Step 2: How We Can Work Together
-Whether you are deconstructing an elusive thinker like Herbert Simon or Fred Riggs, seeking feedback on a 15-mark Mains answer, or looking for an empathetic sounding board during an intense revision week, I am here to think through each problem with you step-by-step.
-
-#### Step 3: Collaborative Next Action
-What would serve your preparation best right now?
-> 💡 **Suggested First Steps:**
-> - Ask me: *"Analyze my weak areas and recommend what to revise first today"*
-> - Ask me: *"Explain Herbert Simon's Bounded Rationality with a 15-marker answer structure"*
-> - [⚡ Practice Prelims MCQs](#action:prelims) • [📝 Open Mains Evaluation Room](#action:mains) • [📅 View Timetable & Schedule](#action:planner)`;
-
-    const initialThought = extractOrGenerateThoughtProcess(
-      initialText,
-      "Initial candidate greeting, readiness evaluation, and live dashboard diagnostic",
-      user.optionalSubject || "Public Administration"
-    );
-
-    return [
-      {
-        id: "m-1",
-        role: "assistant",
-        text: initialText,
-        thoughtProcess: initialThought.thoughtProcess,
-        reasoningPhases: initialThought.reasoningPhases,
-        timestamp: "Just now",
-        mode: "public_admin",
-        actionCards: [
-          {
-            type: "topic",
-            title: "Public Administration Diagnostic",
-            description: "Analyze your knowledge level in Administrative Thought (Herbert Simon & Max Weber)",
-            actionLabel: "Analyze Weak Area",
-          },
-          {
-            type: "model_answer",
-            title: "Herbert Simon Model Answer",
-            description: "Inspect 15-mark structured model answer with diagram & 2nd ARC links",
-            actionLabel: "View Model Answer",
-            targetTab: "mains",
-          },
-          {
-            type: "topic",
-            title: "In-App Capabilities Guide",
-            description: "Explore all 11 study tools and see how Bolt AI acts as your in-app co-pilot",
-            actionLabel: "App Capabilities Tour",
-          },
-        ],
-      },
-    ];
+    } catch (e) {}
+    return getDefaultThreads(user, liveContext);
   });
+
+  const [activeThreadId, setActiveThreadId] = useState<string>(() => {
+    try {
+      const savedId = localStorage.getItem("bolt_active_thread_id");
+      if (savedId) return savedId;
+    } catch (e) {}
+    return "thread-diagnostic";
+  });
+
+  // Chat History Sidebar toggle state
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("bolt_chat_sidebar_open");
+      if (saved !== null) return saved === "true";
+    } catch (e) {}
+    return typeof window !== "undefined" ? window.innerWidth >= 1024 : true;
+  });
+
+  // Header quick rename state
+  const [isHeaderRenaming, setIsHeaderRenaming] = useState<boolean>(false);
+  const [headerRenameTitle, setHeaderRenameTitle] = useState<string>("");
+
+  // Persist threads to local storage
+  useEffect(() => {
+    try {
+      localStorage.setItem("bolt_chat_threads_v1", JSON.stringify(threads));
+    } catch (e) {}
+  }, [threads]);
+
+  // Persist active thread ID
+  useEffect(() => {
+    try {
+      localStorage.setItem("bolt_active_thread_id", activeThreadId);
+    } catch (e) {}
+  }, [activeThreadId]);
+
+  // Active thread derivation
+  const activeThread =
+    threads.find((t) => t.id === activeThreadId) ||
+    threads[0] || {
+      id: "thread-default",
+      title: "New Conversation",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [],
+      mode: "public_admin",
+    };
+
+  const messages = activeThread.messages;
+
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("bolt_chat_sidebar_open", String(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const handleSelectThread = (threadId: string) => {
+    setActiveThreadId(threadId);
+    setIsHeaderRenaming(false);
+  };
+
+  const handleNewThread = () => {
+    const newId = `thread-${Date.now()}`;
+    const newThread: ChatThread = {
+      id: newId,
+      title: "New Conversation",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      mode,
+      messages: [
+        {
+          id: `m-${Date.now()}`,
+          role: "assistant",
+          text: `### Fresh Conversation Started\n\nI am ready for a new discussion regarding your ${
+            mode === "public_admin" ? "Public Administration" : "UPSC General Studies"
+          } preparation. What topic, thinker, syllabus area, or Mains question would you like to explore?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          mode,
+        },
+      ],
+    };
+
+    setThreads((prev) => [newThread, ...prev]);
+    setActiveThreadId(newId);
+    setIsHeaderRenaming(false);
+  };
+
+  const handleRenameThread = (threadId: string, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === threadId ? { ...t, title: trimmed, updatedAt: new Date().toISOString() } : t
+      )
+    );
+  };
+
+  const handleDeleteThread = (threadId: string) => {
+    setThreads((prev) => {
+      const filtered = prev.filter((t) => t.id !== threadId);
+      if (filtered.length === 0) {
+        const freshId = `thread-${Date.now()}`;
+        const freshThread: ChatThread = {
+          id: freshId,
+          title: "New Conversation",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          mode,
+          messages: [
+            {
+              id: `m-${Date.now()}`,
+              role: "assistant",
+              text: `Ready for a new discussion! What would you like to explore?`,
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              mode,
+            },
+          ],
+        };
+        setActiveThreadId(freshId);
+        return [freshThread];
+      }
+      if (activeThreadId === threadId) {
+        setActiveThreadId(filtered[0].id);
+      }
+      return filtered;
+    });
+  };
+
+  const appendMessageToActiveThread = (msg: ChatMessage, autoTitlePrompt?: string) => {
+    setThreads((prev) =>
+      prev.map((t) => {
+        if (t.id === activeThread.id) {
+          const isGeneric = t.title === "New Conversation" || t.title.startsWith("New Conversation");
+          const updatedTitle =
+            autoTitlePrompt && isGeneric
+              ? autoTitlePrompt.trim().slice(0, 36) + (autoTitlePrompt.trim().length > 36 ? "..." : "")
+              : t.title;
+          return {
+            ...t,
+            title: updatedTitle,
+            updatedAt: new Date().toISOString(),
+            messages: [...t.messages, msg],
+          };
+        }
+        return t;
+      })
+    );
+  };
 
   const [inputMessage, setInputMessage] = useState<string>("");
   const [mode, setMode] = useState<"public_admin" | "general">("public_admin");
@@ -412,15 +609,24 @@ ${reasoning}
   };
 
   const handleClearChat = () => {
-    setMessages([
-      {
-        id: "m-" + Date.now(),
-        role: "assistant",
-        text: `Chat cleared. Ready for a new discussion! What would you like to explore regarding your UPSC preparation?`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        mode,
-      },
-    ]);
+    const welcomeMsg: ChatMessage = {
+      id: "m-" + Date.now(),
+      role: "assistant",
+      text: `Chat cleared. Ready for a new discussion! What would you like to explore regarding your UPSC preparation?`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      mode,
+    };
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === activeThread.id
+          ? {
+              ...t,
+              messages: [welcomeMsg],
+              updatedAt: new Date().toISOString(),
+            }
+          : t
+      )
+    );
   };
 
   const sendMessage = async (textToSend?: string) => {
@@ -434,7 +640,7 @@ ${reasoning}
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    appendMessageToActiveThread(userMsg, query);
     setInputMessage("");
     setIsLoading(true);
 
@@ -620,7 +826,7 @@ ${reasoning}
         toolCalls: executedToolCall ? [executedToolCall] : undefined,
       };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      appendMessageToActiveThread(assistantMsg);
 
       // Save to Firestore if authenticated
       if (user.id && !user.id.startsWith("guest")) {
@@ -647,7 +853,7 @@ ${reasoning}
         isFallback: true,
         engine: "Bolt Offline Academic Synthesis",
       };
-      setMessages((prev) => [...prev, fallbackMsg]);
+      appendMessageToActiveThread(fallbackMsg);
     } finally {
       setIsLoading(false);
     }
@@ -767,53 +973,153 @@ ${reasoning}
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-4 h-[calc(100vh-4.5rem)] flex flex-col relative">
-      {/* Mentor Header & Mode Switcher */}
-      <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-3 sm:p-4 mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md flex-shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
-            <Zap className="w-5 h-5 text-amber-400 fill-amber-400" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="font-bold text-white text-base sm:text-lg font-['Outfit'] flex items-center gap-1.5">
-                <span>BOLT AI</span>
-              </h2>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 flex items-center space-x-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Active & Connected</span>
-              </span>
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 h-[calc(100vh-4.5rem)] flex flex-row relative w-full overflow-hidden">
+      {/* Chat History Sidebar */}
+      <ChatHistorySidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        threads={threads}
+        activeThreadId={activeThreadId}
+        onSelectThread={handleSelectThread}
+        onNewThread={handleNewThread}
+        onRenameThread={handleRenameThread}
+        onDeleteThread={handleDeleteThread}
+      />
+
+      {/* Main Chat Workspace */}
+      <div className="flex-1 min-w-0 flex flex-col h-full relative">
+        {/* Mentor Header & Mode Switcher */}
+        <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-3 sm:p-4 mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
+              <Zap className="w-5 h-5 text-amber-400 fill-amber-400" />
             </div>
-            <p className="text-slate-400 text-xs truncate sm:whitespace-normal">
-              Claude-grade conversational mentor with live bidirectional access to your UPSC workspace & performance data.
-            </p>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="font-bold text-white text-base sm:text-lg font-['Outfit'] flex items-center gap-1.5">
+                  <span>BOLT AI</span>
+                </h2>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Active & Connected</span>
+                </span>
+              </div>
+              <p className="text-slate-400 text-xs truncate sm:whitespace-normal">
+                Claude-grade conversational mentor with live bidirectional access to your UPSC workspace & performance data.
+              </p>
+              {/* Active Thread Topic & Quick Rename Indicator */}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-[11px] text-slate-400">Thread:</span>
+                {isHeaderRenaming ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (headerRenameTitle.trim()) {
+                        handleRenameThread(activeThread.id, headerRenameTitle.trim());
+                      }
+                      setIsHeaderRenaming(false);
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <input
+                      type="text"
+                      value={headerRenameTitle}
+                      onChange={(e) => setHeaderRenameTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") setIsHeaderRenaming(false);
+                      }}
+                      autoFocus
+                      className="px-2 py-0.5 bg-[#0b0f17] border border-blue-500 rounded text-xs text-white focus:outline-none max-w-[200px] sm:max-w-xs"
+                      placeholder="Thread title..."
+                    />
+                    <button
+                      type="submit"
+                      className="p-1 rounded bg-blue-600 text-white hover:bg-blue-500"
+                      title="Save title"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsHeaderRenaming(false)}
+                      className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white"
+                      title="Cancel"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </form>
+                ) : (
+                  <div className="flex items-center gap-1.5 group">
+                    <span
+                      className="text-xs font-semibold text-slate-200 truncate max-w-[180px] sm:max-w-xs cursor-pointer hover:text-blue-300 transition-colors"
+                      onClick={() => {
+                        setHeaderRenameTitle(activeThread.title);
+                        setIsHeaderRenaming(true);
+                      }}
+                      title="Click to rename thread"
+                    >
+                      {activeThread.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeaderRenameTitle(activeThread.title);
+                        setIsHeaderRenaming(true);
+                      }}
+                      className="p-0.5 text-slate-400 hover:text-blue-300 transition-colors"
+                      title="Rename this conversation thread"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Action Controls & Mode Switcher */}
-        <div className="flex items-center space-x-2 self-start sm:self-center flex-wrap gap-y-1">
-          <button
-            onClick={() => setShowWorkspaceNavigator((prev) => !prev)}
-            className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs transition-colors flex items-center gap-1.5 ${
-              showWorkspaceNavigator
-                ? "bg-blue-600/30 border-blue-500/50 text-blue-200 font-semibold"
-                : "bg-[#162033] hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white"
-            }`}
-            title="Explore all in-app study tools"
-          >
-            <Compass className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden sm:inline">App Tools</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono">11</span>
-          </button>
+          {/* Action Controls & Mode Switcher */}
+          <div className="flex items-center space-x-2 self-start sm:self-center flex-wrap gap-y-1">
+            {/* Toggle Chat History Sidebar */}
+            <button
+              type="button"
+              onClick={handleToggleSidebar}
+              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs transition-colors flex items-center gap-1.5 ${
+                isSidebarOpen
+                  ? "bg-blue-600/30 border-blue-500/50 text-blue-200 font-semibold"
+                  : "bg-[#162033] hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white"
+              }`}
+              title={isSidebarOpen ? "Close chat history sidebar" : "Open chat history sidebar"}
+              aria-label="Toggle Chat History sidebar"
+            >
+              <History className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">History</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono">
+                {threads.length}
+              </span>
+            </button>
 
-          <button
-            onClick={handleClearChat}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#162033] hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-colors flex items-center gap-1"
-            title="Start new conversation"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">New Chat</span>
-          </button>
+            <button
+              onClick={() => setShowWorkspaceNavigator((prev) => !prev)}
+              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs transition-colors flex items-center gap-1.5 ${
+                showWorkspaceNavigator
+                  ? "bg-blue-600/30 border-blue-500/50 text-blue-200 font-semibold"
+                  : "bg-[#162033] hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white"
+              }`}
+              title="Explore all in-app study tools"
+            >
+              <Compass className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">App Tools</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono">11</span>
+            </button>
+
+            <button
+              onClick={handleNewThread}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1"
+              title="Start new conversation"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">New Chat</span>
+            </button>
 
           <div className="flex items-center space-x-1 bg-[#162033] p-1 rounded-xl border border-slate-800 text-xs font-semibold">
             <button
@@ -1530,7 +1836,7 @@ ${reasoning}
                     text: `✅ **Action Confirmed and Completed**: ${toolRes.summary}`,
                     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
                   };
-                  setMessages((prev) => [...prev, confMsg]);
+                  appendMessageToActiveThread(confMsg);
                 } catch (err) {
                   console.error(err);
                 }
@@ -1667,6 +1973,7 @@ ${reasoning}
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

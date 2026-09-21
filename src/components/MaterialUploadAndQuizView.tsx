@@ -24,211 +24,30 @@ import {
 } from "lucide-react";
 import { UploadedMaterial, MaterialQuestion } from "../types";
 
-const INITIAL_SAMPLE_MATERIALS: UploadedMaterial[] = [
-  {
-    id: "mat-sample-arc",
-    title: "2nd ARC 10th Report (Civil Services Reforms)",
-    filename: "2nd_ARC_10th_Report_Refined.txt",
-    fileType: "TXT",
-    uploadDate: "Today",
-    wordCount: 380,
-    estimatedReadMinutes: 2,
-    summary:
-      "The 2nd Administrative Reforms Commission (10th Report) chaired by Veerappa Moily recommends establishing a statutory Civil Services Authority to insulate civil servants from arbitrary political transfers. It emphasizes tenure stability, domain specialization, and performance-linked accountability while reforming Article 311 disciplinary mechanisms.",
-    detectedTags: ["Public Administration", "Polity & Governance", "Administrative Ethics"],
-    peripheralAreas: [
-      "Colonial Civil Service Evolution (1855-1947)",
-      "Civil Services Authority Statutory Mechanics",
-    ],
-    gsPaperMapping: ["GS 2", "Public Administration Paper 1 & 2"],
-    questions: [
-      {
-        id: "mat-q-sample-1",
-        questionNumber: 1,
-        subject: "Civil Services Reforms",
-        topic: "Tenure Stability & Civil Services Authority",
-        tags: ["2nd ARC", "Civil Services", "Governance"],
-        isCurrentAffairs: false,
-        questionText:
-          "According to the 2nd Administrative Reforms Commission (10th Report), which institutional mechanism was recommended to safeguard civil servants from arbitrary transfers and premature displacements?",
-        options: [
-          { key: "A", text: "Direct supervision by the Central Vigilance Commission (CVC)" },
-          { key: "B", text: "Creation of a statutory, independent Civil Services Authority" },
-          { key: "C", text: "Vesting transfer powers exclusively in the State Governor" },
-          { key: "D", text: "Mandatory judicial review by the Supreme Court for every transfer" },
-        ],
-        correctOption: "B",
-        explanation:
-          "The 2nd ARC recommended the constitution of a statutory Civil Services Authority (both at the Union and State levels) to oversee senior postings, transfers, and tenures, mitigating the adverse effects of frequent, politically motivated transfers.",
-        sourceCitation: "2nd ARC 10th Report, Chapter 3: Tenure Stability & Postings",
-        relatedConcept: "Tenure Protection, Civil Services Authority, Article 311",
-        difficulty: "Medium",
-      },
-      {
-        id: "mat-q-sample-2",
-        questionNumber: 2,
-        subject: "Constitutional Safeguards",
-        topic: "Article 311 & Natural Justice",
-        tags: ["Polity", "Constitutional Law", "Civil Services"],
-        isCurrentAffairs: false,
-        questionText:
-          "Consider the following statements regarding constitutional safeguards under Article 311 of the Constitution of India:\n\n1. No civil servant can be dismissed by an authority subordinate to that by which they were appointed.\n2. A departmental inquiry may be dispensed with if the President or Governor is satisfied that in the interest of the security of the State it is not expedient to hold such inquiry.\n\nWhich of the statements given above is/are correct?",
-        options: [
-          { key: "A", text: "1 only" },
-          { key: "B", text: "2 only" },
-          { key: "C", text: "Both 1 and 2" },
-          { key: "D", text: "Neither 1 nor 2" },
-        ],
-        correctOption: "C",
-        explanation:
-          "Both statements are correct. Article 311(1) ensures that dismissal or removal cannot be done by an authority subordinate to the appointing authority. Article 311(2) Clause (c) permits dispensing with an inquiry where the President or Governor is satisfied that the security of the State warrants it.",
-        sourceCitation: "Article 311, Constitution of India & 2nd ARC Analysis",
-        relatedConcept: "Article 311, Civil Service Immunity, Doctrine of Pleasure",
-        difficulty: "Hard",
-      },
-      {
-        id: "mat-q-sample-3",
-        questionNumber: 3,
-        subject: "Performance Management",
-        topic: "Results Framework Document (RFD) & Appraisals",
-        tags: ["2nd ARC", "Accountability", "E-Governance"],
-        isCurrentAffairs: false,
-        questionText:
-          "Which of the following approaches was suggested by the 2nd ARC to transition the civil service appraisal system from confidential character reports (ACRs) to outcome-oriented performance?",
-        options: [
-          { key: "A", text: "Exclusive peer evaluation without senior reporting" },
-          { key: "B", text: "Performance Appraisal Reports linked to measurable annual targets" },
-          { key: "C", text: "Automatic seniority-based promotions without merit review" },
-          { key: "D", text: "External audit by private commercial consultancies" },
-        ],
-        correctOption: "B",
-        explanation:
-          "The Commission advocated replacing subjective Annual Confidential Reports (ACRs) with comprehensive Performance Appraisal Reports (PAR) benchmarked against clear work plans and quantified milestones.",
-        sourceCitation: "2nd ARC 10th Report, Chapter 4",
-        relatedConcept: "Civil Service Appraisals, Output-Outcome Framework",
-        difficulty: "Medium",
-      },
-    ],
-  },
-  {
-    id: "mat-sample-pesa",
-    title: "PESA Act 1996 & Tribal Customary Self-Governance",
-    filename: "PESA_Act_Tribal_Rights.docx",
-    fileType: "DOCX",
-    uploadDate: "Yesterday",
-    wordCount: 420,
-    estimatedReadMinutes: 3,
-    summary:
-      "The Provisions of the Panchayats (Extension to the Scheduled Areas) Act, 1996 recognizes the customary laws, social and religious practices, and traditional management practices of community resources in Fifth Schedule areas, designating the Gram Sabha as the supreme decision-making institution.",
-    detectedTags: ["Tribal Governance", "Fifth Schedule", "Local Self Government"],
-    peripheralAreas: [
-      "Tribal Customary Laws & PESA Peripheral Provisions",
-      "Minor Forest Produce Ownership Jurisprudence",
-    ],
-    gsPaperMapping: ["GS 2", "GS 3 Environment"],
-    questions: [
-      {
-        id: "mat-q-pesa-1",
-        questionNumber: 1,
-        subject: "Peripheral Tribal Governance",
-        topic: "Gram Sabha Powers under PESA 1996",
-        tags: ["PESA", "Gram Sabha", "Fifth Schedule"],
-        isCurrentAffairs: true,
-        questionText:
-          "Under the PESA Act 1996, the ownership of minor forest produce in Scheduled Areas is endowed in which of the following institutions?",
-        options: [
-          { key: "A", text: "State Forest Development Corporation" },
-          { key: "B", text: "Gram Sabha and Panchayats at appropriate levels" },
-          { key: "C", text: "Union Ministry of Environment, Forest and Climate Change" },
-          { key: "D", text: "District Forest Officer (DFO)" },
-        ],
-        correctOption: "B",
-        explanation:
-          "Section 4(m)(ii) of PESA 1996 specifically endows the ownership of minor forest produce directly in the Gram Sabha and Panchayats at the appropriate level, restoring customary livelihood autonomy to tribal communities.",
-        sourceCitation: "Section 4(m)(ii), PESA Act 1996",
-        relatedConcept: "Minor Forest Produce, PESA, Tribal Customary Autonomy",
-        difficulty: "Medium",
-      },
-      {
-        id: "mat-q-pesa-2",
-        questionNumber: 2,
-        subject: "Land Acquisition Safeguards",
-        topic: "Mandatory Prior Consultation in Scheduled Areas",
-        tags: ["Fifth Schedule", "Land Rights", "PESA"],
-        isCurrentAffairs: false,
-        questionText:
-          "With reference to land acquisition in Scheduled Areas under PESA 1996, which of the following statements accurately reflects the statutory mandate?",
-        options: [
-          { key: "A", text: "The Gram Sabha has veto power that nullifies Parliament's eminent domain." },
-          { key: "B", text: "The Gram Sabha or Panchayats at the appropriate level must be consulted prior to acquiring land for development projects." },
-          { key: "C", text: "No land acquisition can occur without prior approval of the Governor." },
-          { key: "D", text: "Only the National Commission for Scheduled Tribes (NCST) conducts consultations." },
-        ],
-        correctOption: "B",
-        explanation:
-          "Under Section 4(i) of PESA, the Gram Sabha or the Panchayats at the appropriate level must be consulted before making the acquisition of land in the Scheduled Areas for development projects and before resettling persons affected by such projects.",
-        sourceCitation: "Section 4(i), PESA Act 1996",
-        relatedConcept: "Eminent Domain, Prior Consultation, Tribal Land Alienation",
-        difficulty: "Hard",
-      },
-    ],
-  },
-  {
-    id: "mat-sample-econ-survey",
-    title: "Economic Survey: Semiconductor Mission & Capital Goods",
-    filename: "Economic_Survey_Semiconductors_2026.pdf",
-    fileType: "PDF",
-    uploadDate: "Today",
-    wordCount: 510,
-    estimatedReadMinutes: 3,
-    summary:
-      "India Semiconductor Mission (ISM) provides fiscal incentives up to 50% for silicon fabs, compound semiconductors, and ATMP/OSAT packaging units. The survey highlights domestic value addition, high-purity chemicals, ultra-pure water ecosystems, and specialized peripheral lithography equipment.",
-    detectedTags: ["Economy & Industry", "Science & Technology", "Industrial Policy"],
-    peripheralAreas: [
-      "Semiconductor & Quantum S&T Fringe",
-      "Critical Minerals & Pure Chemicals Ecosystem",
-    ],
-    gsPaperMapping: ["GS 3 Economy", "GS 3 Science & Tech"],
-    questions: [
-      {
-        id: "mat-q-semi-1",
-        questionNumber: 1,
-        subject: "Industrial Policy & Technology",
-        topic: "India Semiconductor Mission Fiscal Architecture",
-        tags: ["Semiconductors", "ISM", "PLI Schemes"],
-        isCurrentAffairs: true,
-        questionText:
-          "Under the modified India Semiconductor Mission (ISM) framework, what proportion of project cost is provided as uniform fiscal support across all technology nodes for setting up Semiconductor Fabs?",
-        options: [
-          { key: "A", text: "25% of project cost on pari-passu basis" },
-          { key: "B", text: "30% of project cost on reimbursement basis" },
-          { key: "C", text: "50% of project cost on pari-passu basis" },
-          { key: "D", text: "75% of capital machinery expenditure only" },
-        ],
-        correctOption: "C",
-        explanation:
-          "The Union Cabinet approved a uniform fiscal incentive of 50% of project cost on pari-passu basis for all technology nodes (leading as well as legacy 28nm and above) and for display fabs, compound semiconductors, and OSAT facilities.",
-        sourceCitation: "India Semiconductor Mission Guidelines & Economic Survey",
-        relatedConcept: "Semiconductor Fabs, Pari-Passu Support, ATMP/OSAT",
-        difficulty: "Medium",
-      },
-    ],
-  },
-];
-
 export const MaterialUploadAndQuizView: React.FC = () => {
   const [materials, setMaterials] = useState<UploadedMaterial[]>(() => {
     try {
       const saved = localStorage.getItem("bolt_uploaded_materials");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          // Strictly filter out any mock sample materials
+          const filtered = parsed.filter(
+            (m: any) => m && m.id && !m.id.startsWith("mat-sample-")
+          );
+          if (filtered.length !== parsed.length) {
+            localStorage.setItem("bolt_uploaded_materials", JSON.stringify(filtered));
+          }
+          return filtered;
+        }
       }
     } catch {}
-    return INITIAL_SAMPLE_MATERIALS;
+    return [];
   });
 
-  const [selectedMaterial, setSelectedMaterial] = useState<UploadedMaterial>(materials[0]);
+  const [selectedMaterial, setSelectedMaterial] = useState<UploadedMaterial | null>(
+    materials.length > 0 ? materials[0] : null
+  );
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isQuizMode, setIsQuizMode] = useState<boolean>(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
@@ -473,6 +292,7 @@ export const MaterialUploadAndQuizView: React.FC = () => {
   };
 
   const calculateScore = () => {
+    if (!selectedMaterial) return 0;
     let score = 0;
     selectedMaterial.questions.forEach((q) => {
       if (userAnswers[q.id] === q.correctOption) {
@@ -485,7 +305,7 @@ export const MaterialUploadAndQuizView: React.FC = () => {
   };
 
   const answeredCount = Object.keys(userAnswers).length;
-  const totalQuestions = selectedMaterial.questions.length;
+  const totalQuestions = selectedMaterial ? selectedMaterial.questions.length : 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-fadeIn">
@@ -684,61 +504,96 @@ export const MaterialUploadAndQuizView: React.FC = () => {
             </div>
 
             <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1 custom-scrollbar">
-              {materials.map((mat) => {
-                const isSelected = selectedMaterial.id === mat.id;
-                return (
-                  <button
-                    key={mat.id}
-                    onClick={() => {
-                      setSelectedMaterial(mat);
-                      setIsQuizMode(true); // default to quiz mode so user immediately attends questions
-                      setUserAnswers({});
-                      setShowExplanations({});
-                    }}
-                    className={`w-full text-left p-3.5 rounded-xl border transition-all ${
-                      isSelected
-                        ? "bg-blue-600/15 border-blue-500 text-white shadow-md ring-1 ring-blue-500/30"
-                        : "bg-[#0d121c] border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-[#131b2a]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-blue-400 border border-slate-700 uppercase">
-                          {mat.fileType}
+              {materials.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-xl">
+                  <p>No study materials uploaded yet.</p>
+                  <p className="text-[11px] text-slate-600 mt-1">Upload a PDF or paste notes above to get started.</p>
+                </div>
+              ) : (
+                materials.map((mat) => {
+                  const isSelected = selectedMaterial?.id === mat.id;
+                  return (
+                    <button
+                      key={mat.id}
+                      onClick={() => {
+                        setSelectedMaterial(mat);
+                        setIsQuizMode(true); // default to quiz mode so user immediately attends questions
+                        setUserAnswers({});
+                        setShowExplanations({});
+                      }}
+                      className={`w-full text-left p-3.5 rounded-xl border transition-all ${
+                        isSelected
+                          ? "bg-blue-600/15 border-blue-500 text-white shadow-md ring-1 ring-blue-500/30"
+                          : "bg-[#0d121c] border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-[#131b2a]"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-800 text-blue-400 border border-slate-700 uppercase">
+                            {mat.fileType}
+                          </span>
+                          <h4 className="text-xs font-bold line-clamp-1">{mat.title}</h4>
+                        </div>
+                        <span className="text-[10px] text-slate-400 flex items-center space-x-0.5 whitespace-nowrap">
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{mat.estimatedReadMinutes}m</span>
                         </span>
-                        <h4 className="text-xs font-bold line-clamp-1">{mat.title}</h4>
                       </div>
-                      <span className="text-[10px] text-slate-400 flex items-center space-x-0.5 whitespace-nowrap">
-                        <Clock className="w-2.5 h-2.5" />
-                        <span>{mat.estimatedReadMinutes}m</span>
-                      </span>
-                    </div>
 
-                    <p className="text-[11px] text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
-                      {mat.summary}
-                    </p>
+                      <p className="text-[11px] text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
+                        {mat.summary}
+                      </p>
 
-                    <div className="mt-2.5 flex items-center justify-between text-[10px]">
-                      <span className="text-emerald-400 font-semibold flex items-center space-x-1">
-                        <Play className="w-2.5 h-2.5 fill-current" />
-                        <span>{mat.questions.length} questions ready</span>
-                      </span>
-                      <span className="text-blue-400 font-semibold flex items-center space-x-1">
-                        <span>Attend Test</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+                      <div className="mt-2.5 flex items-center justify-between text-[10px]">
+                        <span className="text-emerald-400 font-semibold flex items-center space-x-1">
+                          <Play className="w-2.5 h-2.5 fill-current" />
+                          <span>{mat.questions.length} questions ready</span>
+                        </span>
+                        <span className="text-blue-400 font-semibold flex items-center space-x-1">
+                          <span>Attend Test</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
 
         {/* Right Column: Interactive Quiz Attendance & Summary */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Material Header & Mode Selector */}
-          <div className="bg-[#121824] border border-[#232f45] rounded-2xl p-6 shadow-xl">
+          {!selectedMaterial ? (
+            <div className="bg-[#121824] border border-[#232f45] rounded-2xl p-12 text-center shadow-xl">
+              <div className="w-16 h-16 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto mb-4">
+                <FileCode className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-white font-['Outfit'] mb-2">
+                No Study Material Selected
+              </h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto mb-6 leading-relaxed">
+                Upload your UPSC notes, 2nd ARC reports, Economic Survey excerpts, or current affairs documents to synthesize practice questions and summary insights.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload Document</span>
+                </button>
+                <button
+                  onClick={() => setShowPasteModal(true)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl border border-slate-700 transition-all flex items-center space-x-1.5"
+                >
+                  <Type className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Paste Notes / Text</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-[#121824] border border-[#232f45] rounded-2xl p-6 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#232f45]">
               <div>
                 <div className="flex items-center space-x-2 mb-1.5">
@@ -1021,6 +876,7 @@ export const MaterialUploadAndQuizView: React.FC = () => {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>

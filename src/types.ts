@@ -538,6 +538,16 @@ export interface ChatMessage {
   }[];
 }
 
+export interface ChatThread {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+  mode?: "general" | "public_admin" | "mains_eval" | "progress_analyst";
+  summary?: string;
+}
+
 export interface ModelSettingsState {
   providerName: string;
   modelVersion: string;

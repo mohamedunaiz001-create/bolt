@@ -145,16 +145,30 @@ export default function App() {
     return DEFAULT_TIMETABLE_SLOTS;
   });
 
-  // Study session logs
+  // Study session logs - clean empty default (no mock study sessions)
   const [studySessions, setStudySessions] = useState<StudySessionLog[]>(() => {
     try {
       const saved = localStorage.getItem("bolt_study_sessions");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          // Strictly filter out any mock session fixtures
+          const clean = parsed.filter(
+            (s: any) =>
+              s &&
+              s.id &&
+              !s.id.startsWith("sess-today") &&
+              !s.id.startsWith("sess-yest") &&
+              !s.id.startsWith("sess-past")
+          );
+          if (clean.length !== parsed.length) {
+            localStorage.setItem("bolt_study_sessions", JSON.stringify(clean));
+          }
+          return clean;
+        }
       }
     } catch (e) {}
-    return getInitialStudySessions();
+    return [];
   });
 
   // Modals & prompts
