@@ -23,6 +23,23 @@ export interface Citation {
   relevance: number; // 0.0 to 1.0
 }
 
+export type GatewayProvider =
+  | "auto"
+  | "gemini"
+  | "openai"
+  | "anthropic"
+  | "groq"
+  | "openrouter"
+  | "deepseek"
+  | "mistral"
+  | "together"
+  | "perplexity"
+  | "xai"
+  | "cohere"
+  | "local"
+  | "custom"
+  | "cloud";
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -35,7 +52,10 @@ export interface ChatRequest {
   stream?: boolean;
   citations?: Citation[];
   modelOverride?: string;
-  providerOverride?: "local" | "cloud" | "auto";
+  providerOverride?: string;
+  apiKeyOverride?: string;
+  baseUrlOverride?: string;
+  endpointOverride?: string;
   activeAdapter?: string;
 }
 
@@ -54,6 +74,10 @@ export interface GenerateRequest {
   temperature?: number;
   responseFormat?: "text" | "json";
   modelOverride?: string;
+  providerOverride?: string;
+  apiKeyOverride?: string;
+  baseUrlOverride?: string;
+  endpointOverride?: string;
 }
 
 export interface GenerateResponse {
@@ -82,6 +106,11 @@ export interface EvaluationRubric {
   maxMarks: number;
   questionText: string;
   subject: string;
+  modelOverride?: string;
+  providerOverride?: string;
+  apiKeyOverride?: string;
+  baseUrlOverride?: string;
+  endpointOverride?: string;
 }
 
 export interface MainsEvaluationResult {
@@ -112,7 +141,9 @@ export interface MainsEvaluationResult {
 }
 
 export interface AIGatewayConfig {
-  provider: "auto" | "local" | "cloud";
+  provider: GatewayProvider;
+  apiKey?: string;
+  baseUrl?: string;
   localEndpoint: string;
   localModelId: string;
   cloudModelId: string;
@@ -124,10 +155,12 @@ export interface AIGatewayConfig {
 }
 
 export const DEFAULT_GATEWAY_CONFIG: AIGatewayConfig = {
-  provider: "auto",
+  provider: "gemini",
+  apiKey: "",
+  baseUrl: "",
   localEndpoint: "http://localhost:11434",
-  localModelId: "llama3-8b-instruct",
-  cloudModelId: "gemini-3.6-flash",
+  localModelId: "llama3.1:8b-instruct-q4_K_M",
+  cloudModelId: "gemini-3.8-flash",
   temperature: 0.7,
   contextWindow: 32768,
   activeAdapter: "bolt-upsc-pubadmin-adapter-v1",
@@ -285,10 +318,10 @@ export function rerankDocuments(
 }
 
 // ----------------------------------------------------
-// PROVIDER ADAPTERS: GEMINI & LOCAL INFERENCE
+// PROVIDER ADAPTERS: GEMINI, OPENAI, ANTHROPIC & LOCAL INFERENCE
 // ----------------------------------------------------
-function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
+export function getGeminiClient(customApiKey?: string): GoogleGenAI | null {
+  const apiKey = (customApiKey && customApiKey.trim()) || process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     return null;
   }
@@ -301,11 +334,484 @@ function getGeminiClient(): GoogleGenAI | null {
 }
 
 /**
+ * Universal OpenAI-compatible Chat Completion caller
+ * Supports OpenAI, Groq, OpenRouter, and custom endpoints (vLLM, LM Studio, etc.)
+ */
+export async function callOpenAICompatibleChat(params: {
+  endpoint: string;
+  apiKey?: string;
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: "text" | "json";
+}): Promise<string> {
+  const url = `${params.endpoint.replace(/\/$/, "")}/chat/completions`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (params.apiKey && params.apiKey.trim()) {
+    headers["Authorization"] = `Bearer ${params.apiKey.trim()}`;
+  }
+  if (params.endpoint.includes("openrouter")) {
+    headers["HTTP-Referer"] = "https://bolt-upsc.app";
+    headers["X-Title"] = "BOLT UPSC Brain";
+  }
+
+  const body: any = {
+    model: params.model,
+    messages: params.messages.map((m) => ({
+      role: m.role === "assistant" ? "assistant" : m.role === "system" ? "system" : "user",
+      content: m.content,
+    })),
+    temperature: params.temperature ?? 0.7,
+    max_tokens: params.maxTokens ?? 4096,
+  };
+
+  if (params.responseFormat === "json") {
+    body.response_format = { type: "json_object" };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Inference API call failed (${res.status}): ${errText.slice(0, 240)}`);
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Anthropic Messages API caller
+ */
+export async function callAnthropicChat(params: {
+  apiKey: string;
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  baseUrl?: string;
+}): Promise<string> {
+  const url = `${(params.baseUrl || "https://api.anthropic.com/v1").replace(/\/$/, "")}/messages`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-api-key": params.apiKey.trim(),
+    "anthropic-version": "2023-06-01",
+  };
+
+  const systemMsg = params.messages.find((m) => m.role === "system")?.content;
+  const nonSys = params.messages.filter((m) => m.role !== "system");
+
+  const formattedMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
+  for (const m of nonSys) {
+    const role: "user" | "assistant" = m.role === "assistant" ? "assistant" : "user";
+    if (formattedMessages.length > 0 && formattedMessages[formattedMessages.length - 1].role === role) {
+      formattedMessages[formattedMessages.length - 1].content += "\n\n" + m.content;
+    } else {
+      formattedMessages.push({ role, content: m.content || " " });
+    }
+  }
+
+  if (formattedMessages.length === 0) {
+    formattedMessages.push({ role: "user", content: "Hello" });
+  } else if (formattedMessages[0].role !== "user") {
+    formattedMessages.unshift({ role: "user", content: "Hello" });
+  }
+
+  const body: any = {
+    model: params.model || "claude-3-7-sonnet-20250219",
+    messages: formattedMessages,
+    max_tokens: params.maxTokens || 4096,
+    temperature: params.temperature ?? 0.7,
+  };
+  if (systemMsg) {
+    body.system = systemMsg;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Anthropic API call failed (${res.status}): ${errText.slice(0, 240)}`);
+    }
+
+    const data = await res.json();
+    return data.content?.[0]?.text || "";
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+export interface OpenAICompatibleMetadata {
+  displayName: string;
+  defaultEndpoint: string;
+  defaultModel: string;
+  keyPrefix?: string;
+  keyName: string;
+}
+
+export const OPENAI_COMPATIBLE_PROVIDERS: Record<string, OpenAICompatibleMetadata> = {
+  openai: {
+    displayName: "OpenAI",
+    defaultEndpoint: "https://api.openai.com/v1",
+    defaultModel: "gpt-4o-mini",
+    keyPrefix: "sk-",
+    keyName: "OpenAI API Key (sk-...)",
+  },
+  groq: {
+    displayName: "Groq LPU",
+    defaultEndpoint: "https://api.groq.com/openai/v1",
+    defaultModel: "llama-3.3-70b-versatile",
+    keyPrefix: "gsk_",
+    keyName: "Groq API Key (gsk_...)",
+  },
+  openrouter: {
+    displayName: "OpenRouter",
+    defaultEndpoint: "https://openrouter.ai/api/v1",
+    defaultModel: "deepseek/deepseek-r1",
+    keyPrefix: "sk-or-",
+    keyName: "OpenRouter API Key (sk-or-...)",
+  },
+  deepseek: {
+    displayName: "DeepSeek",
+    defaultEndpoint: "https://api.deepseek.com",
+    defaultModel: "deepseek-chat",
+    keyPrefix: "sk-",
+    keyName: "DeepSeek API Key (sk-...)",
+  },
+  mistral: {
+    displayName: "Mistral AI",
+    defaultEndpoint: "https://api.mistral.ai/v1",
+    defaultModel: "mistral-large-latest",
+    keyName: "Mistral API Key",
+  },
+  together: {
+    displayName: "Together AI",
+    defaultEndpoint: "https://api.together.xyz/v1",
+    defaultModel: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    keyName: "Together AI API Key",
+  },
+  perplexity: {
+    displayName: "Perplexity AI",
+    defaultEndpoint: "https://api.perplexity.ai",
+    defaultModel: "sonar-pro",
+    keyPrefix: "pplx-",
+    keyName: "Perplexity API Key (pplx-...)",
+  },
+  xai: {
+    displayName: "xAI (Grok)",
+    defaultEndpoint: "https://api.x.ai/v1",
+    defaultModel: "grok-2-latest",
+    keyPrefix: "xai-",
+    keyName: "xAI API Key (xai-...)",
+  },
+  custom: {
+    displayName: "Custom Endpoint",
+    defaultEndpoint: "http://localhost:1234/v1",
+    defaultModel: "custom-model",
+    keyName: "API Key / Bearer Token",
+  },
+};
+
+/**
+ * Cohere v2 Chat API caller
+ */
+export async function callCohereChat(params: {
+  apiKey: string;
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  baseUrl?: string;
+}): Promise<string> {
+  const url = `${(params.baseUrl || "https://api.cohere.com/v2").replace(/\/$/, "")}/chat`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${params.apiKey.trim()}`,
+  };
+
+  const formatted = params.messages.map((m) => ({
+    role: m.role === "system" ? "system" : m.role === "assistant" ? "assistant" : "user",
+    content: m.content,
+  }));
+
+  const body: any = {
+    model: params.model || "command-r-plus-08-2024",
+    messages: formatted,
+    temperature: params.temperature ?? 0.7,
+  };
+  if (params.maxTokens) {
+    body.max_tokens = params.maxTokens;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Cohere API call failed (${res.status}): ${errText.slice(0, 240)}`);
+    }
+
+    const data = await res.json();
+    if (data.message?.content?.[0]?.text) {
+      return data.message.content[0].text;
+    }
+    return data.text || "";
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Universal Test Connection & Diagnostic Utility
+ */
+export async function testConnection(params: {
+  provider?: string;
+  modelId?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  localEndpoint?: string;
+}): Promise<{
+  success: boolean;
+  connected: boolean;
+  latencyMs: number;
+  message: string;
+  provider: string;
+  model: string;
+  reply?: string;
+  timestamp: string;
+}> {
+  const startTime = Date.now();
+  const provider = (params.provider || "gemini").toLowerCase();
+  const modelId = params.modelId || (provider === "gemini" ? "gemini-3.8-flash" : "default");
+
+  try {
+    if (provider === "gemini" || provider === "cloud") {
+      const key = params.apiKey?.trim() || process.env.GEMINI_API_KEY;
+      if (!key || key === "MY_GEMINI_API_KEY") {
+        return {
+          success: false,
+          connected: false,
+          latencyMs: Date.now() - startTime,
+          message: "No Google Gemini API key configured. Provide an API key in the provider settings or define GEMINI_API_KEY.",
+          provider: "Google Gemini",
+          model: modelId,
+          timestamp: new Date().toISOString(),
+        };
+      }
+      const client = new GoogleGenAI({ apiKey: key });
+      const effectiveModel = modelId.startsWith("gemini") ? modelId : "gemini-3.8-flash";
+      const { result, usedModel } = await executeGeminiWithFailover(
+        client,
+        effectiveModel,
+        (mId) =>
+          client.models.generateContent({
+            model: mId,
+            contents: "Ping. Respond strictly with: OK",
+          }),
+        { timeoutMs: 12000, label: "test-connection" }
+      );
+      const latencyMs = Date.now() - startTime;
+      return {
+        success: true,
+        connected: true,
+        latencyMs,
+        message: `Successfully connected to Google Gemini (${usedModel}). AI inference is active and ready.`,
+        provider: "Google Gemini",
+        model: usedModel,
+        reply: result.text?.trim() || "OK",
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (provider === "anthropic") {
+      const key = params.apiKey?.trim();
+      if (!key) {
+        return {
+          success: false,
+          connected: false,
+          latencyMs: Date.now() - startTime,
+          message: "Anthropic API Key is required. Please paste your key (starting with sk-ant-).",
+          provider: "Anthropic Claude",
+          model: modelId || "claude-3-7-sonnet-20250219",
+          timestamp: new Date().toISOString(),
+        };
+      }
+      const reply = await callAnthropicChat({
+        apiKey: key,
+        model: modelId || "claude-3-7-sonnet-20250219",
+        messages: [{ role: "user", content: "Ping. Respond with OK" }],
+        maxTokens: 15,
+        baseUrl: params.baseUrl,
+      });
+      const latencyMs = Date.now() - startTime;
+      return {
+        success: true,
+        connected: true,
+        latencyMs,
+        message: `Successfully connected to Anthropic Claude (${modelId || "claude-3-7-sonnet-20250219"}).`,
+        provider: "Anthropic Claude",
+        model: modelId || "claude-3-7-sonnet-20250219",
+        reply: reply.trim(),
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (provider === "cohere") {
+      const key = params.apiKey?.trim();
+      if (!key) {
+        return {
+          success: false,
+          connected: false,
+          latencyMs: Date.now() - startTime,
+          message: "Cohere API Key is required. Please paste your Cohere API key.",
+          provider: "Cohere",
+          model: modelId || "command-r-plus-08-2024",
+          timestamp: new Date().toISOString(),
+        };
+      }
+      const reply = await callCohereChat({
+        apiKey: key,
+        model: modelId || "command-r-plus-08-2024",
+        messages: [{ role: "user", content: "Ping. Respond with OK" }],
+        maxTokens: 15,
+        baseUrl: params.baseUrl,
+      });
+      const latencyMs = Date.now() - startTime;
+      return {
+        success: true,
+        connected: true,
+        latencyMs,
+        message: `Successfully connected to Cohere API (${modelId || "command-r-plus-08-2024"}). Latency: ${latencyMs}ms.`,
+        provider: "Cohere",
+        model: modelId || "command-r-plus-08-2024",
+        reply: reply.trim(),
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (provider === "local") {
+      const endpoint = (params.localEndpoint || "http://localhost:11434").replace(/\/$/, "");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch(`${endpoint}/api/tags`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        const available = (data.models || []).map((m: any) => m.name);
+        const latencyMs = Date.now() - startTime;
+        return {
+          success: true,
+          connected: true,
+          latencyMs,
+          message: `Local Ollama daemon online at ${endpoint}. Found ${available.length} installed model(s): ${available.slice(0, 4).join(", ")}${available.length > 4 ? "..." : ""}`,
+          provider: "Local (Ollama)",
+          model: modelId,
+          timestamp: new Date().toISOString(),
+        };
+      }
+      throw new Error(`Ollama daemon at ${endpoint} returned HTTP ${res.status}`);
+    }
+
+    // Check OpenAI-compatible providers: openai, groq, openrouter, deepseek, mistral, together, perplexity, xai, custom
+    const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
+    if (compatMeta) {
+      const key = params.apiKey?.trim();
+      if (provider !== "custom" && !key) {
+        return {
+          success: false,
+          connected: false,
+          latencyMs: Date.now() - startTime,
+          message: `${compatMeta.keyName} is required. Please paste your API key in settings.`,
+          provider: compatMeta.displayName,
+          model: modelId || compatMeta.defaultModel,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const endpoint = params.baseUrl?.trim() || compatMeta.defaultEndpoint;
+      const targetModel = modelId && modelId !== "default" ? modelId : compatMeta.defaultModel;
+
+      const reply = await callOpenAICompatibleChat({
+        endpoint,
+        apiKey: key,
+        model: targetModel,
+        messages: [{ role: "user", content: "Ping. Respond with OK" }],
+        maxTokens: 15,
+        temperature: 0.1,
+      });
+
+      const latencyMs = Date.now() - startTime;
+      return {
+        success: true,
+        connected: true,
+        latencyMs,
+        message: `Successfully connected to ${compatMeta.displayName} (${targetModel}). Inference verified.`,
+        provider: compatMeta.displayName,
+        model: targetModel,
+        reply: reply.trim(),
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    throw new Error(`Unsupported model provider: "${provider}"`);
+  } catch (err: any) {
+    const latencyMs = Date.now() - startTime;
+    return {
+      success: false,
+      connected: false,
+      latencyMs,
+      message: err?.message || `Failed to establish connection to ${provider}`,
+      provider,
+      model: modelId,
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+/**
  * Known supported flash models in priority failover order
  */
 export const SUPPORTED_FLASH_MODELS = [
-  "gemini-3.6-flash",
   "gemini-3.8-flash",
+  "gemini-3.6-flash",
   "gemini-3.1-flash-lite",
 ];
 
@@ -411,55 +917,153 @@ async function callLocalChat(
 // ----------------------------------------------------
 export class BoltAIGateway {
   /**
-   * Model-independent chat orchestration
+   * Universal connection tester
+   */
+  static async testConnection(params: {
+    provider?: string;
+    modelId?: string;
+    apiKey?: string;
+    baseUrl?: string;
+    localEndpoint?: string;
+  }) {
+    return testConnection(params);
+  }
+
+  /**
+   * Model-independent chat orchestration supporting Gemini, OpenAI, Anthropic, Groq, OpenRouter, and Local
    */
   static async chat(request: ChatRequest): Promise<ChatResponse> {
     const config = getGatewayConfig();
-    const provider = request.providerOverride || config.provider;
+    const provider = (request.providerOverride || config.provider || "gemini").toLowerCase();
     const temp = request.temperature ?? config.temperature;
     const activeAdapter = request.activeAdapter || config.activeAdapter;
     const citations = request.citations || [];
+    const apiKey = request.apiKeyOverride || config.apiKey;
+    const baseUrl = request.baseUrlOverride || config.baseUrl;
+    const localEndpoint = request.endpointOverride || config.localEndpoint;
 
-    // 1. Try Local Provider if requested or auto
-    if (provider === "local" || (provider === "auto" && config.localEndpoint)) {
-      const localResult = await callLocalChat(
-        config.localEndpoint,
-        request.modelOverride || config.localModelId,
-        request.messages,
-        temp
-      );
+    // 1. Cohere Provider
+    if (provider === "cohere") {
+      try {
+        const model = request.modelOverride || "command-r-plus-08-2024";
+        const content = await callCohereChat({
+          apiKey: apiKey || "",
+          model,
+          messages: request.messages,
+          temperature: temp,
+          maxTokens: request.maxTokens,
+          baseUrl,
+        });
+
+        if (content.trim()) {
+          return {
+            content,
+            provider: "Cohere",
+            model,
+            activeAdapter,
+            citations,
+          };
+        }
+      } catch (err: any) {
+        console.warn("[Cohere Provider Error]:", err?.message || err);
+        throw err;
+      }
+    }
+
+    // 2. Anthropic Claude Provider
+    if (provider === "anthropic") {
+      try {
+        const model = request.modelOverride || "claude-3-7-sonnet-20250219";
+        const content = await callAnthropicChat({
+          apiKey: apiKey || "",
+          model,
+          messages: request.messages,
+          temperature: temp,
+          maxTokens: request.maxTokens,
+          baseUrl,
+        });
+
+        if (content.trim()) {
+          return {
+            content,
+            provider: "Anthropic Claude",
+            model,
+            activeAdapter,
+            citations,
+          };
+        }
+      } catch (err: any) {
+        console.warn("[Anthropic Provider Error]:", err?.message || err);
+        throw err;
+      }
+    }
+
+    // 3. OpenAI-Compatible Providers (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, Perplexity, xAI, Custom)
+    const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
+    if (compatMeta) {
+      try {
+        const endpoint = baseUrl?.trim() || compatMeta.defaultEndpoint;
+        const model = request.modelOverride || compatMeta.defaultModel;
+        const content = await callOpenAICompatibleChat({
+          endpoint,
+          apiKey,
+          model,
+          messages: request.messages,
+          temperature: temp,
+          maxTokens: request.maxTokens,
+        });
+
+        if (content.trim()) {
+          return {
+            content,
+            provider: compatMeta.displayName,
+            model,
+            activeAdapter,
+            citations,
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[${compatMeta.displayName} Provider Error]:`, err?.message || err);
+        throw err;
+      }
+    }
+
+    // 6. Local Provider (Ollama/vLLM)
+    if (provider === "local" || (provider === "auto" && localEndpoint)) {
+      const ep = localEndpoint || config.localEndpoint;
+      const model = request.modelOverride || config.localModelId;
+      const localResult = await callLocalChat(ep, model, request.messages, temp);
 
       if (localResult) {
         return {
           content: localResult,
-          provider: "Local (Ollama/vLLM)",
-          model: request.modelOverride || config.localModelId,
+          provider: "Local (Ollama)",
+          model,
           activeAdapter,
           citations,
         };
       }
 
       if (provider === "local") {
-        // Fallback for local testing when daemon is offline
         return {
-          content: `> ⚡ **BOLT Local Engine (${config.localModelId})**\n> *Adapter: ${activeAdapter}*\n\n` +
+          content:
+            `> ⚡ **BOLT Local Engine (${model})**\n> *Local daemon at ${ep} unreachable or offline.*\n\n` +
             generateLocalAcademicResponse(request.messages[request.messages.length - 1]?.content || ""),
           provider: "Local Academic Engine",
-          model: config.localModelId,
+          model,
           activeAdapter,
           citations,
         };
       }
     }
 
-    // 2. Cloud Provider (Gemini)
-    const gemini = getGeminiClient();
+    // 7. Google Gemini Cloud Provider
+    const gemini = getGeminiClient(apiKey);
     if (gemini) {
       try {
         const sysMsg = request.messages.find((m) => m.role === "system")?.content || "";
         const nonSys = request.messages.filter((m) => m.role !== "system");
 
-        // Format conversation turns cleanly for Gemini (user and model)
         const contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
         for (const m of nonSys) {
           const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
@@ -479,7 +1083,7 @@ export class BoltAIGateway {
           contents.push({ role: "user", parts: [{ text: "Please continue and provide your guidance." }] });
         }
 
-        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.6-flash";
+        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.8-flash";
 
         const { result: geminiRes, usedModel } = await executeGeminiWithFailover(
           gemini,
@@ -500,18 +1104,18 @@ export class BoltAIGateway {
         if (reply.trim()) {
           return {
             content: reply,
-            provider: "Cloud (Gemini)",
+            provider: "Google Gemini",
             model: usedModel,
             activeAdapter,
             citations,
           };
         }
       } catch (err) {
-        console.warn("Cloud Gemini generation failed across all fallback models, resorting to academic fallback:", err);
+        console.warn("Cloud Gemini generation failed across fallback models, falling back to academic engine:", err);
       }
     }
 
-    // 3. Fallback Heuristic Engine
+    // 8. Fallback Heuristic Engine
     const lastUserQuery = request.messages[request.messages.length - 1]?.content || "";
     return {
       content: generateLocalAcademicResponse(lastUserQuery),
@@ -530,76 +1134,79 @@ export class BoltAIGateway {
     onChunk: (chunk: string) => void
   ): Promise<ChatResponse> {
     const config = getGatewayConfig();
-    const gemini = getGeminiClient();
+    const provider = (request.providerOverride || config.provider || "gemini").toLowerCase();
+    const apiKey = request.apiKeyOverride || config.apiKey;
 
-    if (gemini && request.providerOverride !== "local") {
-      try {
-        const sysMsg = request.messages.find((m) => m.role === "system")?.content || "";
-        const nonSys = request.messages.filter((m) => m.role !== "system");
+    if ((provider === "gemini" || provider === "cloud" || provider === "auto") && !apiKey?.startsWith("sk-")) {
+      const gemini = getGeminiClient(apiKey);
+      if (gemini) {
+        try {
+          const sysMsg = request.messages.find((m) => m.role === "system")?.content || "";
+          const nonSys = request.messages.filter((m) => m.role !== "system");
 
-        const contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
-        for (const m of nonSys) {
-          const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
-          if (contents.length > 0 && contents[contents.length - 1].role === role) {
-            contents[contents.length - 1].parts[0].text += "\n\n" + m.content;
-          } else {
-            contents.push({ role, parts: [{ text: m.content || " " }] });
+          const contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+          for (const m of nonSys) {
+            const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
+            if (contents.length > 0 && contents[contents.length - 1].role === role) {
+              contents[contents.length - 1].parts[0].text += "\n\n" + m.content;
+            } else {
+              contents.push({ role, parts: [{ text: m.content || " " }] });
+            }
           }
-        }
 
-        if (contents.length === 0) {
-          contents.push({ role: "user", parts: [{ text: "Hello Bolt" }] });
-        } else if (contents[0].role !== "user") {
-          contents.unshift({ role: "user", parts: [{ text: "Hello" }] });
-        }
-
-        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.6-flash";
-
-        const { result: streamResult, usedModel } = await executeGeminiWithFailover(
-          gemini,
-          effectiveModel,
-          (modelId) =>
-            gemini.models.generateContentStream({
-              model: modelId,
-              contents,
-              config: {
-                systemInstruction: sysMsg || undefined,
-                temperature: config.temperature,
-              },
-            }),
-          { timeoutMs: 30000, label: "stream" }
-        );
-
-        let fullText = "";
-        for await (const chunk of streamResult) {
-          const chunkText = chunk.text || "";
-          if (chunkText) {
-            fullText += chunkText;
-            onChunk(chunkText);
+          if (contents.length === 0) {
+            contents.push({ role: "user", parts: [{ text: "Hello Bolt" }] });
+          } else if (contents[0].role !== "user") {
+            contents.unshift({ role: "user", parts: [{ text: "Hello" }] });
           }
-        }
 
-        if (fullText.trim()) {
-          return {
-            content: fullText,
-            provider: "Cloud (Gemini Streaming)",
-            model: usedModel,
-            activeAdapter: request.activeAdapter || config.activeAdapter,
-            citations: request.citations || [],
-          };
+          const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.8-flash";
+
+          const { result: streamResult, usedModel } = await executeGeminiWithFailover(
+            gemini,
+            effectiveModel,
+            (modelId) =>
+              gemini.models.generateContentStream({
+                model: modelId,
+                contents,
+                config: {
+                  systemInstruction: sysMsg || undefined,
+                  temperature: config.temperature,
+                },
+              }),
+            { timeoutMs: 30000, label: "stream" }
+          );
+
+          let fullText = "";
+          for await (const chunk of streamResult) {
+            const chunkText = chunk.text || "";
+            if (chunkText) {
+              fullText += chunkText;
+              onChunk(chunkText);
+            }
+          }
+
+          if (fullText.trim()) {
+            return {
+              content: fullText,
+              provider: "Google Gemini (Streaming)",
+              model: usedModel,
+              activeAdapter: request.activeAdapter || config.activeAdapter,
+              citations: request.citations || [],
+            };
+          }
+        } catch (err) {
+          console.warn("Gemini stream failed, falling back to buffered delivery:", err);
         }
-      } catch (err) {
-        console.warn("Gemini stream failed across all fallback models, falling back to buffered stream simulation:", err);
       }
     }
 
-    // Fallback streaming simulation
+    // Universal buffered token streaming for OpenAI, Anthropic, Groq, OpenRouter, and Local
     const chatResult = await this.chat(request);
     const words = chatResult.content.split(/(\s+)/);
     for (const w of words) {
       onChunk(w);
-      // Fast yield
-      await new Promise((r) => setTimeout(r, 8));
+      await new Promise((r) => setTimeout(r, 6));
     }
     return chatResult;
   }
@@ -637,15 +1244,128 @@ export class BoltAIGateway {
    */
   static async generate(request: GenerateRequest): Promise<GenerateResponse> {
     const config = getGatewayConfig();
-    const gemini = getGeminiClient();
+    const provider = (request.providerOverride || config.provider || "gemini").toLowerCase();
+    const apiKey = request.apiKeyOverride || config.apiKey;
+    const baseUrl = request.baseUrlOverride || config.baseUrl;
 
+    const prompt = request.systemInstruction
+      ? `${request.systemInstruction}\n\nTask: ${request.prompt}`
+      : request.prompt;
+
+    // 1. Cohere Provider
+    if (provider === "cohere") {
+      try {
+        const model = request.modelOverride || "command-r-plus-08-2024";
+        const text = await callCohereChat({
+          apiKey: apiKey || "",
+          model,
+          messages: [{ role: "user", content: prompt }],
+          baseUrl,
+          temperature: request.temperature ?? 0.5,
+        });
+
+        let parsedJson = undefined;
+        if (request.responseFormat === "json") {
+          const match = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (match) {
+            try {
+              parsedJson = JSON.parse(match[0]);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        return {
+          text,
+          parsedJson,
+          provider: "Cohere",
+          model,
+        };
+      } catch (err) {
+        console.warn("[Generate Cohere failed]:", err);
+      }
+    }
+
+    // 2. Anthropic Claude
+    if (provider === "anthropic") {
+      try {
+        const model = request.modelOverride || "claude-3-7-sonnet-20250219";
+        const text = await callAnthropicChat({
+          apiKey: apiKey || "",
+          model,
+          messages: [{ role: "user", content: prompt }],
+          baseUrl,
+          temperature: request.temperature ?? 0.5,
+        });
+
+        let parsedJson = undefined;
+        if (request.responseFormat === "json") {
+          const match = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (match) {
+            try {
+              parsedJson = JSON.parse(match[0]);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        return {
+          text,
+          parsedJson,
+          provider: "Anthropic Claude",
+          model,
+        };
+      } catch (err) {
+        console.warn("[Generate Anthropic failed]:", err);
+      }
+    }
+
+    // 3. OpenAI-Compatible Providers (OpenAI, Groq, OpenRouter, DeepSeek, Mistral, Together, Perplexity, xAI, Custom)
+    const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
+    if (compatMeta) {
+      try {
+        const endpoint = baseUrl?.trim() || compatMeta.defaultEndpoint;
+        const model = request.modelOverride || compatMeta.defaultModel;
+
+        const text = await callOpenAICompatibleChat({
+          endpoint,
+          apiKey,
+          model,
+          messages: [{ role: "user", content: prompt }],
+          responseFormat: request.responseFormat,
+          temperature: request.temperature ?? 0.5,
+        });
+
+        let parsedJson = undefined;
+        if (request.responseFormat === "json") {
+          const match = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+          if (match) {
+            try {
+              parsedJson = JSON.parse(match[0]);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        return {
+          text,
+          parsedJson,
+          provider: compatMeta.displayName,
+          model,
+        };
+      } catch (err) {
+        console.warn(`[Generate ${compatMeta.displayName} failed]:`, err);
+      }
+    }
+
+    // 3. Google Gemini Cloud
+    const gemini = getGeminiClient(apiKey);
     if (gemini) {
       try {
-        const prompt = request.systemInstruction
-          ? `${request.systemInstruction}\n\nTask: ${request.prompt}`
-          : request.prompt;
-
-        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.6-flash";
+        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.8-flash";
 
         const { result: res, usedModel } = await executeGeminiWithFailover(
           gemini,
@@ -666,7 +1386,7 @@ export class BoltAIGateway {
             try {
               parsedJson = JSON.parse(match[0]);
             } catch {
-              // Ignore parse error, will return text
+              // Ignore parse error
             }
           }
         }
@@ -674,11 +1394,11 @@ export class BoltAIGateway {
         return {
           text,
           parsedJson,
-          provider: "Cloud (Gemini)",
+          provider: "Google Gemini",
           model: usedModel,
         };
       } catch (err) {
-        console.warn("AI Gateway generate failed across all fallback models:", err);
+        console.warn("AI Gateway generate failed across fallback models:", err);
       }
     }
 
@@ -696,10 +1416,12 @@ export class BoltAIGateway {
     rubric: EvaluationRubric,
     answerText: string
   ): Promise<MainsEvaluationResult> {
-    const ai = getGeminiClient();
+    const config = getGatewayConfig();
+    const provider = (rubric.providerOverride || config.provider || "gemini").toLowerCase();
+    const apiKey = rubric.apiKeyOverride || config.apiKey;
+    const baseUrl = rubric.baseUrlOverride || config.baseUrl;
 
-    if (ai && answerText.length > 50) {
-      const prompt = `You are a strict UPSC CSE Public Administration Mains Examiner.
+    const prompt = `You are a strict UPSC CSE Public Administration Mains Examiner.
 Evaluate the following student answer on a 15-mark scale based strictly on the 7-Dimension Rubric.
 
 QUESTION: "${rubric.questionText}"
@@ -735,54 +1457,103 @@ Return ONLY valid JSON matching this exact structure:
   "modelAnswerOutline": ["Introduction thesis", "Body argument 1", "Body argument 2 with thinker", "Conclusion"]
 }`;
 
+    // Try through active provider if valid answer text
+    if (answerText.length > 50) {
       try {
-        const { result: res, usedModel } = await executeGeminiWithFailover(
-          ai,
-          "gemini-3.6-flash",
-          (modelId) =>
-            ai.models.generateContent({
-              model: modelId,
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-            }),
-          { timeoutMs: 25000, label: "evaluateMains" }
-        );
-        const text = res.text || "";
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          const crit = parsed.criteria || {};
-          const sum = Object.values(crit).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
-          const score = Math.min(15, Math.round(Number(sum) * 10) / 10);
+        let rawJson = "";
+        let usedProviderLabel = "";
 
-          return {
-            score,
-            maxMarks: 15,
-            criteria: {
-              questionDemand: Math.round(((crit.contentDemandScore || 2.5) / 4) * 10),
-              content: Math.round(((crit.conceptualClarityScore || 1.3) / 2) * 10),
-              structure: Math.round((crit.structureScore || 0.7) * 10),
-              analysis: Math.round(((crit.analysisScore || 1.2) / 2) * 10),
-              examples: Math.round(((crit.examplesAndThinkersScore || 1.0) / 1.5) * 10),
-              conclusion: Math.round((crit.conclusionScore || 0.7) * 10),
-              introductionScore: crit.introductionScore || 1.0,
-              conceptualClarityScore: crit.conceptualClarityScore || 1.4,
-              contentDemandScore: crit.contentDemandScore || 2.6,
-              analysisScore: crit.analysisScore || 1.3,
-              examplesAndThinkersScore: crit.examplesAndThinkersScore || 1.0,
-              structureScore: crit.structureScore || 0.7,
-              conclusionScore: crit.conclusionScore || 0.7,
-            },
-            whatWentWell: parsed.whatWentWell || ["Good structure", "Direct addressing of demand"],
-            needsImprovement: parsed.needsImprovement || ["Include more administrative thinkers", "Deepen analytical critique"],
-            missingDimensions: parsed.missingDimensions || ["Indian constitutional reality comparison", "2nd ARC recommendations"],
-            repeatedWeaknesses: parsed.repeatedWeaknesses || ["Descriptive without analytical depth"],
-            boltFeedback: parsed.boltFeedback || "Solid answer with good potential. Strengthen thinker citations to cross 10/15.",
-            modelAnswerOutline: parsed.modelAnswerOutline || [],
-            providerUsed: `Cloud (Gemini - ${usedModel})`,
-          };
+        if (provider === "cohere") {
+          const model = rubric.modelOverride || "command-r-plus-08-2024";
+          rawJson = await callCohereChat({
+            apiKey: apiKey || "",
+            model,
+            messages: [{ role: "user", content: prompt }],
+            baseUrl,
+            temperature: 0.2,
+          });
+          usedProviderLabel = `Cohere (${model})`;
+        } else if (OPENAI_COMPATIBLE_PROVIDERS[provider]) {
+          const compatMeta = OPENAI_COMPATIBLE_PROVIDERS[provider];
+          const endpoint = baseUrl?.trim() || compatMeta.defaultEndpoint;
+          const model = rubric.modelOverride || compatMeta.defaultModel;
+
+          rawJson = await callOpenAICompatibleChat({
+            endpoint,
+            apiKey,
+            model,
+            messages: [{ role: "user", content: prompt }],
+            responseFormat: "json",
+            temperature: 0.2,
+          });
+          usedProviderLabel = `${compatMeta.displayName} (${model})`;
+        } else if (provider === "anthropic") {
+          const model = rubric.modelOverride || "claude-3-7-sonnet-20250219";
+          rawJson = await callAnthropicChat({
+            apiKey: apiKey || "",
+            model,
+            messages: [{ role: "user", content: prompt }],
+            baseUrl,
+            temperature: 0.2,
+          });
+          usedProviderLabel = `Anthropic Claude (${model})`;
+        } else {
+          // Gemini
+          const ai = getGeminiClient(apiKey);
+          if (ai) {
+            const { result: res, usedModel } = await executeGeminiWithFailover(
+              ai,
+              rubric.modelOverride || "gemini-3.8-flash",
+              (modelId) =>
+                ai.models.generateContent({
+                  model: modelId,
+                  contents: [{ role: "user", parts: [{ text: prompt }] }],
+                }),
+              { timeoutMs: 25000, label: "evaluateMains" }
+            );
+            rawJson = res.text || "";
+            usedProviderLabel = `Google Gemini (${usedModel})`;
+          }
+        }
+
+        if (rawJson) {
+          const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const crit = parsed.criteria || {};
+            const sum = Object.values(crit).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+            const score = Math.min(15, Math.round(Number(sum) * 10) / 10);
+
+            return {
+              score,
+              maxMarks: 15,
+              criteria: {
+                questionDemand: Math.round(((crit.contentDemandScore || 2.5) / 4) * 10),
+                content: Math.round(((crit.conceptualClarityScore || 1.3) / 2) * 10),
+                structure: Math.round((crit.structureScore || 0.7) * 10),
+                analysis: Math.round(((crit.analysisScore || 1.2) / 2) * 10),
+                examples: Math.round(((crit.examplesAndThinkersScore || 1.0) / 1.5) * 10),
+                conclusion: Math.round((crit.conclusionScore || 0.7) * 10),
+                introductionScore: crit.introductionScore || 1.0,
+                conceptualClarityScore: crit.conceptualClarityScore || 1.4,
+                contentDemandScore: crit.contentDemandScore || 2.6,
+                analysisScore: crit.analysisScore || 1.3,
+                examplesAndThinkersScore: crit.examplesAndThinkersScore || 1.0,
+                structureScore: crit.structureScore || 0.7,
+                conclusionScore: crit.conclusionScore || 0.7,
+              },
+              whatWentWell: parsed.whatWentWell || ["Good structure", "Direct addressing of question demand"],
+              needsImprovement: parsed.needsImprovement || ["Include more administrative thinkers", "Deepen analytical critique"],
+              missingDimensions: parsed.missingDimensions || ["Constitutional reality comparison", "2nd ARC recommendations"],
+              repeatedWeaknesses: parsed.repeatedWeaknesses || ["Descriptive without analytical depth"],
+              boltFeedback: parsed.boltFeedback || "Solid answer with good potential. Strengthen thinker citations to cross 10/15.",
+              modelAnswerOutline: parsed.modelAnswerOutline || [],
+              providerUsed: usedProviderLabel || "AI Evaluator",
+            };
+          }
         }
       } catch (err) {
-        console.warn("AI Mains Evaluation cloud call failed across all fallback models, using rule-based evaluator:", err);
+        console.warn("AI Mains Evaluation call failed, using rule-based evaluator:", err);
       }
     }
 

@@ -136,6 +136,12 @@ export const MainsEvaluationView: React.FC<MainsEvaluationViewProps> = ({
     const aText = answerTextInput || "Herbert Simon introduced bounded rationality. Administrative decision makers satisfice rather than optimize. This applies directly to district administration.";
 
     try {
+      let activeCfg: any = {};
+      try {
+        const saved = localStorage.getItem("bolt_active_model_config");
+        if (saved) activeCfg = JSON.parse(saved);
+      } catch {}
+
       const res = await fetch("/api/bolt/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -144,6 +150,10 @@ export const MainsEvaluationView: React.FC<MainsEvaluationViewProps> = ({
           answerText: aText,
           maxMarks: 15,
           subject: "Public Administration",
+          provider: activeCfg.provider || (activeCfg.modelType === "local" ? "local" : "gemini"),
+          apiKey: activeCfg.apiKey,
+          baseUrl: activeCfg.baseUrl,
+          modelId: activeCfg.selectedModelId,
         }),
       });
       const data = await res.json();

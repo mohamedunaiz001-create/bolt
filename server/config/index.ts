@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const SERVER_CONFIG = {
-  port: parseInt(process.env.PORT || "3000", 10),
+  port: 3000,
   nodeEnv: process.env.NODE_ENV || "development",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   localAiEndpoint: process.env.LOCAL_AI_ENDPOINT || "http://127.0.0.1:11434",

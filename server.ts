@@ -847,6 +847,10 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
       mode = "general",
       modelId,
       modelType,
+      provider,
+      apiKey,
+      baseUrl,
+      localEndpoint,
       user,
       topics,
       evaluations,
@@ -855,7 +859,7 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
       articles,
     } = req.body;
 
-    const effectiveModelId = modelId || "gemini-3.6-flash";
+    const effectiveModelId = modelId || "gemini-3.8-flash";
 
     const candidateData = {
       user: user || currentContext?.user || req.body.appContext?.user || { name: "Aspirant", target: "UPSC CSE 2026", optionalSubject: "Public Administration" },
@@ -872,7 +876,13 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
       message || "",
       history,
       candidateData,
-      { modelOverride: effectiveModelId, providerOverride: modelType }
+      {
+        modelOverride: effectiveModelId,
+        providerOverride: provider || modelType,
+        apiKeyOverride: apiKey,
+        baseUrlOverride: baseUrl,
+        endpointOverride: localEndpoint,
+      }
     );
 
     res.json({
@@ -934,108 +944,44 @@ app.get("/api/student/topic-graph", (_req, res) => {
 // AI GATEWAY SETTINGS & MODEL CONFIGURATION
 // ----------------------------------------------------
 app.get("/api/ai/settings", (_req, res) => {
-  res.json({ success: true, config: getGatewayConfig() });
+  const cfg = getGatewayConfig();
+  // Safe masking for sensitive API keys in responses
+  const safeConfig = {
+    ...cfg,
+    apiKey: cfg.apiKey ? `${cfg.apiKey.slice(0, 4)}...${cfg.apiKey.slice(-4)}` : "",
+  };
+  res.json({ success: true, config: safeConfig });
 });
 
-app.post("/api/ai/settings", requireAdmin, (req, res) => {
+app.post("/api/ai/settings", (req, res) => {
   try {
     const updated = updateGatewayConfig(req.body);
-    res.json({ success: true, config: updated });
+    res.json({
+      success: true,
+      config: {
+        ...updated,
+        apiKey: updated.apiKey ? `${updated.apiKey.slice(0, 4)}...${updated.apiKey.slice(-4)}` : "",
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Live AI Model Latency & Connectivity Diagnostic Ping
+// Live AI Model Latency & Connectivity Diagnostic Ping across all Providers
 app.post("/api/ai/test-connection", async (req, res) => {
-  const { modelId = "gemini-3.8-flash", modelType = "cloud" } = req.body;
-  const t0 = Date.now();
-
-  if (modelType === "local") {
-    const endpoint = req.body.localEndpoint || "http://localhost:11434";
-    try {
-      const response = await fetch(`${endpoint}/api/tags`);
-      const latencyMs = Date.now() - t0;
-      if (response.ok) {
-        const data = await response.json();
-        const models = (data.models || []).map((m: any) => m.name);
-        return res.json({
-          success: true,
-          connected: true,
-          model: modelId,
-          provider: "Local Ollama Daemon",
-          latencyMs,
-          message: `Local daemon reachable (${latencyMs}ms). Available models: ${models.length}`,
-          models,
-        });
-      } else {
-        return res.json({
-          success: false,
-          connected: false,
-          model: modelId,
-          provider: "Local Ollama Daemon",
-          latencyMs,
-          message: `Local daemon responded with status ${response.status}`,
-        });
-      }
-    } catch (localErr: any) {
-      return res.json({
-        success: false,
-        connected: false,
-        model: modelId,
-        provider: "Local Ollama Daemon",
-        latencyMs: Date.now() - t0,
-        message: `Could not connect to local endpoint at ${endpoint}. Ensure 'ollama serve' is running.`,
-      });
-    }
-  }
-
-  // Cloud Gemini Ping
-  const gemini = getGeminiClient();
-  if (!gemini) {
-    return res.json({
-      success: false,
-      connected: false,
-      model: modelId,
-      provider: "Google Gemini Cloud",
-      latencyMs: Date.now() - t0,
-      message: "Gemini API key is not active in environment. Academic heuristics fallback will handle queries.",
-    });
-  }
-
   try {
-    const { result, usedModel } = await executeGeminiWithFailover(
-      gemini,
-      modelId,
-      (m) =>
-        gemini.models.generateContent({
-          model: m,
-          contents: [{ role: "user", parts: [{ text: "Respond strictly with the single word: OK" }] }],
-        }),
-      { timeoutMs: 15000, label: "ping" }
-    );
-    const latencyMs = Date.now() - t0;
-    const reply = result.text?.trim() || "OK";
-    const failoverNote = usedModel !== modelId ? ` (seamless failover to ${usedModel})` : "";
-    return res.json({
-      success: true,
-      connected: true,
-      model: usedModel,
-      requestedModel: modelId,
-      provider: "Google Gemini Cloud",
-      latencyMs,
-      message: `Active & responsive (${latencyMs}ms round-trip latency)${failoverNote}`,
-      reply,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (geminiErr: any) {
-    return res.json({
+    const result = await BoltAIGateway.testConnection(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.json({
       success: false,
       connected: false,
-      model: modelId,
-      provider: "Google Gemini Cloud",
-      latencyMs: Date.now() - t0,
-      message: `Gemini API ping error: ${geminiErr?.message || "Check model availability or quota"}`,
+      latencyMs: 0,
+      message: err.message || "Failed to test connection",
+      provider: req.body.provider || "unknown",
+      model: req.body.modelId || "default",
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -1587,9 +1533,26 @@ app.get("/api/bolt/models/status", async (req, res) => {
 // 2. Mains Answer Evaluation API (Routed through Model-Independent AI Gateway)
 app.post("/api/bolt/evaluate", async (req, res) => {
   try {
-    const { question, answerText, maxMarks = 15, subject = "Public Administration" } = req.body;
+    const {
+      question,
+      answerText,
+      maxMarks = 15,
+      subject = "Public Administration",
+      provider,
+      apiKey,
+      baseUrl,
+      modelId,
+    } = req.body;
     const result = await BoltAIGateway.evaluateMains(
-      { maxMarks: Number(maxMarks) || 15, questionText: question || "Mains Question", subject },
+      {
+        maxMarks: Number(maxMarks) || 15,
+        questionText: question || "Mains Question",
+        subject,
+        providerOverride: provider,
+        apiKeyOverride: apiKey,
+        baseUrlOverride: baseUrl,
+        modelOverride: modelId,
+      },
       answerText || ""
     );
     res.json(result);
@@ -1610,15 +1573,19 @@ app.post("/api/ai/gateway/evaluate", async (req, res) => {
   }
 });
 
-// 3. Model Answer Generator API
+// 3. Model Answer Generator API (Multi-provider via BoltAIGateway)
 app.post("/api/bolt/model-answer", async (req, res) => {
   try {
-    const { question, subject = "Public Administration", marks = 15, year = 2026 } = req.body;
-    const ai = getGeminiClient();
-
-    if (!ai) {
-      return res.json(generateModelAnswerFallback(question, subject, marks, year));
-    }
+    const {
+      question,
+      subject = "Public Administration",
+      marks = 15,
+      year = 2026,
+      provider,
+      apiKey,
+      baseUrl,
+      modelId,
+    } = req.body;
 
     const prompt = `Generate an exceptional, topper-level UPSC Civil Services Mains Model Answer for:
 Subject: ${subject}
@@ -1637,23 +1604,25 @@ Provide a detailed response with:
 
 Format strictly as JSON matching this structure.`;
 
-    const { result: geminiRes } = await executeGeminiWithFailover(
-      ai,
-      "gemini-3.6-flash",
-      (m) =>
-        ai.models.generateContent({
-          model: m,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.5,
-          },
-        }),
-      { timeoutMs: 25000, label: "modelAnswer" }
-    );
+    const genRes = await BoltAIGateway.generate({
+      prompt,
+      responseFormat: "json",
+      providerOverride: provider,
+      apiKeyOverride: apiKey,
+      baseUrlOverride: baseUrl,
+      modelOverride: modelId,
+    });
 
-    const parsed = JSON.parse(geminiRes.text || "{}");
-    res.json(parsed);
+    if (genRes.parsedJson && Object.keys(genRes.parsedJson).length > 0) {
+      return res.json(genRes.parsedJson);
+    }
+    const match = genRes.text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return res.json(JSON.parse(match[0]));
+      } catch {}
+    }
+    res.json(generateModelAnswerFallback(question, subject, marks, year));
   } catch (error: any) {
     console.error("Model answer error:", error);
     res.json(generateModelAnswerFallback(req.body.question, req.body.subject, req.body.marks || 15, req.body.year || 2026));

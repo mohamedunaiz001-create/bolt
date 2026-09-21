@@ -282,7 +282,13 @@ export class BoltAgentRuntime {
     userMessage: string,
     history: { role: string; text: string }[] = [],
     candidateData: any = {},
-    options: { modelOverride?: string; providerOverride?: "local" | "cloud" | "auto" } = {}
+    options: {
+      modelOverride?: string;
+      providerOverride?: string;
+      apiKeyOverride?: string;
+      baseUrlOverride?: string;
+      endpointOverride?: string;
+    } = {}
   ): Promise<BoltAgentRunResult> {
     const context = this.buildStrictContext(candidateData, userMessage);
     const executedSteps: AgentExecutionStep[] = [];
@@ -374,6 +380,9 @@ CORE COMMUNICATION PRINCIPLES:
       citations: context.retrievedKnowledge,
       modelOverride: options.modelOverride,
       providerOverride: options.providerOverride,
+      apiKeyOverride: options.apiKeyOverride,
+      baseUrlOverride: options.baseUrlOverride,
+      endpointOverride: options.endpointOverride,
     });
 
     return {

@@ -186,9 +186,29 @@ export interface ModelRecommendation {
   alternativeModelId?: string;
 }
 
+export type AIProviderType =
+  | "gemini"
+  | "openai"
+  | "anthropic"
+  | "groq"
+  | "openrouter"
+  | "deepseek"
+  | "mistral"
+  | "together"
+  | "perplexity"
+  | "xai"
+  | "cohere"
+  | "local"
+  | "custom";
+
+export type GatewayProvider = AIProviderType;
+
 export interface ActiveModelConfig {
   selectedModelId: string;
   modelType: "cloud" | "local";
+  provider?: AIProviderType;
+  apiKey?: string;
+  baseUrl?: string;
   localEndpoint: string;
   temperature: number;
   contextWindowTokens: number;

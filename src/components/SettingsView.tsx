@@ -28,6 +28,12 @@ import {
   Layers,
   Award,
   Brain,
+  Key,
+  Eye,
+  EyeOff,
+  Globe,
+  Lock,
+  ExternalLink,
 } from "lucide-react";
 import {
   UserProfile,
@@ -35,12 +41,14 @@ import {
   LaptopSpecs,
   AppThemeMode,
   NavigationTab,
+  GatewayProvider,
 } from "../types";
 import {
   AVAILABLE_MODELS,
   DEFAULT_LAPTOP_SPECS,
   DEFAULT_ACTIVE_MODEL_CONFIG,
   calculateHardwareRecommendation,
+  PROVIDER_METAS,
 } from "../data/modelsData";
 
 interface SettingsViewProps {
@@ -72,6 +80,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [localConfig, setLocalConfig] = useState<ActiveModelConfig>(
     activeModelConfig || DEFAULT_ACTIVE_MODEL_CONFIG
   );
+
+  // Model Provider UI State
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [customModelInput, setCustomModelInput] = useState("");
+  const [savedToast, setSavedToast] = useState(false);
 
   // Live AI Ping State
   const [isPinging, setIsPinging] = useState(false);
@@ -142,31 +155,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       localStorage.setItem("bolt_active_model_config", JSON.stringify(next));
     } catch {}
 
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2000);
+
     // Sync to backend gateway config if changed
+    const activeProvider = next.provider || (next.modelType === "local" ? "local" : "gemini");
     fetch("/api/ai/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        provider: activeProvider,
+        apiKey: next.apiKey,
+        baseUrl: next.baseUrl,
         cloudModelId: next.selectedModelId,
         localEndpoint: next.localEndpoint,
         temperature: next.temperature,
         contextWindow: next.contextWindowTokens,
-        provider: next.modelType === "local" ? "local" : "cloud",
       }),
     }).catch(console.error);
   };
 
-  const handleRunPingTest = async () => {
+  const handleRunPingTest = async (override?: { provider?: string; modelId?: string; apiKey?: string; baseUrl?: string }) => {
     setIsPinging(true);
     setPingResult(null);
     try {
+      const activeProvider = override?.provider || localConfig.provider || (localConfig.modelType === "local" ? "local" : "gemini");
+      const activeModelId = override?.modelId || localConfig.selectedModelId;
+      const activeKey = override?.apiKey !== undefined ? override.apiKey : localConfig.apiKey;
+      const activeBaseUrl = override?.baseUrl !== undefined ? override.baseUrl : localConfig.baseUrl;
+
       const res = await fetch("/api/ai/test-connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          modelId: localConfig.selectedModelId,
-          modelType: localConfig.modelType,
+          provider: activeProvider,
+          modelId: activeModelId,
+          apiKey: activeKey,
+          baseUrl: activeBaseUrl,
           localEndpoint: localConfig.localEndpoint,
+          modelType: activeProvider === "local" ? "local" : "cloud",
         }),
       });
       const data = await res.json();
@@ -220,7 +247,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {/* Quick Latency / Status Badge */}
           <div className="flex items-center space-x-3">
             <button
-              onClick={handleRunPingTest}
+              onClick={() => handleRunPingTest()}
               disabled={isPinging}
               className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-semibold transition-colors disabled:opacity-50"
             >
@@ -329,6 +356,293 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* SECTION 1: AI MODELS & DELIBERATION */}
         {activeSection === "ai_models" && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Top Provider Status / Saved Toast */}
+            {savedToast && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center justify-between animate-in fade-in">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Model & Provider configuration saved! Active across Bolt Chat, Mains Evaluation, and Model Answers.</span>
+                </div>
+                <span className="text-[10px] text-emerald-500/80 font-mono">Sync: OK</span>
+              </div>
+            )}
+
+            {/* 1. MODEL PROVIDER & API CREDENTIALS (BYO API KEY) */}
+            <div className="bg-[#0f1422] p-5 rounded-2xl border border-[#1e293b] space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                <div>
+                  <h2 className="text-sm font-bold text-white flex items-center space-x-2">
+                    <Key className="w-4 h-4 text-amber-400" />
+                    <span>AI Model Provider & API Key Configuration</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Select your AI inference provider (Gemini, OpenAI, Anthropic, Groq, OpenRouter, Custom, or Local Ollama) and configure your API keys.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[11px] px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 font-mono">
+                    Provider: {localConfig.provider || (localConfig.modelType === "local" ? "local" : "gemini")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Provider Selection Cards */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Select Provider
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  {PROVIDER_METAS.map((provider) => {
+                    const activeProviderId = localConfig.provider || (localConfig.modelType === "local" ? "local" : "gemini");
+                    const isSelected = activeProviderId === provider.id;
+
+                    return (
+                      <button
+                        key={provider.id}
+                        type="button"
+                        onClick={() => {
+                          const targetProvider = provider.id as GatewayProvider;
+                          const nextUpdates: Partial<ActiveModelConfig> = {
+                            provider: targetProvider,
+                            modelType: targetProvider === "local" ? "local" : "cloud",
+                            selectedModelId: provider.defaultModel,
+                          };
+                          if (provider.defaultBaseUrl) {
+                            nextUpdates.baseUrl = provider.defaultBaseUrl;
+                            if (targetProvider === "local") {
+                              nextUpdates.localEndpoint = provider.defaultBaseUrl;
+                            }
+                          }
+                          handleConfigChange(nextUpdates);
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between space-y-2 ${
+                          isSelected
+                            ? "bg-gradient-to-b from-indigo-900/40 to-[#121929] border-indigo-500 ring-2 ring-indigo-500/30 shadow-md shadow-indigo-500/10"
+                            : "bg-[#141b2a]/60 border-[#222f46] hover:border-slate-600 hover:bg-[#182133]"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <span className="text-xs font-bold text-white">{provider.name}</span>
+                          <span
+                            className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                              isSelected
+                                ? "bg-indigo-500 text-white"
+                                : "bg-slate-800 text-slate-400"
+                            }`}
+                          >
+                            {provider.badge}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                          {provider.description}
+                        </p>
+                        <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 font-mono truncate max-w-[130px]">
+                            {provider.defaultModel}
+                          </span>
+                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Active Provider Detailed Settings Panel */}
+              {(() => {
+                const activeProviderId = localConfig.provider || (localConfig.modelType === "local" ? "local" : "gemini");
+                const currentMeta = PROVIDER_METAS.find((p) => p.id === activeProviderId) || PROVIDER_METAS[0];
+                const needsApiKey = currentMeta.id !== "local";
+
+                return (
+                  <div className="p-4 rounded-xl bg-[#141b2a]/90 border border-[#222f46] space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                      <div>
+                        <h3 className="text-xs font-bold text-white flex items-center space-x-2">
+                          <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>{currentMeta.name} Configuration & Credentials</span>
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          {currentMeta.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {localConfig.apiKey ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1">
+                            <Lock className="w-3 h-3" />
+                            <span>Custom Key Active</span>
+                          </span>
+                        ) : currentMeta.id === "gemini" ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center space-x-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>System Default Key Active</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>Key Required</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* API Key Input */}
+                      {needsApiKey && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                              <Key className="w-3 h-3 text-amber-400" />
+                              <span>{currentMeta.name} API Key</span>
+                            </label>
+                            {localConfig.apiKey && (
+                              <button
+                                type="button"
+                                onClick={() => handleConfigChange({ apiKey: "" })}
+                                className="text-[10px] text-red-400 hover:text-red-300 transition-colors"
+                              >
+                                Clear Key
+                              </button>
+                            )}
+                          </div>
+                          <div className="relative">
+                            <input
+                              type={showApiKey ? "text" : "password"}
+                              value={localConfig.apiKey || ""}
+                              onChange={(e) => handleConfigChange({ apiKey: e.target.value.trim() })}
+                              placeholder={currentMeta.apiKeyPlaceholder}
+                              className="w-full px-3 py-2 pr-10 rounded-lg bg-[#0a0e17] border border-[#2a3852] text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowApiKey(!showApiKey)}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                            >
+                              {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-slate-400">
+                            {currentMeta.id === "gemini"
+                              ? "Optional: Leave empty to use the server's Gemini environment key, or provide your own Google AI Studio key."
+                              : `Paste your personal ${currentMeta.name} key. Never logged or exposed.`}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Custom Base URL (for Local, Custom, or proxy) */}
+                      {(currentMeta.id === "custom" || currentMeta.id === "local" || currentMeta.defaultBaseUrl) && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                            <Globe className="w-3 h-3 text-blue-400" />
+                            <span>Endpoint / Base URL</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localConfig.baseUrl || currentMeta.defaultBaseUrl || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleConfigChange({
+                                baseUrl: val,
+                                localEndpoint: currentMeta.id === "local" ? val : localConfig.localEndpoint,
+                              });
+                            }}
+                            placeholder={currentMeta.defaultBaseUrl || "https://api.openai.com/v1"}
+                            className="w-full px-3 py-2 rounded-lg bg-[#0a0e17] border border-[#2a3852] text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            {currentMeta.id === "local"
+                              ? "Default Ollama URL is http://localhost:11434 (start with 'ollama serve')"
+                              : "Root URL for the OpenAI-compatible API endpoint (e.g. Together, vLLM, LM Studio)."}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Curated Models for Selected Provider */}
+                    <div className="space-y-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-300">
+                          Curated Models for {currentMeta.name}
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          Selected: <strong className="text-white">{localConfig.selectedModelId}</strong>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {currentMeta.models.map((m) => {
+                          const isCuratedActive = localConfig.selectedModelId === m.id;
+                          return (
+                            <div
+                              key={m.id}
+                              onClick={() => handleConfigChange({ selectedModelId: m.id })}
+                              className={`p-2.5 rounded-lg border cursor-pointer transition-all flex flex-col justify-between ${
+                                isCuratedActive
+                                  ? "bg-indigo-950/40 border-indigo-500 ring-1 ring-indigo-500/50"
+                                  : "bg-[#0a0e17]/80 border-[#222f46] hover:border-slate-600 hover:bg-[#101726]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-white truncate max-w-[160px]">{m.name}</span>
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">
+                                  {m.badge}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 line-clamp-1 mb-1.5">{m.description}</p>
+                              <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono">
+                                <span>{m.context}</span>
+                                {isCuratedActive && <Check className="w-3 h-3 text-indigo-400" />}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Custom Model Name Input Field */}
+                      <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input
+                          type="text"
+                          value={customModelInput}
+                          onChange={(e) => setCustomModelInput(e.target.value)}
+                          placeholder={`Enter custom ${currentMeta.name} model ID (e.g. ${currentMeta.defaultModel})`}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-[#0a0e17] border border-[#2a3852] text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                        />
+                        <button
+                          type="button"
+                          disabled={!customModelInput.trim()}
+                          onClick={() => {
+                            if (customModelInput.trim()) {
+                              handleConfigChange({ selectedModelId: customModelInput.trim() });
+                              setCustomModelInput("");
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold transition-colors flex items-center justify-center space-x-1.5"
+                        >
+                          <span>Apply Custom Model</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Test Connection Button & Diagnosis */}
+                    <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center space-x-2 text-xs text-slate-400">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                        <span>Changes apply immediately across the entire workspace.</span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isPinging}
+                        onClick={() => handleRunPingTest()}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center space-x-2 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isPinging ? "animate-spin" : ""}`} />
+                        <span>{isPinging ? "Testing Connection..." : `Test ${currentMeta.name} Connection`}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Active Model Cards */}
             <div className="bg-[#0f1422] p-5 rounded-2xl border border-[#1e293b] space-y-4">
               <div className="flex items-center justify-between">
