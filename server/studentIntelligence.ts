@@ -215,7 +215,10 @@ export class StudentIntelligenceEngine {
     const prelimsAttempts = candidateData.prelimsAttempts || {};
 
     const attemptKeys = Object.keys(prelimsAttempts);
-    const hasSufficientData = topics.length > 0 || attemptKeys.length >= 5 || evaluations.length >= 1;
+    const hasStudiedTopics = topics.some(
+      (t) => (t.completionPercentage || t.completedPercentage || t.knowledgeScore || 0) > 0
+    );
+    const hasSufficientData = hasStudiedTopics || attemptKeys.length >= 5 || evaluations.length >= 1;
 
     // 1. Calculate Syllabus Completion vs Knowledge Mastery (Separated!)
     let totalCompletion = 0;
@@ -390,3 +393,20 @@ export class StudentIntelligenceEngine {
     };
   }
 }
+
+export const calculateStudentIntelligenceReport = (input: {
+  user?: any;
+  topics?: any[];
+  evaluations?: any[];
+  studySessions?: any[];
+  prelimsAttempts?: any;
+}) => {
+  return StudentIntelligenceEngine.analyze({
+    topics: input.topics || [],
+    evaluations: input.evaluations || [],
+    studySessions: input.studySessions || [],
+    prelimsAttempts: input.prelimsAttempts || {},
+  });
+};
+
+

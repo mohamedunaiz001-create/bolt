@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Layers,
   Award,
+  Brain,
 } from "lucide-react";
 import {
   UserProfile,

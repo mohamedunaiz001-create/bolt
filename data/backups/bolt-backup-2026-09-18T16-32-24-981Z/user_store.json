@@ -1,0 +1,477 @@
+{
+  "accounts": [
+    {
+      "id": "user_1789702699710_47t5x",
+      "name": "Audit User",
+      "email": "audit_1789702699710@upsc-bolt.org",
+      "password": "SuperSecretPassword123!",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T03:38:19.710Z"
+    },
+    {
+      "id": "user_1789702732687_wtuzp",
+      "name": "Audit User",
+      "email": "audit_1789702732686@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T03:38:52.687Z"
+    },
+    {
+      "id": "user_1789702837460_3fpi7",
+      "name": "Audit User",
+      "email": "audit_1789702837459@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T03:40:37.460Z"
+    },
+    {
+      "id": "user_1789704911642_w4id7",
+      "name": "Audit User",
+      "email": "audit_1789704911641@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T04:15:11.642Z"
+    },
+    {
+      "id": "user_1789705513554_gdhqo",
+      "name": "Audit User",
+      "email": "audit_1789705513554@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T04:25:13.554Z"
+    },
+    {
+      "id": "user_1789705765731_6z9ap",
+      "name": "Audit User",
+      "email": "audit_1789705765731@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T04:29:25.731Z"
+    },
+    {
+      "id": "user_1789706534242_4s8ot",
+      "name": "Audit User",
+      "email": "audit_1789706534242@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T04:42:14.242Z"
+    },
+    {
+      "id": "user_1789707501422_4sfpn",
+      "name": "Audit User",
+      "email": "audit_1789707501422@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T04:58:21.422Z"
+    },
+    {
+      "id": "user_1789708314020_5ragf",
+      "name": "Audit User",
+      "email": "audit_1789708314019@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T05:11:54.020Z"
+    },
+    {
+      "id": "user_1789708759275_2ga5m",
+      "name": "Audit User",
+      "email": "audit_1789708759275@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T05:19:19.275Z"
+    },
+    {
+      "id": "user_1789709026702_21qs6",
+      "name": "Audit User",
+      "email": "audit_1789709026701@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T05:23:46.702Z"
+    },
+    {
+      "id": "user_1789710542349_dtolj",
+      "name": "Audit User",
+      "email": "audit_1789710542348@upsc-bolt.org",
+      "password": "16a77dc27aababcb9f21899f0eef6fe748edc12c9faff95e21a7ece25d7d71d7",
+      "target": "UPSC CSE 2026",
+      "optionalSubject": "Public Administration",
+      "createdAt": "2026-09-18T05:49:02.349Z"
+    }
+  ],
+  "userProgress": {
+    "user_1789702699710_47t5x": {
+      "userId": "user_1789702699710_47t5x",
+      "user": {
+        "id": "user_1789702699710_47t5x",
+        "name": "Audit User",
+        "email": "audit_1789702699710@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T03:38:19.711Z"
+    },
+    "user_1789702732687_wtuzp": {
+      "userId": "user_1789702732687_wtuzp",
+      "user": {
+        "id": "user_1789702732687_wtuzp",
+        "name": "Audit User",
+        "email": "audit_1789702732686@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T03:38:52.687Z"
+    },
+    "user_1789702837460_3fpi7": {
+      "userId": "user_1789702837460_3fpi7",
+      "user": {
+        "id": "user_1789702837460_3fpi7",
+        "name": "Audit User",
+        "email": "audit_1789702837459@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T03:40:37.460Z"
+    },
+    "user_1789704911642_w4id7": {
+      "userId": "user_1789704911642_w4id7",
+      "user": {
+        "id": "user_1789704911642_w4id7",
+        "name": "Audit User",
+        "email": "audit_1789704911641@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T04:15:11.642Z"
+    },
+    "user_1789705513554_gdhqo": {
+      "userId": "user_1789705513554_gdhqo",
+      "user": {
+        "id": "user_1789705513554_gdhqo",
+        "name": "Audit User",
+        "email": "audit_1789705513554@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T04:25:13.555Z"
+    },
+    "user_1789705765731_6z9ap": {
+      "userId": "user_1789705765731_6z9ap",
+      "user": {
+        "id": "user_1789705765731_6z9ap",
+        "name": "Audit User",
+        "email": "audit_1789705765731@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T04:29:25.732Z"
+    },
+    "user_1789706534242_4s8ot": {
+      "userId": "user_1789706534242_4s8ot",
+      "user": {
+        "id": "user_1789706534242_4s8ot",
+        "name": "Audit User",
+        "email": "audit_1789706534242@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T04:42:14.243Z"
+    },
+    "user_1789707501422_4sfpn": {
+      "userId": "user_1789707501422_4sfpn",
+      "user": {
+        "id": "user_1789707501422_4sfpn",
+        "name": "Audit User",
+        "email": "audit_1789707501422@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T04:58:21.423Z"
+    },
+    "user_1789708314020_5ragf": {
+      "userId": "user_1789708314020_5ragf",
+      "user": {
+        "id": "user_1789708314020_5ragf",
+        "name": "Audit User",
+        "email": "audit_1789708314019@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T05:11:54.020Z"
+    },
+    "user_1789708759275_2ga5m": {
+      "userId": "user_1789708759275_2ga5m",
+      "user": {
+        "id": "user_1789708759275_2ga5m",
+        "name": "Audit User",
+        "email": "audit_1789708759275@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T05:19:19.276Z"
+    },
+    "user_1789709026702_21qs6": {
+      "userId": "user_1789709026702_21qs6",
+      "user": {
+        "id": "user_1789709026702_21qs6",
+        "name": "Audit User",
+        "email": "audit_1789709026701@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T05:23:46.702Z"
+    },
+    "user_1789710542349_dtolj": {
+      "userId": "user_1789710542349_dtolj",
+      "user": {
+        "id": "user_1789710542349_dtolj",
+        "name": "Audit User",
+        "email": "audit_1789710542348@upsc-bolt.org",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark"
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T05:49:02.349Z"
+    },
+    "test-user-1789748986494": {
+      "userId": "test-user-1789748986494",
+      "user": {
+        "id": "test-user-1789748986494",
+        "name": "Aspirant",
+        "email": "",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark",
+        "weakAreas": [
+          "Centre-State Relations",
+          "Ethics Case Studies"
+        ]
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [
+        {
+          "topicId": "top-1",
+          "topicName": "Chester Barnard - Zone of Indifference",
+          "paper": "PubAdmin Paper 1",
+          "durationMinutes": 45,
+          "type": "theory"
+        }
+      ],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T16:29:46.496Z"
+    },
+    "test-user-1789749082084": {
+      "userId": "test-user-1789749082084",
+      "user": {
+        "studyStreakDays": 1,
+        "totalStudyHours": 0.8,
+        "weakAreas": [
+          "Centre-State Relations",
+          "Ethics Case Studies"
+        ]
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [
+        {
+          "topicId": "top-1",
+          "topicName": "Chester Barnard - Zone of Indifference",
+          "paper": "PubAdmin Paper 1",
+          "durationMinutes": 45,
+          "type": "theory"
+        }
+      ],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T16:31:22.086Z"
+    },
+    "test-user-1789749144078": {
+      "userId": "test-user-1789749144078",
+      "user": {
+        "studyStreakDays": 1,
+        "totalStudyHours": 0.8,
+        "weakAreas": [
+          "Centre-State Relations",
+          "Ethics Case Studies"
+        ]
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [
+        {
+          "topicId": "top-1",
+          "topicName": "Chester Barnard - Zone of Indifference",
+          "paper": "PubAdmin Paper 1",
+          "durationMinutes": 45,
+          "type": "theory"
+        }
+      ],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T16:32:24.080Z"
+    }
+  }
+}

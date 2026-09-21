@@ -564,14 +564,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-400">Latest Answer Graded</span>
                   <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Score: {latestEvaluation.score} / {latestEvaluation.totalMarks}
+                    Score: {latestEvaluation.score} / {latestEvaluation.maxMarks}
                   </span>
                 </div>
                 <h5 className="text-xs font-bold text-white line-clamp-2">
-                  "{latestEvaluation.question}"
+                  "{latestEvaluation.questionText}"
                 </h5>
                 <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                  Bolt feedback: {latestEvaluation.feedback?.strengths?.[0] || "Evaluation complete."}
+                  Bolt feedback: {latestEvaluation.boltFeedback || latestEvaluation.whatWentWell?.[0] || "Evaluation complete."}
                 </p>
                 <button
                   onClick={onViewEvaluation}

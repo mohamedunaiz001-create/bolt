@@ -385,6 +385,93 @@
       "prelimsAttempts": {},
       "bookmarks": [],
       "updatedAt": "2026-09-18T05:49:02.349Z"
+    },
+    "test-user-1789748986494": {
+      "userId": "test-user-1789748986494",
+      "user": {
+        "id": "test-user-1789748986494",
+        "name": "Aspirant",
+        "email": "",
+        "target": "UPSC CSE 2026",
+        "optionalSubject": "Public Administration",
+        "studyStreakDays": 0,
+        "totalStudyHours": 0,
+        "questionsAttempted": 0,
+        "mainsEvaluatedCount": 0,
+        "overallAccuracy": 0,
+        "themeMode": "dark",
+        "weakAreas": [
+          "Centre-State Relations",
+          "Ethics Case Studies"
+        ]
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [
+        {
+          "topicId": "top-1",
+          "topicName": "Chester Barnard - Zone of Indifference",
+          "paper": "PubAdmin Paper 1",
+          "durationMinutes": 45,
+          "type": "theory"
+        }
+      ],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T16:29:46.496Z"
+    },
+    "test-user-1789749082084": {
+      "userId": "test-user-1789749082084",
+      "user": {
+        "studyStreakDays": 1,
+        "totalStudyHours": 0.8,
+        "weakAreas": [
+          "Centre-State Relations",
+          "Ethics Case Studies"
+        ]
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [
+        {
+          "topicId": "top-1",
+          "topicName": "Chester Barnard - Zone of Indifference",
+          "paper": "PubAdmin Paper 1",
+          "durationMinutes": 45,
+          "type": "theory"
+        }
+      ],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T16:31:22.086Z"
+    },
+    "test-user-1789749144078": {
+      "userId": "test-user-1789749144078",
+      "user": {
+        "studyStreakDays": 1,
+        "totalStudyHours": 0.8,
+        "weakAreas": [
+          "Centre-State Relations",
+          "Ethics Case Studies"
+        ]
+      },
+      "topics": [],
+      "evaluations": [],
+      "timetableSlots": [],
+      "studySessions": [
+        {
+          "topicId": "top-1",
+          "topicName": "Chester Barnard - Zone of Indifference",
+          "paper": "PubAdmin Paper 1",
+          "durationMinutes": 45,
+          "type": "theory"
+        }
+      ],
+      "prelimsAttempts": {},
+      "bookmarks": [],
+      "updatedAt": "2026-09-18T16:32:24.080Z"
     }
   }
 }

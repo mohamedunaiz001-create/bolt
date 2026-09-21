@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import Markdown from "react-markdown";
 import {
   Zap,
   Send,
@@ -10,14 +11,17 @@ import {
   RotateCcw,
   BookOpen,
   ArrowRight,
-  ShieldCheck,
-  Wrench,
+  ArrowDown,
+  Copy,
+  Check,
   CheckCircle2,
   ChevronDown,
   Globe,
   FileText,
   Bookmark,
-  HelpCircle,
+  Calendar,
+  Layers,
+  Compass,
 } from "lucide-react";
 import {
   ChatMessage,
@@ -29,6 +33,8 @@ import {
   NewsArticle,
   PrelimsQuestion,
   AgentToolCall,
+  TimetableSlot,
+  StudySessionLog,
 } from "../types";
 import { computeBoltAppContext } from "../services/appContextService";
 import { executeAgentTool, detectToolFromPrompt, BOLT_TOOL_DEFINITIONS } from "../services/boltAgentTools";
@@ -40,6 +46,8 @@ interface BoltAssistantViewProps {
   evaluations?: MainsAnswerEvaluation[];
   articles?: NewsArticle[];
   questions?: PrelimsQuestion[];
+  timetableSlots?: TimetableSlot[];
+  studySessions?: StudySessionLog[];
   onNavigateTab: (tab: NavigationTab) => void;
   initialPrompt?: string | null;
   onClearInitialPrompt?: () => void;
@@ -53,6 +61,8 @@ export const BoltAssistantView: React.FC<BoltAssistantViewProps> = ({
   evaluations = [],
   articles = [],
   questions = [],
+  timetableSlots = [],
+  studySessions = [],
   onNavigateTab,
   initialPrompt,
   onClearInitialPrompt,
@@ -66,29 +76,35 @@ export const BoltAssistantView: React.FC<BoltAssistantViewProps> = ({
     {
       id: "m-1",
       role: "assistant",
-      text: `Hello ${user.name}! I am **BOLT**, your dedicated UPSC mentor and preparation brain.
+      text: `Hello ${user.name}! I am **BOLT**, your dedicated UPSC mentor and preparation companion.
 
-I have real-time access to your live study dashboard:
-• **Syllabus completion:** ${liveContext.syllabus.overallCompletion}% overall (Paper 1: ${liveContext.syllabus.paper1Completion}%, Paper 2: ${liveContext.syllabus.paper2Completion}%)
-• **Critical weak units:** ${
+I have real-time access to your entire study workspace:
+- **Syllabus completion:** ${liveContext.syllabus.overallCompletion}% overall (Paper 1: ${liveContext.syllabus.paper1Completion}%, Paper 2: ${liveContext.syllabus.paper2Completion}%)
+- **Critical weak units:** ${
         liveContext.syllabus.weakTopics.map((w) => `${w.name} (${w.score}%)`).join(", ") ||
-        "Administrative Thought, Accountability"
+        "Administrative Thought, Accountability & Control"
       }
-• **Strong areas:** ${
+- **Strong areas:** ${
         liveContext.syllabus.strongTopics.map((s) => `${s.name} (${s.score}%)`).join(", ") ||
-        "Administrative Behaviour"
+        "Administrative Behaviour, Constitutional Framework"
       }
-• **Practice record:** ${liveContext.prelimsPerformance.questionsAttempted} MCQs attempted • ${liveContext.prelimsPerformance.accuracyPercentage}% accuracy
-• **Mains evaluations:** ${liveContext.mainsPerformance.evaluatedCount} answers evaluated (${liveContext.mainsPerformance.averageScore}/15 average)
+- **Practice record:** ${liveContext.prelimsPerformance.questionsAttempted} MCQs attempted • ${liveContext.prelimsPerformance.accuracyPercentage}% accuracy
+- **Mains evaluations:** ${liveContext.mainsPerformance.evaluatedCount} answers evaluated (${liveContext.mainsPerformance.averageScore}/15 average)
 
-You can ask me to evaluate answers, generate high-scoring model answers, diagnose your weak areas, or clarify complex administrative theories. What shall we tackle today?`,
+You can ask me to:
+- **Diagnose weak spots** and formulate tailored revision schedules
+- **Evaluate your Mains answers** against UPSC 7-dimension rubrics
+- **Generate topper model answers** with flowcharts and 2nd ARC citations
+- **Navigate directly to any section** using interactive action links below
+
+[⚡ Practice Prelims MCQs](#action:prelims) &nbsp; [📝 Evaluate Mains Answer](#action:mains) &nbsp; [📅 View Study Planner](#action:planner)`,
       timestamp: "Just now",
       mode: "public_admin",
       actionCards: [
         {
           type: "topic",
           title: "Public Administration Diagnostic",
-          description: "Analyze your knowledge level in Administrative Thought (Herbert Simon)",
+          description: "Analyze your knowledge level in Administrative Thought (Herbert Simon & Max Weber)",
           actionLabel: "Analyze Weak Area",
         },
         {
@@ -105,15 +121,27 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
   const [inputMessage, setInputMessage] = useState<string>("");
   const [mode, setMode] = useState<"public_admin" | "general">("public_admin");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showScrollBottom, setShowScrollBottom] = useState<boolean>(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] = useState<{
     toolName: string;
     args: Record<string, any>;
     prompt: string;
   } | null>(null);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setShowScrollBottom(false);
+  };
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 140;
+    setShowScrollBottom(isScrolledUp);
   };
 
   useEffect(() => {
@@ -128,6 +156,24 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
       }
     }
   }, [initialPrompt]);
+
+  const handleCopyText = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMessageId(id);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  };
+
+  const handleClearChat = () => {
+    setMessages([
+      {
+        id: "m-" + Date.now(),
+        role: "assistant",
+        text: `Chat cleared. Ready for a new discussion! What would you like to explore regarding your UPSC preparation?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        mode,
+      },
+    ]);
+  };
 
   const sendMessage = async (textToSend?: string) => {
     const query = textToSend || inputMessage;
@@ -148,7 +194,6 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
       // 1. Tool-Calling Check: Check if prompt warrants controlled agent tool execution
       const detected = detectToolFromPrompt(query);
       let executedToolCall: AgentToolCall | undefined;
-      let toolAugmentationText = "";
 
       if (detected) {
         const toolDef = BOLT_TOOL_DEFINITIONS.find((t) => t.name === detected.name);
@@ -180,8 +225,6 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
             result: toolRes.result,
             status: "success",
           };
-
-          toolAugmentationText = `\n\n> 🔧 **Agent Tool Executed: \`${detected.name}\`**\n> *Insight:* ${toolRes.summary}\n`;
         } catch (tErr) {
           console.warn("Tool execution error:", tErr);
         }
@@ -190,13 +233,26 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
       // Re-compute fresh live context on each message to ensure 100% sync
       const freshContext = computeBoltAppContext(user, topics, evaluations, articles, questions);
 
+      const sessionToken = localStorage.getItem("bolt_auth_token");
+      const authHeaders: Record<string, string> = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
+
       const response = await fetch("/api/bolt/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           message: query,
-          history: messages.slice(-6),
+          history: messages.slice(-14).map((m) => ({
+            role: m.role,
+            text: m.text,
+            name: m.role === "assistant" ? "BOLT" : (user.name || "Student"),
+          })),
           mode,
+          user,
+          topics,
+          evaluations,
+          articles,
+          timetableSlots,
+          studySessions,
           modelId: activeModelConfig?.selectedModelId || "gemini-3.8-flash",
           modelType: activeModelConfig?.modelType || "cloud",
           localEndpoint: activeModelConfig?.localEndpoint || "http://localhost:11434",
@@ -225,12 +281,16 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
       });
 
       const data = await response.json();
+      const isFallback = Boolean(data.isFallback || data.status === "AI_FALLBACK");
       const assistantMsg: ChatMessage = {
         id: "a-" + Date.now(),
         role: "assistant",
-        text: (executedToolCall ? toolAugmentationText + "\n" : "") + (data.response || "I am analyzing your request. Please ask again."),
+        text: data.response || "I am analyzing your request. Please ask again.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         mode,
+        status: (data.status as any) || (isFallback ? "AI_FALLBACK" : "AI_SUCCESS"),
+        isFallback,
+        engine: data.engine,
         citations: data.citations || [],
         toolCalls: executedToolCall ? [executedToolCall] : undefined,
       };
@@ -247,9 +307,12 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
       const fallbackMsg: ChatMessage = {
         id: "a-" + Date.now(),
         role: "assistant",
-        text: `⚠️ **BOLT is temporarily unable to reach the configured AI service. Your study data is safe.**\n\nYou can continue offline study or review your verified syllabus metrics below.\n\n### ⚡ Offline Public Administration Guidance:\nRegarding your query on **${query}**:\n\n1. **Theoretical Grounding (Paper 1):**\nAnchor your conceptual reasoning in classical vs behavioural paradigms (Herbert Simon's Bounded Rationality, Chester Barnard's informal organization).\n\n2. **Indian Administrative Reality (Paper 2):**\nCross-reference with Constitutional Articles (Art 311 for civil service safeguards, Art 243 for panchayati raj devolution) and 2nd ARC recommendations (Report 4 on Ethics and Report 10 on Personnel Administration).\n\n3. **Mains Value Addition:**\nDraw a visual schematic or comparative matrix in the exam hall to score 12+ marks.`,
+        text: `⚠️ **BOLT is currently offline. Your study records and metrics remain securely saved.**\n\n### ⚡ Offline Guidance for: "${query}"\n\n1. **Theoretical Foundation (Paper 1):**\nAnchor your conceptual reasoning in classical vs behavioural paradigms (Herbert Simon's Bounded Rationality, Chester Barnard's informal organization).\n\n2. **Indian Administrative Reality (Paper 2):**\nCross-reference with Constitutional Articles (Art 311 for civil service safeguards, Art 243 for local devolution) and 2nd ARC recommendations (Report 4 on Ethics and Report 10 on Personnel Administration).\n\n3. **Recommended Actions:**\n- [⚡ Practice Prelims MCQs](#action:prelims)\n- [📝 Evaluate Mains Answer](#action:mains)\n- [📅 View Timetable & Schedule](#action:planner)`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         mode,
+        status: "AI_UNAVAILABLE",
+        isFallback: true,
+        engine: "Bolt Offline Heuristic Fallback",
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -259,64 +322,77 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
 
   const quickPrompts = [
     {
-      label: "Analyze my Public Administration progress",
-      prompt: "Analyze my Public Administration syllabus progress, topic knowledge scores, and weak areas.",
+      label: "Analyze my weak areas",
+      prompt: "Analyze my Public Administration syllabus progress, topic knowledge scores, and critical weak units.",
     },
     {
       label: "Why am I weak in Thinkers?",
-      prompt: "Why is my knowledge score in Administrative Thought low, and how can I fix it?",
+      prompt: "Why is my knowledge score in Administrative Thought low, and what specific steps should I take?",
     },
     {
-      label: "Model Answer for Herbert Simon",
-      prompt: "Give me a 15-marker model answer for Herbert Simon's Bounded Rationality with diagram and 2nd ARC citations.",
+      label: "Model Answer: Herbert Simon",
+      prompt: "Give me a 15-marker UPSC Mains model answer for Herbert Simon's Bounded Rationality with diagram and 2nd ARC citations.",
     },
     {
       label: "7-Day Targeted Study Plan",
-      prompt: "Create a 7-day personalized revision plan targeting my weak units in Paper 1 and Paper 2.",
+      prompt: "Create a 7-day personalized revision timetable targeting my weakest units in Paper 1 and Paper 2.",
+    },
+    {
+      label: "Today's UPSC Current Affairs",
+      prompt: "Summarize today's top editorial developments with 3 Prelims facts and 2 Mains Public Administration dimensions.",
     },
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 pb-24 md:pb-12 h-[calc(100vh-5rem)] flex flex-col">
-      {/* Mentor Header & Mode Switcher - Clean interface with NO model exposure outside settings */}
-      <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md flex-shrink-0">
+    <div className="max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-4 h-[calc(100vh-4.5rem)] flex flex-col relative">
+      {/* Mentor Header & Mode Switcher */}
+      <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-3 sm:p-4 mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md flex-shrink-0">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
             <Zap className="w-5 h-5 text-amber-400 fill-amber-400" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <h2 className="font-bold text-white text-base sm:text-lg font-['Outfit'] flex items-center gap-1.5">
-                <span>BOLT</span>
+                <span>BOLT AI</span>
               </h2>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center space-x-1">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 flex items-center space-x-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Active</span>
+                <span>Active & Connected</span>
               </span>
             </div>
-            <p className="text-slate-400 text-xs">
-              Your UPSC Preparation Assistant with live access to your syllabus & performance data.
+            <p className="text-slate-400 text-xs truncate sm:whitespace-normal">
+              Context-aware UPSC preparation assistant with live access to your syllabus & performance data.
             </p>
           </div>
         </div>
 
-        {/* Mode Switcher */}
-        <div className="flex items-center space-x-2">
+        {/* Action Controls & Mode Switcher */}
+        <div className="flex items-center space-x-2 self-start sm:self-center flex-wrap gap-y-1">
+          <button
+            onClick={handleClearChat}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#162033] hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-colors flex items-center gap-1"
+            title="Start new conversation"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">New Chat</span>
+          </button>
+
           <div className="flex items-center space-x-1 bg-[#162033] p-1 rounded-xl border border-slate-800 text-xs font-semibold">
             <button
               onClick={() => setMode("public_admin")}
-              className={`px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition-all ${
+              className={`px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition-all ${
                 mode === "public_admin"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-slate-400 hover:text-white"
               }`}
             >
               <GraduationCap className="w-3.5 h-3.5" />
-              <span>Pub Admin Mode (Paper 1 & 2)</span>
+              <span>Pub Admin</span>
             </button>
             <button
               onClick={() => setMode("general")}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-2.5 py-1.5 rounded-lg transition-all ${
                 mode === "general"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-slate-400 hover:text-white"
@@ -329,7 +405,11 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-grow overflow-y-auto space-y-4 pr-1 scrollbar-thin">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 sm:pr-2 scrollbar-thin"
+      >
         {messages.map((msg) => {
           const isUser = msg.role === "user";
 
@@ -349,12 +429,24 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
               </div>
 
               <div
-                className={`max-w-2xl rounded-2xl p-4 sm:p-5 text-xs sm:text-sm space-y-3 leading-relaxed shadow-sm ${
+                className={`max-w-[90%] sm:max-w-2xl rounded-2xl p-4 sm:p-5 text-xs sm:text-sm space-y-3 leading-relaxed shadow-sm relative group ${
                   isUser
                     ? "bg-blue-600 text-white rounded-tr-none"
                     : "bg-[#111723] text-slate-200 border border-[#1e293b] rounded-tl-none"
                 }`}
               >
+                {/* Fallback Warning Badge */}
+                {!isUser && msg.isFallback && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-medium">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+                    <span>
+                      {msg.status === "AI_UNAVAILABLE"
+                        ? "Offline Fallback: AI service unreachable. Showing deterministic syllabus guidance."
+                        : `Offline Academic Rule-Base: ${msg.engine || "Deterministic syllabus heuristic"}`}
+                    </span>
+                  </div>
+                )}
+
                 {/* Agent Tool Execution Badge */}
                 {msg.toolCalls && msg.toolCalls.length > 0 && (
                   <div className="space-y-2 pb-2">
@@ -369,12 +461,12 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
                             <div className="flex items-center space-x-2">
                               <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                               <span className="font-semibold text-blue-200">
-                                {insight?.headline || `⚡ BOLT verified tool execution: ${tc.name}`}
+                                {insight?.headline || `⚡ Verified Tool Execution: ${tc.name}`}
                               </span>
                             </div>
                             <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold text-[10px] flex items-center space-x-1">
                               <CheckCircle2 className="w-3 h-3" />
-                              <span>Verified Real Data</span>
+                              <span>Live App Data</span>
                             </span>
                           </div>
 
@@ -419,9 +511,88 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
                   </div>
                 )}
 
-                {/* Text rendered */}
-                <div className="prose prose-invert prose-xs sm:prose-sm max-w-none whitespace-pre-wrap">
-                  {msg.text}
+                {/* Rich Markdown Rendered Body */}
+                <div className="markdown-body text-slate-200 text-xs sm:text-sm leading-relaxed space-y-2.5">
+                  <Markdown
+                    components={{
+                      h1: ({ children }) => (
+                        <h1 className="text-base sm:text-lg font-bold text-white mt-3.5 mb-1.5 pb-1 border-b border-slate-700/60">
+                          {children}
+                        </h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-sm sm:text-base font-bold text-blue-200 mt-3 mb-1">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-xs sm:text-sm font-bold text-amber-300 mt-2.5 mb-1">
+                          {children}
+                        </h3>
+                      ),
+                      h4: ({ children }) => (
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-200 mt-2 mb-0.5">
+                          {children}
+                        </h4>
+                      ),
+                      p: ({ children }) => <p className="mb-2 leading-relaxed text-slate-200">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1 text-slate-200">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1 text-slate-200">{children}</ol>,
+                      li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                      em: ({ children }) => <em className="italic text-slate-300">{children}</em>,
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-2 border-blue-500/80 pl-3 py-1 my-2 bg-blue-950/20 rounded-r-lg text-slate-300 text-xs italic">
+                          {children}
+                        </blockquote>
+                      ),
+                      code: ({ inline, children, ...props }: any) =>
+                        inline ? (
+                          <code className="px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 font-mono text-[11px]" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code className="block p-3 rounded-xl bg-[#0b101b] border border-slate-800 text-slate-200 font-mono text-xs overflow-x-auto my-2" {...props}>
+                            {children}
+                          </code>
+                        ),
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-3 rounded-xl border border-slate-800">
+                          <table className="w-full text-left text-xs border-collapse">{children}</table>
+                        </div>
+                      ),
+                      thead: ({ children }) => <thead className="bg-[#162033] text-slate-200 border-b border-slate-700/60">{children}</thead>,
+                      th: ({ children }) => <th className="p-2 font-semibold text-slate-100">{children}</th>,
+                      td: ({ children }) => <td className="p-2 border-b border-slate-800/60 text-slate-300">{children}</td>,
+                      a: ({ href, children }) => {
+                        if (href && href.startsWith("#action:")) {
+                          const actionTab = href.replace("#action:", "") as NavigationTab;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateTab(actionTab)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 my-1 mx-0.5 rounded-lg bg-blue-600/25 hover:bg-blue-600/40 border border-blue-500/40 text-blue-200 hover:text-white font-medium text-xs transition-all cursor-pointer shadow-sm"
+                            >
+                              <span>{children}</span>
+                              <ArrowRight className="w-3 h-3 text-blue-400" />
+                            </button>
+                          );
+                        }
+                        return (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:underline inline-flex items-center gap-0.5 font-medium"
+                          >
+                            {children}
+                          </a>
+                        );
+                      },
+                    }}
+                  >
+                    {msg.text}
+                  </Markdown>
                 </div>
 
                 {/* Verified RAG Citations */}
@@ -490,7 +661,7 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
                   </div>
                 )}
 
-                {/* Optional Action Cards (e.g. Test, Model Answer) */}
+                {/* Optional Action Cards */}
                 {msg.actionCards && msg.actionCards.length > 0 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-800">
                     {msg.actionCards.map((card, cIdx) => (
@@ -518,12 +689,31 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
                   </div>
                 )}
 
-                <div
-                  className={`text-[10px] text-right ${
-                    isUser ? "text-blue-200" : "text-slate-400"
-                  }`}
-                >
-                  {msg.timestamp}
+                {/* Message Footer: Timestamp & Copy Button */}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-800/40 text-[10px] text-slate-400">
+                  <div className="flex items-center gap-2">
+                    {!isUser && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(msg.id, msg.text)}
+                        className="opacity-70 hover:opacity-100 flex items-center gap-1 text-slate-400 hover:text-slate-200 transition-opacity"
+                        title="Copy message text"
+                      >
+                        {copiedMessageId === msg.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <span className={isUser ? "text-blue-200" : "text-slate-400"}>{msg.timestamp}</span>
                 </div>
               </div>
             </div>
@@ -537,7 +727,7 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
             </div>
             <div className="bg-[#111723] border border-[#1e293b] rounded-2xl rounded-tl-none p-4 text-xs text-slate-300 flex items-center space-x-2">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
-              <span>Bolt is reasoning with Public Administration syllabus & academic metrics...</span>
+              <span>Bolt is synthesizing UPSC syllabus & your latest metrics...</span>
             </div>
           </div>
         )}
@@ -545,9 +735,22 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Floating Scroll to Bottom Button */}
+      {showScrollBottom && (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          className="absolute bottom-28 right-6 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xl border border-blue-400/30 transition-all transform hover:scale-105 active:scale-95"
+          title="Scroll to latest message"
+        >
+          <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
+          <span>Latest message</span>
+        </button>
+      )}
+
       {/* Sensitive Action Confirmation Dialog */}
       {pendingSensitiveAction && (
-        <div className="mb-3 p-3.5 rounded-2xl bg-amber-950/50 border border-amber-500/60 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+        <div className="mb-2 p-3.5 rounded-2xl bg-amber-950/50 border border-amber-500/60 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn flex-shrink-0">
           <div className="flex items-start space-x-2.5">
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
@@ -595,14 +798,14 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
         </div>
       )}
 
-      {/* Suggested Quick Prompt Chips */}
-      <div className="py-2.5 overflow-x-auto flex items-center space-x-2 flex-shrink-0 scrollbar-none">
+      {/* Quick Prompt Chips */}
+      <div className="py-2 overflow-x-auto flex items-center space-x-2 flex-shrink-0 scrollbar-none">
         {quickPrompts.map((qp, idx) => (
           <button
             key={idx}
             onClick={() => sendMessage(qp.prompt)}
             disabled={isLoading}
-            className="px-3 py-1.5 rounded-xl bg-[#162033] hover:bg-[#1f2d48] border border-slate-800 text-slate-300 hover:text-white text-xs whitespace-nowrap transition-colors flex items-center space-x-1.5"
+            className="px-3 py-1.5 rounded-xl bg-[#162033] hover:bg-[#1f2d48] border border-slate-800 text-slate-300 hover:text-white text-xs whitespace-nowrap transition-colors flex items-center space-x-1.5 flex-shrink-0"
           >
             <Sparkles className="w-3 h-3 text-blue-400" />
             <span>{qp.label}</span>
@@ -628,7 +831,7 @@ You can ask me to evaluate answers, generate high-scoring model answers, diagnos
         <button
           type="submit"
           disabled={!inputMessage.trim() || isLoading}
-          className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white transition-colors shadow-md shadow-blue-600/30"
+          className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white transition-colors shadow-md shadow-blue-600/30 flex-shrink-0"
         >
           <Send className="w-4 h-4" />
         </button>

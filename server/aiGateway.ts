@@ -127,9 +127,9 @@ export const DEFAULT_GATEWAY_CONFIG: AIGatewayConfig = {
   provider: "auto",
   localEndpoint: "http://localhost:11434",
   localModelId: "llama3-8b-instruct",
-  cloudModelId: "gemini-3.8-flash",
+  cloudModelId: "gemini-3.6-flash",
   temperature: 0.7,
-  contextWindow: 16384,
+  contextWindow: 32768,
   activeAdapter: "bolt-upsc-pubadmin-adapter-v1",
   rerankThreshold: 0.65,
   minVectorSimilarity: 0.45,
@@ -300,6 +300,77 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+/**
+ * Known supported flash models in priority failover order
+ */
+export const SUPPORTED_FLASH_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-3.8-flash",
+  "gemini-3.1-flash-lite",
+];
+
+export function normalizeModelId(rawModel?: string): string {
+  if (!rawModel) return "gemini-3.6-flash";
+  const m = rawModel.trim();
+  const lower = m.toLowerCase();
+  if (lower === "gemini-2.5-flash" || lower === "gemini-2.0-flash" || lower === "gemini-1.5-flash") {
+    return "gemini-3.6-flash";
+  }
+  if (lower === "gemini-2.5-pro" || lower === "gemini-1.5-pro") {
+    return "gemini-3.1-pro-preview";
+  }
+  return m;
+}
+
+export function getCandidateModels(preferredModel?: string): string[] {
+  const normalized = normalizeModelId(preferredModel);
+  const list = [normalized, ...SUPPORTED_FLASH_MODELS];
+  return Array.from(new Set(list));
+}
+
+/**
+ * Executes a Gemini model call with automatic multi-model failover and retry for 503/429/transient errors.
+ */
+export async function executeGeminiWithFailover<T>(
+  gemini: GoogleGenAI,
+  preferredModel: string,
+  operation: (modelId: string) => Promise<T>,
+  options?: { timeoutMs?: number; label?: string }
+): Promise<{ result: T; usedModel: string }> {
+  const candidates = getCandidateModels(preferredModel);
+  const timeoutMs = options?.timeoutMs || 30000;
+  let lastError: any = null;
+
+  for (let i = 0; i < candidates.length; i++) {
+    const modelId = candidates[i];
+    try {
+      const result = await Promise.race([
+        operation(modelId),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms on ${modelId}`)), timeoutMs)
+        ),
+      ]);
+      return { result, usedModel: modelId };
+    } catch (err: any) {
+      lastError = err;
+      const errMsg = err?.message || String(err);
+      if (i < candidates.length - 1) {
+        console.warn(
+          `[GeminiFailover] Model "${modelId}" transient failure: ${errMsg.slice(0, 140)}. Automatically failing over to next model "${candidates[i + 1]}"...`
+        );
+        // Short pause to clear transient spikes
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      } else {
+        console.warn(
+          `[GeminiFailover] All candidate models exhausted. Last error on "${modelId}": ${errMsg.slice(0, 140)}`
+        );
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 async function callLocalChat(
   endpoint: string,
   model: string,
@@ -307,7 +378,7 @@ async function callLocalChat(
   temperature: number
 ): Promise<string | null> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const timeoutId = setTimeout(() => controller.abort(), 600);
 
   try {
     const formattedEndpoint = endpoint.replace(/\/$/, "");
@@ -386,28 +457,57 @@ export class BoltAIGateway {
     if (gemini) {
       try {
         const sysMsg = request.messages.find((m) => m.role === "system")?.content || "";
-        const userMsg = request.messages[request.messages.length - 1]?.content || "";
+        const nonSys = request.messages.filter((m) => m.role !== "system");
 
-        const geminiRes = await gemini.models.generateContent({
-          model: request.modelOverride || config.cloudModelId,
-          contents: [
-            ...(sysMsg ? [{ role: "user" as const, parts: [{ text: `[SYSTEM INSTRUCTION]: ${sysMsg}` }] }] : []),
-            { role: "user" as const, parts: [{ text: userMsg }] },
-          ],
-        });
+        // Format conversation turns cleanly for Gemini (user and model)
+        const contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+        for (const m of nonSys) {
+          const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
+          if (contents.length > 0 && contents[contents.length - 1].role === role) {
+            contents[contents.length - 1].parts[0].text += "\n\n" + m.content;
+          } else {
+            contents.push({ role, parts: [{ text: m.content || " " }] });
+          }
+        }
+
+        if (contents.length === 0) {
+          contents.push({ role: "user", parts: [{ text: "Hello Bolt" }] });
+        } else if (contents[0].role !== "user") {
+          contents.unshift({ role: "user", parts: [{ text: "Hello" }] });
+        }
+        if (contents[contents.length - 1].role !== "user") {
+          contents.push({ role: "user", parts: [{ text: "Please continue and provide your guidance." }] });
+        }
+
+        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.6-flash";
+
+        const { result: geminiRes, usedModel } = await executeGeminiWithFailover(
+          gemini,
+          effectiveModel,
+          (modelId) =>
+            gemini.models.generateContent({
+              model: modelId,
+              contents,
+              config: {
+                systemInstruction: sysMsg || undefined,
+                temperature: temp,
+              },
+            }),
+          { timeoutMs: 30000, label: "chat" }
+        );
 
         const reply = geminiRes.text || "";
         if (reply.trim()) {
           return {
             content: reply,
             provider: "Cloud (Gemini)",
-            model: request.modelOverride || config.cloudModelId,
+            model: usedModel,
             activeAdapter,
             citations,
           };
         }
       } catch (err) {
-        console.warn("Cloud Gemini generation failed, resorting to academic fallback:", err);
+        console.warn("Cloud Gemini generation failed across all fallback models, resorting to academic fallback:", err);
       }
     }
 
@@ -423,6 +523,116 @@ export class BoltAIGateway {
   }
 
   /**
+   * Streaming response generator for real-time token delivery
+   */
+  static async stream(
+    request: ChatRequest,
+    onChunk: (chunk: string) => void
+  ): Promise<ChatResponse> {
+    const config = getGatewayConfig();
+    const gemini = getGeminiClient();
+
+    if (gemini && request.providerOverride !== "local") {
+      try {
+        const sysMsg = request.messages.find((m) => m.role === "system")?.content || "";
+        const nonSys = request.messages.filter((m) => m.role !== "system");
+
+        const contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+        for (const m of nonSys) {
+          const role: "user" | "model" = m.role === "assistant" ? "model" : "user";
+          if (contents.length > 0 && contents[contents.length - 1].role === role) {
+            contents[contents.length - 1].parts[0].text += "\n\n" + m.content;
+          } else {
+            contents.push({ role, parts: [{ text: m.content || " " }] });
+          }
+        }
+
+        if (contents.length === 0) {
+          contents.push({ role: "user", parts: [{ text: "Hello Bolt" }] });
+        } else if (contents[0].role !== "user") {
+          contents.unshift({ role: "user", parts: [{ text: "Hello" }] });
+        }
+
+        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.6-flash";
+
+        const { result: streamResult, usedModel } = await executeGeminiWithFailover(
+          gemini,
+          effectiveModel,
+          (modelId) =>
+            gemini.models.generateContentStream({
+              model: modelId,
+              contents,
+              config: {
+                systemInstruction: sysMsg || undefined,
+                temperature: config.temperature,
+              },
+            }),
+          { timeoutMs: 30000, label: "stream" }
+        );
+
+        let fullText = "";
+        for await (const chunk of streamResult) {
+          const chunkText = chunk.text || "";
+          if (chunkText) {
+            fullText += chunkText;
+            onChunk(chunkText);
+          }
+        }
+
+        if (fullText.trim()) {
+          return {
+            content: fullText,
+            provider: "Cloud (Gemini Streaming)",
+            model: usedModel,
+            activeAdapter: request.activeAdapter || config.activeAdapter,
+            citations: request.citations || [],
+          };
+        }
+      } catch (err) {
+        console.warn("Gemini stream failed across all fallback models, falling back to buffered stream simulation:", err);
+      }
+    }
+
+    // Fallback streaming simulation
+    const chatResult = await this.chat(request);
+    const words = chatResult.content.split(/(\s+)/);
+    for (const w of words) {
+      onChunk(w);
+      // Fast yield
+      await new Promise((r) => setTimeout(r, 8));
+    }
+    return chatResult;
+  }
+
+  /**
+   * Dense semantic vector embedding generator
+   */
+  static embed(text: string): number[] {
+    return generateEmbedding(text);
+  }
+
+  /**
+   * Multi-factor cross-encoder reranker
+   */
+  static rerank(
+    query: string,
+    documents: RerankDocument[],
+    topK: number = 3
+  ): RerankedResult[] {
+    return rerankDocuments(query, documents, topK);
+  }
+
+  /**
+   * Standard evaluate method conforming to AI Gateway specification
+   */
+  static async evaluate(
+    rubric: EvaluationRubric,
+    answerText: string
+  ): Promise<MainsEvaluationResult> {
+    return this.evaluateMains(rubric, answerText);
+  }
+
+  /**
    * Structured generation for MCQs, Model Answers, and Timetables
    */
   static async generate(request: GenerateRequest): Promise<GenerateResponse> {
@@ -435,10 +645,18 @@ export class BoltAIGateway {
           ? `${request.systemInstruction}\n\nTask: ${request.prompt}`
           : request.prompt;
 
-        const res = await gemini.models.generateContent({
-          model: request.modelOverride || config.cloudModelId,
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        });
+        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.6-flash";
+
+        const { result: res, usedModel } = await executeGeminiWithFailover(
+          gemini,
+          effectiveModel,
+          (modelId) =>
+            gemini.models.generateContent({
+              model: modelId,
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            }),
+          { timeoutMs: 30000, label: "generate" }
+        );
 
         const text = res.text || "";
         let parsedJson = undefined;
@@ -457,10 +675,10 @@ export class BoltAIGateway {
           text,
           parsedJson,
           provider: "Cloud (Gemini)",
-          model: request.modelOverride || config.cloudModelId,
+          model: usedModel,
         };
       } catch (err) {
-        console.warn("AI Gateway generate failed:", err);
+        console.warn("AI Gateway generate failed across all fallback models:", err);
       }
     }
 
@@ -518,10 +736,16 @@ Return ONLY valid JSON matching this exact structure:
 }`;
 
       try {
-        const res = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        });
+        const { result: res, usedModel } = await executeGeminiWithFailover(
+          ai,
+          "gemini-3.6-flash",
+          (modelId) =>
+            ai.models.generateContent({
+              model: modelId,
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            }),
+          { timeoutMs: 25000, label: "evaluateMains" }
+        );
         const text = res.text || "";
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -554,11 +778,11 @@ Return ONLY valid JSON matching this exact structure:
             repeatedWeaknesses: parsed.repeatedWeaknesses || ["Descriptive without analytical depth"],
             boltFeedback: parsed.boltFeedback || "Solid answer with good potential. Strengthen thinker citations to cross 10/15.",
             modelAnswerOutline: parsed.modelAnswerOutline || [],
-            providerUsed: "Cloud (Gemini)",
+            providerUsed: `Cloud (Gemini - ${usedModel})`,
           };
         }
       } catch (err) {
-        console.warn("AI Mains Evaluation cloud call failed, using rule-based evaluator:", err);
+        console.warn("AI Mains Evaluation cloud call failed across all fallback models, using rule-based evaluator:", err);
       }
     }
 
@@ -646,14 +870,143 @@ function evaluateRuleBasedMains(
 }
 
 function generateLocalAcademicResponse(query: string): string {
-  const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
+
+  // 1. Weak areas / Diagnostic
+  if (q.includes("weak") || q.includes("struggling") || q.includes("progress") || q.includes("diagnostic")) {
+    return `### 📊 Diagnostic Evaluation & Strategic Guidance
+
+Based on your current platform records across the UPSC Public Administration and General Studies modules:
+
+#### 1. Core Weakness Patterns
+- **Administrative Thinkers & Theoretical Grounding**: Tendency to treat thinkers in silos. Connect Classical theorists (Taylor, Weber) with modern critiques (Simon's Bounded Rationality, Argyris's immaturity-maturity continuum).
+- **Paper 1 ↔ Paper 2 Cross-Linkages**: Answers often lack real Indian administrative context. Always anchor theoretical principles to contemporary institutions like the Cabinet Secretariat, District Collectorate, and Panchayati Raj.
+- **2nd ARC Commission Citations**: Deficit in citing concrete recommendations from Report 4 (*Ethics in Governance*) and Report 10 (*Personnel Administration*).
+
+#### 2. Prescriptive Action Plan for Today
+1. **Targeted Revision**: Spend 45 minutes on **Herbert Simon's Decision-Making Model & Satisficing Criteria**.
+2. **Prelims Reinforcement**: Practice 10 MCQs on delegated legislation and constitutional emergency provisions.
+3. **Mains Drill**: Draft one 10-mark question on *Citizen's Charters & Sevottam Model*.
+
+> 💡 **Next Steps:**
+> - [⚡ Open Prelims Practice](#action:prelims)
+> - [📝 Submit Mains Answer for Evaluation](#action:mains)
+> - [📅 Add Revision Slot to Timetable](#action:planner)`;
+  }
+
+  // 2. Quiz / MCQs
+  if (q.includes("quiz") || q.includes("mcq") || q.includes("test") || q.includes("question")) {
+    return `### 🎯 High-Yield UPSC Practice Challenge
+
+Here is a curated, UPSC-standard question linking administrative principles with constitutional mechanisms:
+
+**Question:**
+With reference to **Delegated Legislation** in India, consider the following statements:
+1. Delegated legislation cannot have retrospective effect unless the parent statute expressly authorizes it.
+2. The Committee on Subordinate Legislation in each House of Parliament examines whether delegated powers have been properly exercised.
+3. Courts in India apply the doctrine of *ultra vires* to strike down rules that exceed statutory authority.
+
+Which of the statements given above are correct?
+- **A)** 1 and 2 only
+- **B)** 2 and 3 only
+- **C)** 1 and 3 only
+- **D)** 1, 2, and 3
+
+---
+**Detailed Solution & Explanation:**
+- **Correct Option:** **D (1, 2, and 3)**
+- **Explanation:**
+  - *Statement 1 is correct:* It is well settled by the Supreme Court (e.g., *Hukam Chand v. Union of India*) that subordinate legislation cannot be retrospective unless the parent Act explicitly delegates retrospective rule-making power.
+  - *Statement 2 is correct:* Both the Lok Sabha and Rajya Sabha constitute Committees on Subordinate Legislation to scrutinize statutory rules and orders.
+  - *Statement 3 is correct:* Substantive *ultra vires* occurs when a rule goes beyond the scope of the parent Act or violates the Constitution (Articles 14, 19).
+
+> 💡 **Ready for more?**
+> - [⚡ Launch Full Prelims MCQ Session](#action:prelims)
+> - [📜 Explore Historical PYQs Archive](#action:pyqs)`;
+  }
+
+  // 3. Timetable / Study Plan
+  if (q.includes("plan") || q.includes("timetable") || q.includes("schedule") || q.includes("routine")) {
+    return `### 📅 High-Yield 3-Phase UPSC Daily Timetable
+
+To maximize retention and prevent cognitive burnout, align your routine with the **Ebbinghaus Spaced Repetition Cycle**:
+
+| Slot | Focus Area | Subject & Objectives |
+| :--- | :--- | :--- |
+| **06:00 - 08:30** | *Deep Theory Core* | **Public Administration Paper 1**: Administrative Thought (Weber, Simon, Barnard) |
+| **09:30 - 11:30** | *Active Testing* | **Prelims MCQs**: 30 questions on Indian Polity & Economy + error log analysis |
+| **15:00 - 17:00** | *Current Affairs Synthesis* | **The Hindu / Indian Express**: Editorials mapped to GS 2 & GS 3 themes |
+| **18:00 - 20:00** | *Mains Answer Writing* | **15-Marker Daily Answer**: Structural flow, thinker citations, and 2nd ARC recommendations |
+| **21:30 - 22:30** | *Spaced Recall* | **1-Hour Flashcard Revision**: Rapid review of formulas, articles, and case laws |
+
+> 💡 **Actions:**
+> - [📅 View & Customize Your Live Timetable](#action:planner)
+> - [📊 Check Your Weekly Target Completion](#action:learn)`;
+  }
+
+  // 4. Thinkers: Simon
+  if (q.includes("simon") || q.includes("bounded rationality")) {
+    return `### 🧠 Herbert Simon: Administrative Behavior & Bounded Rationality
+
+Herbert Simon's work revolutionized administrative theory by dismantling the classical myth of the all-knowing "Economic Man".
+
+#### 1. Core Concepts
+- **Bounded Rationality**: Decision-makers operate under severe constraints:
+  - Imperfect and incomplete information.
+  - Cognitive limits in computing future contingencies.
+  - Severe time and organizational pressures.
+- **Satisficing vs. Maximizing**: Instead of searching endlessly for the single optimal solution, the **Administrative Man** chooses the first alternative that meets minimum aspiration thresholds ("good enough").
+- **Fact-Value Dichotomy**: Decisions consist of factual propositions (verifiable by observation) and value judgments (ethical or political preferences). In public administration, policy goals are largely value-driven.
+
+#### 2. UPSC Mains Bridge (Paper 1 ↔ Paper 2)
+- **Indian Example**: Crisis management during sudden disasters (e.g., flash floods, pandemic procurement) requires District Magistrates to *satisfice* rather than wait for complete empirical certainty.
+- **Thinker Integration**: Contrast Simon's satisficing model with **Charles Lindblom's Incrementalism ("Muddling Through")** and **Yehezkel Dror's Optimal Model**.
+
+> 💡 **Recommended Practice:**
+> - [📝 Evaluate Mains Answer on Herbert Simon](#action:mains)
+> - [🔍 Search 2nd ARC & Thinker Knowledge Base](#action:knowledge)`;
+  }
+
+  // 5. Thinkers: Barnard
   if (q.includes("barnard") || q.includes("zone of indifference")) {
-    return `### Chester Barnard: Acceptance Theory & Zone of Indifference\n\nChester Barnard in *The Functions of the Executive* (1938) dismantled the classical top-down view of authority:\n\n1. **Acceptance Theory of Authority**: Authority does not reside in the position; it is validated only when the subordinate understands the communication, believes it is consistent with organizational purpose, and is physically/mentally able to comply.\n2. **Zone of Indifference**: Orders within this zone are accepted unquestioningly without conscious deliberation. The executive's role is to broaden this zone through morale, communication, and informal incentives.\n3. **Mains Synthesis (Paper 1 -> Paper 2)**: In Indian civil services, when citizens or street-level bureaucrats perceive policies (e.g., land acquisition) as legitimate, compliance friction drops significantly, demonstrating Barnard's informal organization thesis.`;
+    return `### 🏛️ Chester Barnard: Acceptance Theory & Functions of the Executive
+
+Chester Barnard in *The Functions of the Executive (1938)* pioneered the socio-psychological approach to administration:
+
+1. **Acceptance Theory of Authority**: Authority flows from the bottom up. An order holds authority only if the subordinate:
+   - Mentally understands it.
+   - Believes it is consistent with organizational purpose.
+   - Believes it aligns with personal interest.
+   - Is physically and mentally able to execute it.
+2. **Zone of Indifference**: That range of orders which the subordinate accepts unquestioningly without conscious critical evaluation. The executive's core role is to widen this zone through informal organization, communication, and moral persuasion.
+3. **Indian Administrative Application**: Essential in welfare delivery (e.g., implementing land reforms or digital governance), where street-level bureaucracy must genuinely accept reform mandates for frontline success.`;
   }
 
+  // 6. Thinkers: Weber
   if (q.includes("weber") || q.includes("bureaucracy")) {
-    return `### Max Weber: Ideal-Type Bureaucracy\n\nWeber identified legal-rational authority as the bedrock of modern administration:\n\n- **Core Tenets**: Hierarchy, division of labor, formal rules, written documentation, and impersonality.\n- **Paper 2 Linkage**: The Indian Civil Service structure derives from Weberian principles, yet faces challenges of procedural rigidity (red-tape) highlighted by the 2nd ARC Report on Personnel Administration.`;
+    return `### ⚖️ Max Weber: Legal-Rational Authority & Ideal-Type Bureaucracy
+
+Max Weber identified the legal-rational bureaucracy as the hallmark of modernization and administrative efficiency:
+
+- **Key Structural Pillars**: Strict hierarchy, specialization of function, codified rules, written documentation, and impersonal official conduct.
+- **Critical Pathology**: Weber warned of the "iron cage" of rationalization. In developing democracies like India, excessive adherence to procedure manifests as bureaucratic inertia and procedural delays (red tape).
+- **2nd ARC 10th Report Link**: The 2nd ARC recommended shifting from tenure-based insularity to meritocratic lateral entry, domain competency clusters, and outcome-oriented appraisals (APAR).`;
   }
 
-  return `### BOLT Academic Analysis\n\nRegarding your inquiry on UPSC Civil Services preparation:\n\n1. **Core Demand**: Deconstruct the topic into constitutional, administrative, and ethical dimensions.\n2. **Paper 1 & Paper 2 Bridge**: Anchor theoretical models with practical administrative realities in India (e.g., Good Governance, 2nd ARC recommendations).\n3. **Mains Strategy**: Ensure every answer balances classical foundations with pragmatic, citizen-centric solutions.`;
+  // 7. General conversational guidance
+  return `### ⚡ BOLT UPSC Guidance
+
+Hello Aspirant! I am **Bolt**, your dedicated UPSC Civil Services preparation brain and mentor.
+
+#### How I Can Help You Right Now:
+- **📊 Syllabus & Mastery Diagnostics**: Ask *"Where am I weak?"* or *"Analyze my progress in Public Administration"*.
+- **🎯 Dynamic Prelims MCQs**: Ask *"Quiz me on Simon, Weber, or Constitutional Articles"*.
+- **📝 Mains Answer Writing & Evaluation**: Submit any answer for a 7-dimension rubric score out of 15 marks with model upgrades.
+- **📅 Timetable & Habit Management**: Ask *"Plan my revision for today"* or check your scheduled units.
+- **📚 2nd ARC & Thinker Knowledge**: Ask about any commission recommendations or administrative doctrines.
+
+What topic or challenge would you like to tackle right now?
+
+> 💡 **Quick Navigation:**
+> - [📊 Syllabus Analytics](#action:learn) | [🎯 Prelims MCQs](#action:prelims) | [📝 Mains Evaluation](#action:mains) | [📅 Study Planner](#action:planner)`;
 }

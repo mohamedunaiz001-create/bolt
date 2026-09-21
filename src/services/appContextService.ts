@@ -95,7 +95,7 @@ export function computeBoltAppContext(
           evaluations.reduce((acc, ev) => acc + (ev.score || 0), 0) / evaluations.length
         ).toFixed(1)
       )
-    : 9.8;
+    : 0;
 
   const recentEvaluations = evaluations.slice(0, 3).map((ev) => ({
     question: ev.questionText.length > 70 ? ev.questionText.slice(0, 70) + "..." : ev.questionText,
@@ -105,8 +105,8 @@ export function computeBoltAppContext(
   }));
 
   // 3. Prelims performance
-  const questionsAttempted = user.questionsAttempted || questions.length || 0;
-  const accuracyPercentage = user.overallAccuracy || 74;
+  const questionsAttempted = user.questionsAttempted || 0;
+  const accuracyPercentage = questionsAttempted > 0 ? (user.overallAccuracy || 0) : 0;
 
   // 4. Revision queue
   const urgentTopics = topics
@@ -163,20 +163,20 @@ export function computeBoltAppContext(
 - Critical Weak Units: ${
     weakTopics.length > 0
       ? weakTopics.map((w) => `${w.name} (${w.score}% score)`).join(", ")
-      : "Administrative Thought (Herbert Simon), Financial Administration"
+      : "None flagged yet (insufficient diagnostic attempt data)"
   }
 - Strong Units: ${
     strongTopics.length > 0
       ? strongTopics.map((s) => `${s.name} (${s.score}% score)`).join(", ")
-      : "Administrative Behaviour, Constitutional Framework"
+      : "None flagged yet (insufficient diagnostic attempt data)"
   }
-- Revision Due: ${dueCount} topics flagged
-- Mains Performance: ${evaluatedCount} answers evaluated, Average Score: ${averageScore}/15
-- Prelims Performance: ${questionsAttempted} MCQs attempted with ${accuracyPercentage}% accuracy
+- Revision Due: ${dueCount > 0 ? `${dueCount} topics flagged` : "0 topics due"}
+- Mains Performance: ${evaluatedCount > 0 ? `${evaluatedCount} answers evaluated, Average Score: ${averageScore}/15` : "No evaluations yet"}
+- Prelims Performance: ${questionsAttempted > 0 ? `${questionsAttempted} MCQs attempted with ${accuracyPercentage}% accuracy` : "No MCQs attempted yet (0% accuracy)"}
 - Study Habit & Consistency: ${user.studyStreakDays} day streak, ${user.totalStudyHours} total hours logged
 - Weekly Plan Progress: ${weeklyTrackedHours}h tracked of ${weeklyPlannedHours}h planned
 - Today's Scheduled Units: ${todayPlannedUnits.length > 0 ? todayPlannedUnits.join("; ") : "None scheduled for today"}
-- Recent Current Affairs: ${recentHeadlines.slice(0, 2).join(" | ")}
+- Recent Current Affairs: ${recentHeadlines.slice(0, 2).join(" | ") || "None loaded"}
 `.trim();
 
   return {

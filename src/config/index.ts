@@ -36,7 +36,7 @@ export const AI_CONFIG = {
   defaultProvider: "cloud", // "cloud" | "local"
   localEndpoint: "http://127.0.0.1:11434",
   localModelName: "meta-llama/Meta-Llama-3-8B-Instruct",
-  cloudModelName: "gemini-2.5-flash",
+  cloudModelName: "gemini-3.6-flash",
   embeddingModel: "text-embedding-004",
   maxContextTokens: 8192,
   defaultTemperature: 0.2,

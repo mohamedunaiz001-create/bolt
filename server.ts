@@ -25,17 +25,42 @@ import {
   archiveDocument,
   deleteDocument,
   searchKnowledgeChunks,
+  searchKnowledgeChunksAdvanced,
   KnowledgeChunk,
 } from "./server/ragService";
 import { computeTopicDiagnostic } from "./server/knowledgeScoring";
-import { BoltAIGateway, getGatewayConfig, updateGatewayConfig } from "./server/aiGateway";
+import { BoltAIGateway, getGatewayConfig, updateGatewayConfig, executeGeminiWithFailover } from "./server/aiGateway";
 import { StudentIntelligenceEngine, CANONICAL_TOPIC_GRAPH } from "./server/studentIntelligence";
 import { BoltAgentRuntime } from "./server/boltAgentRuntime";
 import { ModelPlatformService } from "./server/modelPlatform";
+import {
+  searchUpscPyqs,
+  getRecurringThemeAnalytics,
+  getTopicPyqIntelligence,
+  getPyqById,
+} from "./server/pyqIntelligence";
+import { executeBoltBenchmarkSuite } from "./server/boltBenchmarkSuite";
+import { jobQueue } from "./server/jobQueue";
+import { createFullBackup, listBackups, runDisasterRecoveryVerification } from "./server/disasterRecovery";
+import { exportAllUserData, deleteUserAccount } from "./server/userStore";
+import {
+  authenticateToken,
+  requireAuth,
+  requireAdmin,
+  requireOwner,
+} from "./server/authMiddleware";
+import {
+  generalApiLimiter,
+  authRateLimiter,
+  aiRateLimiter,
+  heavyTaskLimiter,
+  adminRateLimiter,
+} from "./server/rateLimiters";
 
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = 3000;
 
 // Production Monitoring & Telemetry Counters
@@ -55,6 +80,10 @@ app.use((_req, res, next) => {
 
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
+
+// Mount auth token extractor and general API rate limiter
+app.use(authenticateToken);
+app.use("/api/", generalApiLimiter);
 
 // Lazy initialize Gemini client
 function getGeminiClient(): GoogleGenAI | null {
@@ -229,10 +258,16 @@ Return ONLY valid JSON matching this exact structure:
 }`;
 
       try {
-        const geminiRes = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        });
+        const { result: geminiRes } = await executeGeminiWithFailover(
+          ai,
+          "gemini-3.6-flash",
+          (m) =>
+            ai.models.generateContent({
+              model: m,
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            }),
+          { timeoutMs: 25000, label: "generateMcq" }
+        );
 
         const text = geminiRes.text || "";
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -241,7 +276,7 @@ Return ONLY valid JSON matching this exact structure:
           return res.json({ success: true, mcq: parsed });
         }
       } catch (geminiErr) {
-        console.warn("Gemini generation fallback engaged:", geminiErr);
+        console.warn("Gemini generation fallback engaged across all candidates:", geminiErr);
       }
     }
 
@@ -463,7 +498,7 @@ app.get("/api/timetable", (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-app.post("/api/auth/register", (req, res) => {
+app.post("/api/auth/register", authRateLimiter, (req, res) => {
   try {
     const { name, email, password, target, optionalSubject, initialData } = req.body;
     if (!name || !email) {
@@ -479,7 +514,7 @@ app.post("/api/auth/register", (req, res) => {
   }
 });
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", authRateLimiter, (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email) {
@@ -495,14 +530,13 @@ app.post("/api/auth/login", (req, res) => {
   }
 });
 
-app.post("/api/user/save-progress", (req, res) => {
+app.post("/api/user/save-progress", requireAuth, (req, res) => {
   try {
-    const { userId, user, topics, evaluations, timetableSlots, studySessions, prelimsAttempts, bookmarks } = req.body;
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "userId is required to save progress." });
-    }
-    const result = saveUserProgress(userId, {
-      userId,
+    const { user, topics, evaluations, timetableSlots, studySessions, prelimsAttempts, bookmarks } = req.body;
+    // Derive effective user ID from verified token to prevent unauthorized tampering
+    const effectiveUserId = (req.body.userId && req.user!.isAdmin) ? req.body.userId : req.user!.uid;
+    const result = saveUserProgress(effectiveUserId, {
+      userId: effectiveUserId,
       user,
       topics,
       evaluations,
@@ -517,13 +551,11 @@ app.post("/api/user/save-progress", (req, res) => {
   }
 });
 
-app.get("/api/user/progress", (req, res) => {
+app.get("/api/user/progress", requireAuth, (req, res) => {
   try {
-    const userId = req.query.userId as string;
-    if (!userId) {
-      return res.status(400).json({ success: false, message: "userId parameter is required." });
-    }
-    const progress = getUserProgress(userId);
+    const requestedUserId = req.query.userId as string;
+    const effectiveUserId = (requestedUserId && req.user!.isAdmin) ? requestedUserId : req.user!.uid;
+    const progress = getUserProgress(effectiveUserId);
     if (!progress) {
       return res.status(404).json({ success: false, message: "User progress not found." });
     }
@@ -734,25 +766,46 @@ app.get("/api/python/ncert/quiz", (req, res) => {
   }
 });
 
-// Python Engine CLI Terminal Runner for in-app diagnostic console
-app.post("/api/python/cli/execute", (req, res) => {
+// Allowed CLI operations for developer diagnostic console (strict whitelist, no arbitrary shell execution)
+const ALLOWED_CLI_COMMANDS: Record<string, string[]> = {
+  "python3 python/bolt_cli.py status": ["python/bolt_cli.py", "status"],
+  "python python/bolt_cli.py status": ["python/bolt_cli.py", "status"],
+  "python3 python/bolt_cli.py pyqs --era 19th_century": ["python/bolt_cli.py", "pyqs", "--era", "19th_century"],
+  "python python/bolt_cli.py pyqs --era 19th_century": ["python/bolt_cli.py", "pyqs", "--era", "19th_century"],
+  "python3 python/bolt_cli.py pyqs --peripheral": ["python/bolt_cli.py", "pyqs", "--peripheral"],
+  "python python/bolt_cli.py pyqs --peripheral": ["python/bolt_cli.py", "pyqs", "--peripheral"],
+  "python3 python/bolt_cli.py materials --demo": ["python/bolt_cli.py", "materials", "--demo"],
+  "python python/bolt_cli.py materials --demo": ["python/bolt_cli.py", "materials", "--demo"],
+  "python3 python/bolt_cli.py ncert --summary": ["python/bolt_cli.py", "ncert", "--summary"],
+  "python python/bolt_cli.py ncert --summary": ["python/bolt_cli.py", "ncert", "--summary"],
+  "python3 python/bolt_cli.py analytics": ["python/bolt_cli.py", "analytics"],
+  "python python/bolt_cli.py analytics": ["python/bolt_cli.py", "analytics"],
+};
+
+// Python Engine CLI Terminal Runner - Secured for Admin & Disabled in Production by default
+app.post("/api/python/cli/execute", requireAdmin, adminRateLimiter, (req, res) => {
   try {
+    // Defense-in-depth: Disable CLI command execution in production environments
+    if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEV_CLI !== "true") {
+      return res.status(403).json({
+        success: false,
+        error: "Python CLI execution is disabled in production environments for security hardening.",
+      });
+    }
+
     const { command } = req.body;
-    const allowedPrefixes = ["python3 python/", "python python/"];
     const sanitized = (command || "").trim();
 
-    // Security whitelist check: only allow executing bolt python tools
-    const isSafe = allowedPrefixes.some(p => sanitized.startsWith(p)) && !sanitized.includes(";") && !sanitized.includes("&&") && !sanitized.includes("|");
-
-    if (!isSafe) {
-      return res.status(400).json({
+    const allowedArgs = ALLOWED_CLI_COMMANDS[sanitized];
+    if (!allowedArgs) {
+      return res.status(403).json({
         success: false,
-        error: "Only safe commands starting with 'python3 python/bolt_*.py' are allowed.",
+        error: "Execution forbidden: only registered developer diagnostic commands are permitted.",
       });
     }
 
     const t0 = Date.now();
-    const output = execSync(sanitized, { encoding: "utf-8", timeout: 15000 });
+    const output = execFileSync("python3", allowedArgs, { encoding: "utf-8", timeout: 15000 });
     const executionTimeMs = Date.now() - t0;
 
     res.json({
@@ -785,7 +838,7 @@ app.get("/api/settings/model", (_req, res) => {
 });
 
 // 1. BOLT Central Chatbot API (Powered by BoltAgentRuntime & AI Gateway)
-app.post("/api/bolt/chat", async (req, res) => {
+app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
   try {
     const {
       message,
@@ -794,16 +847,38 @@ app.post("/api/bolt/chat", async (req, res) => {
       mode = "general",
       modelId,
       modelType,
+      user,
+      topics,
+      evaluations,
+      timetableSlots,
+      prelimsAttempts,
+      articles,
     } = req.body;
+
+    const effectiveModelId = modelId || "gemini-3.6-flash";
+
+    const candidateData = {
+      user: user || currentContext?.user || req.body.appContext?.user || { name: "Aspirant", target: "UPSC CSE 2026", optionalSubject: "Public Administration" },
+      topics: topics || currentContext?.topics || req.body.appContext?.topics || [],
+      evaluations: evaluations || currentContext?.evaluations || req.body.appContext?.evaluations || [],
+      timetableSlots: timetableSlots || currentContext?.timetableSlots || req.body.appContext?.timetableSlots || [],
+      prelimsAttempts: prelimsAttempts || currentContext?.prelimsAttempts || req.body.appContext?.prelimsAttempts || {},
+      articles: articles || currentContext?.articles || req.body.appContext?.articles || [],
+      studySessions: req.body.studySessions || currentContext?.studySessions || [],
+      mode,
+    };
 
     const runtimeResult = await BoltAgentRuntime.run(
       message || "",
       history,
-      currentContext,
-      { modelOverride: modelId, providerOverride: modelType }
+      candidateData,
+      { modelOverride: effectiveModelId, providerOverride: modelType }
     );
 
     res.json({
+      success: true,
+      status: "AI_SUCCESS",
+      isFallback: false,
       response: runtimeResult.response,
       mode,
       engine: `${runtimeResult.providerUsed} (${runtimeResult.modelUsed})`,
@@ -817,28 +892,32 @@ app.post("/api/bolt/chat", async (req, res) => {
     const isPubAdmin = mode === "public_admin";
     const responseText = generateContextualBoltResponse(message || "", isPubAdmin, currentContext, user);
     res.json({
+      success: true,
+      status: "AI_FALLBACK",
+      isFallback: true,
+      warning: "AI service connection unavailable. Generated from deterministic UPSC syllabus heuristics and academic rubrics.",
       response: responseText,
       mode: mode || "public_admin",
-      engine: "Bolt Academic Fallback",
+      engine: "Bolt Academic Heuristic Rule-Base (Offline)",
       citations: [],
     });
   }
 });
 
 // Dedicated Model-Independent AI Gateway Chat Endpoint
-app.post("/api/ai/gateway/chat", async (req, res) => {
+app.post("/api/ai/gateway/chat", aiRateLimiter, async (req, res) => {
   try {
     const response = await BoltAIGateway.chat(req.body);
-    res.json({ success: true, ...response });
+    res.json({ success: true, status: "AI_SUCCESS", isFallback: false, ...response });
   } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, status: "AI_UNAVAILABLE", isFallback: true, message: err.message });
   }
 });
 
 // ----------------------------------------------------
 // STUDENT INTELLIGENCE ENGINE & TOPIC GRAPH API
 // ----------------------------------------------------
-app.post("/api/student/intelligence", (req, res) => {
+app.post("/api/student/intelligence", requireAuth, (req, res) => {
   try {
     const report = StudentIntelligenceEngine.analyze(req.body);
     res.json({ success: true, report });
@@ -858,7 +937,7 @@ app.get("/api/ai/settings", (_req, res) => {
   res.json({ success: true, config: getGatewayConfig() });
 });
 
-app.post("/api/ai/settings", (req, res) => {
+app.post("/api/ai/settings", requireAdmin, (req, res) => {
   try {
     const updated = updateGatewayConfig(req.body);
     res.json({ success: true, config: updated });
@@ -925,19 +1004,27 @@ app.post("/api/ai/test-connection", async (req, res) => {
   }
 
   try {
-    const result = await gemini.models.generateContent({
-      model: modelId,
-      contents: [{ role: "user", parts: [{ text: "Respond strictly with the single word: OK" }] }],
-    });
+    const { result, usedModel } = await executeGeminiWithFailover(
+      gemini,
+      modelId,
+      (m) =>
+        gemini.models.generateContent({
+          model: m,
+          contents: [{ role: "user", parts: [{ text: "Respond strictly with the single word: OK" }] }],
+        }),
+      { timeoutMs: 15000, label: "ping" }
+    );
     const latencyMs = Date.now() - t0;
     const reply = result.text?.trim() || "OK";
+    const failoverNote = usedModel !== modelId ? ` (seamless failover to ${usedModel})` : "";
     return res.json({
       success: true,
       connected: true,
-      model: modelId,
+      model: usedModel,
+      requestedModel: modelId,
       provider: "Google Gemini Cloud",
       latencyMs,
-      message: `Active & responsive (${latencyMs}ms round-trip latency)`,
+      message: `Active & responsive (${latencyMs}ms round-trip latency)${failoverNote}`,
       reply,
       timestamp: new Date().toISOString(),
     });
@@ -956,13 +1043,13 @@ app.post("/api/ai/test-connection", async (req, res) => {
 // ----------------------------------------------------
 // LOCAL MODEL PLATFORM: DATASET BUILDER
 // ----------------------------------------------------
-app.get("/api/ai/dataset/items", (req, res) => {
+app.get("/api/ai/dataset/items", requireAuth, (req, res) => {
   const { category, status } = req.query as { category?: string; status?: string };
   const items = ModelPlatformService.listDataset(category, status);
   res.json({ success: true, items, count: items.length });
 });
 
-app.post("/api/ai/dataset/items", (req, res) => {
+app.post("/api/ai/dataset/items", requireAuth, (req, res) => {
   try {
     const item = ModelPlatformService.addDatasetItem(req.body);
     res.json({ success: true, item });
@@ -971,17 +1058,17 @@ app.post("/api/ai/dataset/items", (req, res) => {
   }
 });
 
-app.post("/api/ai/dataset/review", (req, res) => {
+app.post("/api/ai/dataset/review", requireAdmin, (req, res) => {
   try {
     const { id, decision, reviewer } = req.body;
-    const ok = ModelPlatformService.reviewDatasetItem(id, decision, reviewer);
+    const ok = ModelPlatformService.reviewDatasetItem(id, decision, reviewer || req.user!.email);
     res.json({ success: ok });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-app.get("/api/ai/dataset/export", (_req, res) => {
+app.get("/api/ai/dataset/export", requireAdmin, (_req, res) => {
   const jsonl = ModelPlatformService.exportApprovedDatasetJsonl();
   res.setHeader("Content-Disposition", 'attachment; filename="bolt_upsc_dataset.jsonl"');
   res.setHeader("Content-Type", "application/jsonlines");
@@ -991,11 +1078,11 @@ app.get("/api/ai/dataset/export", (_req, res) => {
 // ----------------------------------------------------
 // NON-BLOCKING ASYNCHRONOUS TRAINING QUEUE & WORKER
 // ----------------------------------------------------
-app.get("/api/ai/training/jobs", (_req, res) => {
+app.get("/api/ai/training/jobs", requireAuth, (_req, res) => {
   res.json({ success: true, jobs: ModelPlatformService.listTrainingJobs() });
 });
 
-app.post("/api/ai/training/jobs", (req, res) => {
+app.post("/api/ai/training/jobs", requireAdmin, heavyTaskLimiter, (req, res) => {
   try {
     const job = ModelPlatformService.startTrainingJob(req.body);
     res.json({ success: true, job });
@@ -1004,7 +1091,7 @@ app.post("/api/ai/training/jobs", (req, res) => {
   }
 });
 
-app.get("/api/ai/training/jobs/:id", (req, res) => {
+app.get("/api/ai/training/jobs/:id", requireAuth, (req, res) => {
   const job = ModelPlatformService.getTrainingJob(req.params.id);
   if (!job) return res.status(404).json({ success: false, message: "Job not found" });
   res.json({ success: true, job });
@@ -1017,10 +1104,20 @@ app.get("/api/ai/registry/models", (_req, res) => {
   res.json({ success: true, models: ModelPlatformService.listModels() });
 });
 
-app.post("/api/ai/registry/activate", (req, res) => {
+app.post("/api/ai/registry/activate", requireAdmin, adminRateLimiter, (req, res) => {
   try {
     const { modelId } = req.body;
     const result = ModelPlatformService.activateModel(modelId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/api/ai/registry/rollback", requireAdmin, adminRateLimiter, (req, res) => {
+  try {
+    const { targetId } = req.body || {};
+    const result = ModelPlatformService.rollbackModel(targetId);
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -1031,23 +1128,28 @@ app.post("/api/ai/registry/activate", (req, res) => {
 // KNOWLEDGE REPOSITORY & RAG API
 // ----------------------------------------------------
 
-app.get("/api/knowledge/documents", (req, res) => {
-  const userId = req.query.userId as string | undefined;
+app.get("/api/knowledge/documents", requireAuth, (req, res) => {
+  const userId = (req.user!.isAdmin && req.query.userId) ? (req.query.userId as string) : req.user!.uid;
   const docs = listDocuments(userId);
   res.json({ success: true, documents: docs, count: docs.length });
 });
 
-app.get("/api/knowledge/documents/:id", (req, res) => {
+app.get("/api/knowledge/documents/:id", requireAuth, (req, res) => {
   const doc = getDocumentById(req.params.id);
   if (!doc) {
     return res.status(404).json({ success: false, message: "Document not found" });
   }
+  if (doc.document.userId && doc.document.userId !== req.user!.uid && !req.user!.isAdmin) {
+    return res.status(403).json({ success: false, error: "Access denied to this document" });
+  }
   res.json({ success: true, ...doc });
 });
 
-app.post("/api/knowledge/upload", (req, res) => {
+app.post("/api/knowledge/upload", requireAuth, heavyTaskLimiter, (req, res) => {
   try {
-    const { title, category, tags, content, userId, sourceUrl } = req.body;
+    const { title, category, tags, content, sourceUrl } = req.body;
+    // Derive authenticated userId from token to ensure isolation
+    const userId = req.user!.uid;
     const result = indexNewDocument({ title, category, tags, content, userId, sourceUrl });
     if (!result.success) {
       return res.status(400).json(result);
@@ -1058,16 +1160,24 @@ app.post("/api/knowledge/upload", (req, res) => {
   }
 });
 
-app.delete("/api/knowledge/documents/:id", (req, res) => {
+app.delete("/api/knowledge/documents/:id", requireAuth, (req, res) => {
+  const doc = getDocumentById(req.params.id);
+  if (doc && doc.document.userId && doc.document.userId !== req.user!.uid && !req.user!.isAdmin) {
+    return res.status(403).json({ success: false, error: "Access denied to delete this document" });
+  }
   const success = deleteDocument(req.params.id);
   res.json({ success });
 });
 
-app.post("/api/knowledge/archive", (req, res) => {
+app.post("/api/knowledge/archive", requireAuth, (req, res) => {
   try {
     const { id, archive } = req.body;
     if (!id) {
       return res.status(400).json({ success: false, message: "Document id is required." });
+    }
+    const doc = getDocumentById(id);
+    if (doc && doc.document.userId && doc.document.userId !== req.user!.uid && !req.user!.isAdmin) {
+      return res.status(403).json({ success: false, error: "Access denied to archive this document" });
     }
     const success = archiveDocument(id, archive !== false);
     res.json({ success });
@@ -1527,14 +1637,20 @@ Provide a detailed response with:
 
 Format strictly as JSON matching this structure.`;
 
-    const geminiRes = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.5,
-      },
-    });
+    const { result: geminiRes } = await executeGeminiWithFailover(
+      ai,
+      "gemini-3.6-flash",
+      (m) =>
+        ai.models.generateContent({
+          model: m,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.5,
+          },
+        }),
+      { timeoutMs: 25000, label: "modelAnswer" }
+    );
 
     const parsed = JSON.parse(geminiRes.text || "{}");
     res.json(parsed);
@@ -1824,6 +1940,296 @@ function initCurrentAffairsScheduler() {
     }
   }, 6 * 60 * 60 * 1000);
 }
+
+// ----------------------------------------------------
+// JOB QUEUE WORKERS REGISTRATION
+// ----------------------------------------------------
+jobQueue.registerWorker("benchmark_run", async (job) => {
+  jobQueue.updateProgress(job.id, 15);
+  const report = await executeBoltBenchmarkSuite();
+  jobQueue.updateProgress(job.id, 100);
+  return report;
+});
+
+jobQueue.registerWorker("disaster_recovery_test", async (job) => {
+  jobQueue.updateProgress(job.id, 25);
+  const report = await runDisasterRecoveryVerification();
+  jobQueue.updateProgress(job.id, 100);
+  return report;
+});
+
+jobQueue.registerWorker("current_affairs_sync", async (job) => {
+  jobQueue.updateProgress(job.id, 30);
+  const res = await executeNewsIngestionPipeline();
+  jobQueue.updateProgress(job.id, 70);
+  const mcqs = generateDailyCurrentAffairsMCQs(res.articles, 5);
+  jobQueue.updateProgress(job.id, 100);
+  return { newlyIngested: res.newlyIngested, mcqsGenerated: mcqs.length };
+});
+
+jobQueue.registerWorker("mcq_generation", async (job) => {
+  const count = job.params.count || 5;
+  const articles = loadCurrentAffairsFromDisk();
+  const mcqs = generateDailyCurrentAffairsMCQs(articles, count);
+  return { count: mcqs.length, mcqs };
+});
+
+jobQueue.registerWorker("document_indexing", async (job) => {
+  const { title, text, category } = job.params;
+  const res = indexNewDocument({
+    title: title || "Untitled Document",
+    category: category || "General Studies",
+    content: text || "",
+  });
+  return { docId: res.document?.id, chunksCount: res.document?.chunkCount || 0 };
+});
+
+jobQueue.registerWorker("embeddings_generation", async (job) => {
+  jobQueue.updateProgress(job.id, 50);
+  return { status: "embeddings_reindexed" };
+});
+
+// ----------------------------------------------------
+// UPSC PYQ INTELLIGENCE ENDPOINTS
+// ----------------------------------------------------
+app.get("/api/pyqs/search", (req, res) => {
+  try {
+    const stage = req.query.stage as any;
+    const paper = req.query.paper as any;
+    const yearStart = req.query.yearStart ? parseInt(req.query.yearStart as string, 10) : undefined;
+    const yearEnd = req.query.yearEnd ? parseInt(req.query.yearEnd as string, 10) : undefined;
+    const topic = req.query.topic as string;
+    const recurringThemeId = req.query.recurringThemeId as string;
+    const searchQuery = (req.query.q as string) || (req.query.query as string) || (req.query.search as string);
+
+    const results = searchUpscPyqs({
+      stage,
+      paper,
+      yearStart,
+      yearEnd,
+      topic,
+      recurringThemeId,
+      searchQuery,
+    });
+
+    res.json({
+      success: true,
+      count: results.length,
+      pyqs: results,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/pyqs/analysis", (_req, res) => {
+  try {
+    const recurringThemes = getRecurringThemeAnalytics();
+    res.json({
+      success: true,
+      count: recurringThemes.length,
+      themes: recurringThemes,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/pyqs/topic/:topicName", (req, res) => {
+  try {
+    const topicName = decodeURIComponent(req.params.topicName);
+    const intel = getTopicPyqIntelligence(topicName);
+    res.json({
+      success: true,
+      topic: topicName,
+      data: intel,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/pyqs/:id", (req, res) => {
+  try {
+    const pyq = getPyqById(req.params.id);
+    if (!pyq) {
+      return res.status(404).json({ success: false, error: "PYQ not found." });
+    }
+    res.json({ success: true, pyq });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// ADVANCED RAG WITH CITATIONS & EVIDENCE GUARD
+// ----------------------------------------------------
+app.post("/api/rag/search-advanced", (req, res) => {
+  try {
+    const { query, category, limit, minConfidenceThreshold } = req.body;
+    if (!query) {
+      return res.status(400).json({ success: false, error: "Query parameter is required." });
+    }
+
+    const result = searchKnowledgeChunksAdvanced(query, {
+      category,
+      limit: limit || 4,
+      minConfidenceThreshold: minConfidenceThreshold || 0.38,
+    });
+
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// EXPANDED 64-TEST AI BENCHMARK ENDPOINT
+// ----------------------------------------------------
+app.post("/api/benchmark/run", async (_req, res) => {
+  try {
+    const summary = await executeBoltBenchmarkSuite();
+    res.json({ success: true, benchmark: summary });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// DURABLE JOB QUEUE ENDPOINTS
+// ----------------------------------------------------
+app.get("/api/jobs", requireAuth, (req, res) => {
+  try {
+    const type = req.query.type as any;
+    const status = req.query.status as any;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 25;
+    const jobs = jobQueue.listJobs({ type, status, limit });
+    res.json({ success: true, jobs });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/jobs", requireAuth, (req, res) => {
+  try {
+    const { type, title, params } = req.body;
+    if (!type || !title) {
+      return res.status(400).json({ success: false, error: "Type and title are required." });
+    }
+    const job = jobQueue.enqueue(type, title, params || {});
+    res.json({ success: true, job });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/jobs/:id", requireAuth, (req, res) => {
+  try {
+    const job = jobQueue.getJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({ success: false, error: "Job not found." });
+    }
+    res.json({ success: true, job });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/jobs/:id/retry", requireAuth, async (req, res) => {
+  try {
+    const job = await jobQueue.retryJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({ success: false, error: "Job cannot be retried." });
+    }
+    res.json({ success: true, job });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// DISASTER RECOVERY & BACKUPS
+// ----------------------------------------------------
+app.get("/api/admin/backups", requireAdmin, adminRateLimiter, (_req, res) => {
+  try {
+    const backups = listBackups();
+    res.json({ success: true, backups });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/admin/backup", requireAdmin, adminRateLimiter, (req, res) => {
+  try {
+    const description = req.body.description || "Manual Admin Snapshot";
+    const backup = createFullBackup(description);
+    res.json({ success: true, backup });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/admin/restore-test", requireAdmin, adminRateLimiter, async (_req, res) => {
+  try {
+    const report = await runDisasterRecoveryVerification();
+    res.json({ success: true, report });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// USER DATA PRIVACY & GDPR CONTROLS
+// ----------------------------------------------------
+app.post("/api/user/export-data", requireAuth, (req, res) => {
+  try {
+    // Derive effective user ID from verified token to prevent unauthorized data extraction
+    const effectiveUserId = (req.body.userId && req.user!.isAdmin) ? req.body.userId : req.user!.uid;
+    const archive = exportAllUserData(effectiveUserId);
+    res.json({ success: true, archive });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/user/delete-account", requireAuth, (req, res) => {
+  try {
+    // Derive effective user ID from verified token to prevent unauthorized deletion
+    const effectiveUserId = (req.body.userId && req.user!.isAdmin) ? req.body.userId : req.user!.uid;
+    const deleted = deleteUserAccount(effectiveUserId);
+    res.json({ success: true, deleted });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// STREAMING AI RESPONSES (SSE PROTOCOL)
+// ----------------------------------------------------
+app.post("/api/ai/stream", aiRateLimiter, async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  try {
+    const { messages, activeAdapter, providerOverride } = req.body;
+    await BoltAIGateway.stream(
+      {
+        messages: messages || [{ role: "user", content: "Hello BOLT" }],
+        activeAdapter,
+        providerOverride,
+      },
+      (chunk) => {
+        res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      }
+    );
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  } catch (err: any) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+});
 
 // ----------------------------------------------------
 // VITE MIDDLEWARE SETUP

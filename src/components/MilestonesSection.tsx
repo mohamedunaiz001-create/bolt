@@ -117,7 +117,7 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
   };
 
   return (
-    <div className="bg-[#111723] rounded-2xl border border-[#1e293b] p-5 shadow-lg space-y-4">
+    <section id="aspirant-milestones-section" className="bg-[#111723] rounded-2xl border border-[#1e293b] p-4 sm:p-5 shadow-lg space-y-4 scroll-mt-20">
       {/* Header & Gamification XP Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
@@ -157,12 +157,12 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
       </div>
 
       {/* Category Filter Pills */}
-      <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
+      <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
         {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap shrink-0 transition-all ${
               selectedCategory === cat.id
                 ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
                 : "bg-[#162033] text-slate-400 hover:text-slate-200 border border-slate-800"
@@ -366,6 +366,6 @@ export const MilestonesSection: React.FC<MilestonesSectionProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

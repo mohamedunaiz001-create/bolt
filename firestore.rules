@@ -11,6 +11,16 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.email == 'autumnr092006@gmail.com' ||
+        request.auth.token.email == 'admin@bolt.internal' ||
+        request.auth.token.email == 'admin@upsc-bolt.org'
+      );
+    }
+
     // User profiles and all user-private subcollections
     match /users/{userId} {
       allow read, write: if isOwner(userId);
@@ -63,37 +73,37 @@ service cloud.firestore {
       }
     }
 
-    // Public / verified daily current affairs and published MCQs (read-only for students)
+    // Public / verified daily current affairs and published MCQs (read-only for students, admin-only write)
     match /current_affairs/{articleId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /daily_mcqs/{mcqId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
-    // Shared model registry versions
+    // Shared model registry versions (read-only for students, admin-only write)
     match /model_registry/{versionId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
-    // Public curriculum Knowledge Graph (read-only for all students, authenticated write for updates)
+    // Public curriculum Knowledge Graph (read-only for all students, admin-only write for updates)
     match /knowledge_nodes/{nodeId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /knowledge_edges/{edgeId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /knowledge_clusters/{clusterId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }

@@ -430,4 +430,33 @@ export class ModelPlatformService {
       message: `Model ${target.version} (${target.adapterName}) successfully activated!`,
     };
   }
+
+  static rollbackModel(targetId?: string): { success: boolean; message: string; activeVersion?: string } {
+    const store = loadStore();
+    const currentActive = store.models.find((m) => m.status === "active");
+
+    let rollbackTarget: ModelRegistryEntry | undefined;
+    if (targetId) {
+      rollbackTarget = store.models.find((m) => m.id === targetId && m.status !== "active");
+    } else {
+      // Find previous passing version
+      rollbackTarget = store.models.find((m) => m.status === "archived" && m.benchmarkResults.status === "PASS");
+    }
+
+    if (!rollbackTarget) {
+      return { success: false, message: "No viable previous model version found for rollback." };
+    }
+
+    if (currentActive) {
+      currentActive.status = "archived";
+    }
+    rollbackTarget.status = "active";
+    saveStore(store);
+
+    return {
+      success: true,
+      message: `Successfully rolled back to model version ${rollbackTarget.version} (${rollbackTarget.adapterName}).`,
+      activeVersion: rollbackTarget.version,
+    };
+  }
 }

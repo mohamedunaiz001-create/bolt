@@ -572,8 +572,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
       !q ||
       a.headline.toLowerCase().includes(q) ||
       a.summary.toLowerCase().includes(q) ||
-      (a.syllabusPaper && a.syllabusPaper.toLowerCase().includes(q)) ||
-      (a.tags && a.tags.some((t) => t.toLowerCase().includes(q)));
+      (a.gsTags && a.gsTags.some((t) => t.toLowerCase().includes(q)));
     return matchesSource && matchesSearch;
   });
 

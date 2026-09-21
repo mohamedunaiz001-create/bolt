@@ -14,6 +14,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test:security": "tsx scripts/verify-security-isolation.ts",
+    "test:acceptance": "tsx scripts/run-acceptance-tests.ts",
     "benchmark": "tsx scripts/run-bolt-benchmark.ts"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
     "fast-xml-parser": "^5.11.1",
     "firebase": "^12.19.0",
     "jspdf": "^4.2.1",
@@ -31,6 +33,7 @@
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.10.1",
     "vite": "^6.2.3"
   },

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { generateSignedSessionToken } from "./authMiddleware";
 
 export interface StoredAccount {
   id: string;
@@ -14,14 +15,28 @@ export interface StoredAccount {
 
 function hashPassword(password: string): string {
   if (!password) return "";
-  const salt = "bolt_upsc_secure_salt_2026";
-  return crypto.createHash("sha256").update(password + salt).digest("hex");
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived}`;
 }
 
 function verifyPassword(inputPassword: string, storedHash: string): boolean {
   if (!inputPassword || !storedHash) return false;
-  if (storedHash === inputPassword) return true; // Backward compatibility for any pre-migration mock records
-  return hashPassword(inputPassword) === storedHash;
+  if (storedHash.startsWith("scrypt$")) {
+    const parts = storedHash.split("$");
+    if (parts.length === 3) {
+      const salt = parts[1];
+      const expectedKey = parts[2];
+      const derived = crypto.scryptSync(inputPassword, salt, 64).toString("hex");
+      if (derived.length !== expectedKey.length) return false;
+      return crypto.timingSafeEqual(Buffer.from(derived, "hex"), Buffer.from(expectedKey, "hex"));
+    }
+  }
+  // Migration verification for pre-existing records (never plaintext)
+  const legacySalt = "bolt_upsc_secure_salt_2026";
+  const legacyHash = crypto.createHash("sha256").update(inputPassword + legacySalt).digest("hex");
+  if (legacyHash.length !== storedHash.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(legacyHash, "hex"), Buffer.from(storedHash, "hex"));
 }
 
 export interface StoredUserProfile {
@@ -57,38 +72,20 @@ interface UserDatabaseFile {
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const STORE_FILE = path.join(DATA_DIR, "user_store.json");
+// In-memory store: Production uses Firebase Auth & Cloud Firestore.
+// Sensitive user credentials and progress are NEVER written to disk JSON files.
+const inMemoryStore: UserDatabaseFile = {
+  accounts: [],
+  userProgress: {},
+};
 
 function ensureStoreExists(): UserDatabaseFile {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(STORE_FILE)) {
-      const initial: UserDatabaseFile = {
-        accounts: [],
-        userProgress: {},
-      };
-      fs.writeFileSync(STORE_FILE, JSON.stringify(initial, null, 2), "utf-8");
-      return initial;
-    }
-    const content = fs.readFileSync(STORE_FILE, "utf-8");
-    return JSON.parse(content) as UserDatabaseFile;
-  } catch (err) {
-    console.error("Error reading user_store.json:", err);
-    return { accounts: [], userProgress: {} };
-  }
+  return inMemoryStore;
 }
 
 function writeStore(data: UserDatabaseFile): void {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), "utf-8");
-  } catch (err) {
-    console.error("Error writing user_store.json:", err);
-  }
+  inMemoryStore.accounts = data.accounts;
+  inMemoryStore.userProgress = data.userProgress;
 }
 
 export function registerUser(params: {
@@ -101,7 +98,7 @@ export function registerUser(params: {
     topics?: any[];
     timetableSlots?: any[];
   };
-}): { success: boolean; message?: string; account?: StoredAccount; user?: StoredUserProfile; progress?: StoredUserProgress } {
+}): { success: boolean; message?: string; token?: string; account?: StoredAccount; user?: StoredUserProfile; progress?: StoredUserProgress } {
   const store = ensureStoreExists();
   const normalizedEmail = params.email.trim().toLowerCase();
 
@@ -154,8 +151,14 @@ export function registerUser(params: {
   store.userProgress[userId] = initialProgress;
   writeStore(store);
 
+  const sessionToken = generateSignedSessionToken({
+    uid: userId,
+    email: normalizedEmail,
+  });
+
   return {
     success: true,
+    token: sessionToken,
     account: newAccount,
     user: newUserProfile,
     progress: initialProgress,
@@ -165,7 +168,7 @@ export function registerUser(params: {
 export function loginUser(params: {
   email: string;
   password?: string;
-}): { success: boolean; message?: string; account?: StoredAccount; user?: StoredUserProfile; progress?: StoredUserProgress } {
+}): { success: boolean; message?: string; token?: string; account?: StoredAccount; user?: StoredUserProfile; progress?: StoredUserProgress } {
   const store = ensureStoreExists();
   const normalizedEmail = params.email.trim().toLowerCase();
 
@@ -207,15 +210,24 @@ export function loginUser(params: {
     writeStore(store);
   }
 
+  const sessionToken = generateSignedSessionToken({
+    uid: account.id,
+    email: account.email,
+  });
+
   return {
     success: true,
+    token: sessionToken,
     account,
     user: progress.user,
     progress,
   };
 }
 
-export function saveUserProgress(userId: string, data: Partial<StoredUserProgress>): { success: boolean; progress?: StoredUserProgress; message?: string } {
+export function saveUserProgress(
+  userId: string,
+  data: Partial<Omit<StoredUserProgress, "user">> & { user?: Partial<StoredUserProfile> }
+): { success: boolean; progress?: StoredUserProgress; message?: string } {
   const store = ensureStoreExists();
   
   // Resolve target ID in case email was passed
@@ -231,18 +243,18 @@ export function saveUserProgress(userId: string, data: Partial<StoredUserProgres
 
   if (!existing) {
     // If progress record not yet created, create one
-    const initialUser: StoredUserProfile = data.user || {
+    const initialUser: StoredUserProfile = {
       id: resolvedId,
-      name: matchedAccount?.name || "Aspirant",
-      email: matchedAccount?.email || "",
-      target: matchedAccount?.target || "UPSC CSE 2026",
-      optionalSubject: matchedAccount?.optionalSubject || "Public Administration",
-      studyStreakDays: 0,
-      totalStudyHours: 0,
-      questionsAttempted: 0,
-      mainsEvaluatedCount: 0,
-      overallAccuracy: 0,
-      themeMode: "dark",
+      name: matchedAccount?.name || data.user?.name || "Aspirant",
+      email: matchedAccount?.email || data.user?.email || "",
+      target: matchedAccount?.target || data.user?.target || "UPSC CSE 2026",
+      optionalSubject: matchedAccount?.optionalSubject || data.user?.optionalSubject || "Public Administration",
+      studyStreakDays: data.user?.studyStreakDays || 0,
+      totalStudyHours: data.user?.totalStudyHours || 0,
+      questionsAttempted: data.user?.questionsAttempted || 0,
+      mainsEvaluatedCount: data.user?.mainsEvaluatedCount || 0,
+      overallAccuracy: data.user?.overallAccuracy || 0,
+      themeMode: data.user?.themeMode || "dark",
     };
 
     const newProgress: StoredUserProgress = {
@@ -299,3 +311,109 @@ export function getUserProgress(userIdOrEmail: string): StoredUserProgress | nul
   }
   return null;
 }
+
+export function getUserProfile(userId: string): any {
+  const progress = getUserProgress(userId);
+  if (progress && progress.user) {
+    return {
+      id: progress.userId,
+      name: progress.user.name || "Aspirant",
+      email: progress.user.email || "",
+      target: progress.user.target || "UPSC 2026",
+      optionalSubject: progress.user.optionalSubject || "Public Administration",
+      streakDays: progress.user.studyStreakDays || 0,
+      totalStudyHours: progress.user.totalStudyHours || 0,
+      weakAreas: [],
+      dailyStudyLogs: (progress.studySessions || []).map((s: any) => ({
+        date: s.date || new Date().toISOString().split("T")[0],
+        minutes: s.durationMinutes || s.minutes || 30,
+        topic: s.topicName || "General Study",
+      })),
+    };
+  }
+  return {
+    id: userId,
+    name: "Aspirant",
+    email: "",
+    target: "UPSC 2026",
+    optionalSubject: "Public Administration",
+    streakDays: 0,
+    totalStudyHours: 0,
+    weakAreas: [],
+    dailyStudyLogs: [],
+  };
+}
+
+export function updateUserProfile(userId: string, updates: any): any {
+  const store = ensureStoreExists();
+  const existing = store.userProgress[userId];
+  if (existing) {
+    existing.user = { ...existing.user, ...updates };
+    writeStore(store);
+    return { ...existing.user, ...updates };
+  }
+  saveUserProgress(userId, { user: updates });
+  return getUserProfile(userId);
+}
+
+export function recordStudySession(userId: string, session: any): any {
+  const store = ensureStoreExists();
+  let progress = store.userProgress[userId];
+  const durationHours = Math.round(((session.durationMinutes || 30) / 60) * 10) / 10;
+  if (!progress) {
+    saveUserProgress(userId, {
+      studySessions: [session],
+      user: {
+        studyStreakDays: 1,
+        totalStudyHours: durationHours,
+      },
+    });
+    progress = store.userProgress[userId];
+  } else {
+    progress.studySessions = progress.studySessions || [];
+    progress.studySessions.push(session);
+    if (progress.user) {
+      progress.user.studyStreakDays = Math.max(1, (progress.user.studyStreakDays || 0) + 1);
+      progress.user.totalStudyHours =
+        Math.round(((progress.user.totalStudyHours || 0) + durationHours) * 10) / 10;
+    }
+    writeStore(store);
+  }
+  return session;
+}
+
+export function exportAllUserData(userId: string): any {
+  const store = ensureStoreExists();
+  const progress = getUserProgress(userId);
+  const account = store.accounts.find((a) => a.id === userId);
+  return {
+    exportedAt: new Date().toISOString(),
+    account: account
+      ? { id: account.id, name: account.name, email: account.email, target: account.target, optionalSubject: account.optionalSubject }
+      : null,
+    progress,
+    user: getUserProfile(userId),
+  };
+}
+
+export function deleteUserAccount(userId: string): boolean {
+  const store = ensureStoreExists();
+  let modified = false;
+
+  if (store.userProgress[userId]) {
+    delete store.userProgress[userId];
+    modified = true;
+  }
+
+  const accIndex = store.accounts.findIndex((a) => a.id === userId);
+  if (accIndex >= 0) {
+    store.accounts.splice(accIndex, 1);
+    modified = true;
+  }
+
+  if (modified) {
+    writeStore(store);
+  }
+  return true;
+}
+

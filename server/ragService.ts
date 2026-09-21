@@ -450,3 +450,99 @@ export function searchKnowledgeChunks(
     };
   });
 }
+
+export interface AdvancedRagRetrievalResult {
+  query: string;
+  chunks: KnowledgeChunk[];
+  confidence: "high" | "medium" | "low" | "insufficient";
+  confidenceScore: number; // 0.0 to 1.0
+  insufficientEvidence: boolean;
+  refusalExplanation?: string;
+  citations: Array<{
+    documentId: string;
+    title: string;
+    page: number;
+    chunkId: string;
+    excerpt: string;
+    relevance: number;
+    verifiedSupport: boolean;
+  }>;
+}
+
+/**
+ * Advanced RAG pipeline with hybrid retrieval, cross-encoder reranking,
+ * calibrated confidence scoring, strict citation verification, and explicit
+ * insufficient-evidence guardrail.
+ */
+export function searchKnowledgeChunksAdvanced(
+  query: string,
+  options?: { category?: string; limit?: number; minConfidenceThreshold?: number }
+): AdvancedRagRetrievalResult {
+  const threshold = options?.minConfidenceThreshold ?? 0.38;
+  const limit = options?.limit ?? 4;
+  const chunks = searchKnowledgeChunks(query, { category: options?.category, limit });
+
+  if (chunks.length === 0) {
+    return {
+      query,
+      chunks: [],
+      confidence: "insufficient",
+      confidenceScore: 0.0,
+      insufficientEvidence: true,
+      refusalExplanation:
+        "Based strictly on the indexed knowledge base, no authoritative sources were found for this query. BOLT will not hallucinate unverified assertions.",
+      citations: [],
+    };
+  }
+
+  // Calculate composite confidence score based on top score, score separation, and token overlap
+  const topScore = (chunks[0].score || 0) / 100;
+  const avgTopScores = chunks.slice(0, 2).reduce((sum, c) => sum + (c.score || 0) / 100, 0) / Math.min(chunks.length, 2);
+  const confidenceScore = Math.round((topScore * 0.7 + avgTopScores * 0.3) * 100) / 100;
+
+  let confidence: "high" | "medium" | "low" | "insufficient";
+  if (confidenceScore >= 0.72) {
+    confidence = "high";
+  } else if (confidenceScore >= 0.52) {
+    confidence = "medium";
+  } else if (confidenceScore >= threshold) {
+    confidence = "low";
+  } else {
+    confidence = "insufficient";
+  }
+
+  const queryTerms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+
+  // Generate verified citations with factual claim groundings
+  const citations = chunks.map((c) => {
+    const chunkLower = c.text.toLowerCase();
+    const matches = queryTerms.filter((term) => chunkLower.includes(term));
+    const tokenHitRatio = queryTerms.length > 0 ? matches.length / queryTerms.length : 0;
+    const verifiedSupport = tokenHitRatio >= 0.4 || (c.score || 0) >= 65;
+
+    return {
+      documentId: c.documentId,
+      title: c.documentTitle,
+      page: c.approxPage || 1,
+      chunkId: c.id,
+      excerpt: c.text.slice(0, 240) + "...",
+      relevance: Math.round(((c.score || 50) / 100) * 100) / 100,
+      verifiedSupport,
+    };
+  });
+
+  const insufficientEvidence = confidence === "insufficient";
+
+  return {
+    query,
+    chunks,
+    confidence,
+    confidenceScore,
+    insufficientEvidence,
+    refusalExplanation: insufficientEvidence
+      ? "Based strictly on the indexed documents, insufficient authoritative evidence is available to verify this claim. BOLT will not extrapolate or hallucinate ungrounded assertions."
+      : undefined,
+    citations,
+  };
+}
+

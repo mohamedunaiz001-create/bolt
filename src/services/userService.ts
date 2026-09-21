@@ -32,7 +32,26 @@ import {
 
 const CURRENT_USER_KEY = "bolt_current_user";
 const USER_PROGRESS_KEY_PREFIX = "bolt_user_progress_";
-const ACCOUNTS_KEY = "bolt_upsc_accounts";
+const AUTH_TOKEN_KEY = "bolt_auth_token";
+
+/**
+ * Retrieve authorization header using Firebase ID token or secure server session token
+ */
+export async function getAuthHeader(): Promise<Record<string, string>> {
+  if (auth.currentUser) {
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      if (idToken) {
+        return { Authorization: `Bearer ${idToken}` };
+      }
+    } catch {}
+  }
+  const sessionToken = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (sessionToken) {
+    return { Authorization: `Bearer ${sessionToken}` };
+  }
+  return {};
+}
 
 /**
  * Returns pristine syllabus topics with zero mock progress for a clean user account
@@ -113,9 +132,10 @@ export async function saveUserProgress(progress: UserFullProgressData): Promise<
   // 3. Persist to server API as secondary backup
   if (userId && !userId.startsWith("guest")) {
     try {
+      const authHeaders = await getAuthHeader();
       await fetch("/api/user/save-progress", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           userId,
           user: progress.user,
@@ -187,7 +207,10 @@ export async function loadUserProgress(userId: string): Promise<UserFullProgress
 
     // 2. Try Express server API
     try {
-      const res = await fetch(`/api/user/progress?userId=${encodeURIComponent(userId)}`);
+      const authHeaders = await getAuthHeader();
+      const res = await fetch(`/api/user/progress?userId=${encodeURIComponent(userId)}`, {
+        headers: { ...authHeaders },
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.progress) {
@@ -236,7 +259,7 @@ export async function registerAccount(params: {
   const cleanTopics = getCleanSyllabus();
   const cleanSlots = getCleanTimetableSlots();
 
-  // Try Firebase Auth
+  // Pure Firebase Authentication
   if (params.password) {
     try {
       const cred = await createUserWithEmailAndPassword(auth, params.email.trim(), params.password);
@@ -282,204 +305,80 @@ export async function registerAccount(params: {
       if (err.code === "auth/email-already-in-use") {
         return { success: false, message: "An account with this email already exists. Please sign in instead." };
       }
+      if (err.code === "auth/weak-password") {
+        return { success: false, message: "Password is too weak. Please use at least 6 characters with mixed characters." };
+      }
+      if (err.code === "auth/invalid-email") {
+        return { success: false, message: "Please provide a valid email address." };
+      }
+      return { success: false, message: err.message || "Failed to create account. Please check your connection." };
     }
   }
 
-  // Fallback to Express backend registration
-  try {
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...params,
-        initialData: {
-          topics: cleanTopics,
-          timetableSlots: cleanSlots,
-        },
-      }),
-    });
-    const json = await res.json();
-    if (res.ok && json.success) {
-      const user = json.user as UserProfile;
-      const progress: UserFullProgressData = {
-        user,
-        topics: json.progress?.topics || cleanTopics,
-        evaluations: json.progress?.evaluations || [],
-        timetableSlots: json.progress?.timetableSlots || cleanSlots,
-        studySessions: json.progress?.studySessions || [],
-        prelimsAttempts: {},
-        bookmarks: [],
-        lastSavedAt: new Date().toISOString(),
-      };
-
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-      localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${user.id}`, JSON.stringify(progress));
-
-      return { success: true, user, progress };
-    }
-  } catch (e) {
-    console.warn("Server register fallback failed:", e);
-  }
-
-  // Local fallback
-  const userId = `user_${Date.now()}`;
-  const newUser: UserProfile = {
-    id: userId,
-    name: params.name.trim(),
-    email: params.email.trim(),
-    target: params.target || "UPSC CSE 2026",
-    optionalSubject: params.optionalSubject || "Public Administration",
-    studyStreakDays: 1,
-    totalStudyHours: 0,
-    questionsAttempted: 0,
-    mainsEvaluatedCount: 0,
-    overallAccuracy: 0,
-    themeMode: "dark",
-  };
-
-  const progress: UserFullProgressData = {
-    user: newUser,
-    topics: cleanTopics,
-    evaluations: [],
-    timetableSlots: cleanSlots,
-    studySessions: [],
-    prelimsAttempts: {},
-    bookmarks: [],
-    lastSavedAt: new Date().toISOString(),
-  };
-
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
-  localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${userId}`, JSON.stringify(progress));
-
-  return { success: true, user: newUser, progress };
+  return { success: false, message: "Password is required for registration." };
 }
 
 /**
- * Sign in an existing user with Firebase Auth or fallback
+ * Sign in an existing user strictly with Firebase Auth
  */
 export async function loginAccount(params: {
   email: string;
   password?: string;
 }): Promise<{ success: boolean; message?: string; user?: UserProfile; progress?: UserFullProgressData }> {
-  // 1. Try Firebase Auth
-  if (params.password) {
-    try {
-      const cred = await signInWithEmailAndPassword(auth, params.email.trim(), params.password);
-      const userId = cred.user.uid;
-      const progress = await loadUserProgress(userId);
+  if (!params.password) {
+    return { success: false, message: "Password is required to sign in." };
+  }
 
-      if (progress) {
-        return { success: true, user: progress.user, progress };
-      }
+  try {
+    const cred = await signInWithEmailAndPassword(auth, params.email.trim(), params.password);
+    const userId = cred.user.uid;
+    const progress = await loadUserProgress(userId);
 
-      // Default user if no progress doc yet
-      const defaultUser: UserProfile = {
-        id: userId,
-        name: cred.user.displayName || params.email.split("@")[0],
-        email: params.email,
-        target: "UPSC CSE 2026",
-        optionalSubject: "Public Administration",
-        studyStreakDays: 1,
-        totalStudyHours: 0,
-        questionsAttempted: 0,
-        mainsEvaluatedCount: 0,
-        overallAccuracy: 0,
-      };
+    if (progress) {
+      return { success: true, user: progress.user, progress };
+    }
 
-      return {
-        success: true,
+    // Default user if no progress doc yet
+    const defaultUser: UserProfile = {
+      id: userId,
+      name: cred.user.displayName || params.email.split("@")[0],
+      email: params.email,
+      target: "UPSC CSE 2026",
+      optionalSubject: "Public Administration",
+      studyStreakDays: 1,
+      totalStudyHours: 0,
+      questionsAttempted: 0,
+      mainsEvaluatedCount: 0,
+      overallAccuracy: 0,
+    };
+
+    return {
+      success: true,
+      user: defaultUser,
+      progress: {
         user: defaultUser,
-        progress: {
-          user: defaultUser,
-          topics: getCleanSyllabus(),
-          evaluations: [],
-          timetableSlots: getCleanTimetableSlots(),
-          studySessions: [],
-          prelimsAttempts: {},
-          bookmarks: [],
-        },
-      };
-    } catch (err: any) {
-      console.warn("Firebase signInWithEmailAndPassword failed:", err);
-      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
-        return { success: false, message: "Invalid email or password. Please verify your credentials." };
-      }
+        topics: getCleanSyllabus(),
+        evaluations: [],
+        timetableSlots: getCleanTimetableSlots(),
+        studySessions: [],
+        prelimsAttempts: {},
+        bookmarks: [],
+      },
+    };
+  } catch (err: any) {
+    console.warn("Firebase signInWithEmailAndPassword failed:", err);
+    if (
+      err.code === "auth/invalid-credential" ||
+      err.code === "auth/wrong-password" ||
+      err.code === "auth/user-not-found"
+    ) {
+      return { success: false, message: "Invalid email or password. Please verify your credentials." };
     }
+    if (err.code === "auth/too-many-requests") {
+      return { success: false, message: "Access temporarily blocked due to multiple failed attempts. Please try again later or reset password." };
+    }
+    return { success: false, message: err.message || "Authentication failed. Please check your network connection." };
   }
-
-  // 2. Try Express server API
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    });
-    const json = await res.json();
-    if (res.ok && json.success) {
-      const user = json.user as UserProfile;
-      const rawP = json.progress;
-      const progress: UserFullProgressData = {
-        user,
-        topics: rawP?.topics && rawP.topics.length > 0 ? rawP.topics : getCleanSyllabus(),
-        evaluations: rawP?.evaluations || [],
-        timetableSlots: rawP?.timetableSlots && rawP.timetableSlots.length > 0 ? rawP.timetableSlots : getCleanTimetableSlots(),
-        studySessions: rawP?.studySessions || [],
-        prelimsAttempts: rawP?.prelimsAttempts || {},
-        bookmarks: rawP?.bookmarks || [],
-        lastSavedAt: rawP?.updatedAt || new Date().toISOString(),
-      };
-
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-      localStorage.setItem(`${USER_PROGRESS_KEY_PREFIX}${user.id}`, JSON.stringify(progress));
-
-      return { success: true, user, progress };
-    }
-  } catch (e) {
-    console.warn("Server login fallback failed:", e);
-  }
-
-  // 3. Local storage accounts check
-  try {
-    const existingAccountsRaw = localStorage.getItem(ACCOUNTS_KEY);
-    const accounts = existingAccountsRaw ? JSON.parse(existingAccountsRaw) : [];
-    const matched = accounts.find((a: any) => a.email.toLowerCase() === params.email.trim().toLowerCase());
-
-    if (!matched) {
-      return { success: false, message: "No account found with this email. Please create a new account." };
-    }
-
-    if (matched.password && params.password && matched.password !== params.password) {
-      return { success: false, message: "Invalid password. Please check your credentials." };
-    }
-
-    const localProgressRaw = localStorage.getItem(`${USER_PROGRESS_KEY_PREFIX}${matched.id}`);
-    const progress: UserFullProgressData = localProgressRaw
-      ? JSON.parse(localProgressRaw)
-      : {
-          user: {
-            id: matched.id,
-            name: matched.name,
-            email: matched.email,
-            target: matched.target || "UPSC CSE 2026",
-            optionalSubject: matched.optionalSubject || "Public Administration",
-            studyStreakDays: 1,
-            totalStudyHours: 0,
-            questionsAttempted: 0,
-            mainsEvaluatedCount: 0,
-            overallAccuracy: 0,
-          },
-          topics: getCleanSyllabus(),
-          evaluations: [],
-          timetableSlots: getCleanTimetableSlots(),
-          studySessions: [],
-          prelimsAttempts: {},
-          bookmarks: [],
-        };
-
-    return { success: true, user: progress.user, progress };
-  } catch {}
-
-  return { success: false, message: "Authentication failed. Please check your network connection." };
 }
 
 /**
@@ -549,6 +448,7 @@ export async function logoutAccount(): Promise<void> {
   } catch (e) {
     console.warn("Firebase sign-out error:", e);
   }
+  localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(CURRENT_USER_KEY);
 }
 

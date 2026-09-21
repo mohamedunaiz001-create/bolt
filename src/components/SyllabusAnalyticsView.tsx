@@ -212,10 +212,10 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center space-x-1.5 bg-[#111723] p-1.5 rounded-xl border border-[#1e293b] text-xs font-semibold overflow-x-auto">
+        <div className="flex items-center space-x-1.5 bg-[#111723] p-1.5 rounded-xl border border-[#1e293b] text-xs font-semibold overflow-x-auto max-w-full scrollbar-none">
           <button
             onClick={() => setFilter("all")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all ${
               filter === "all" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -223,7 +223,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           </button>
           <button
             onClick={() => setFilter("completed")}
-            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-all ${
+            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 whitespace-nowrap shrink-0 transition-all ${
               filter === "completed" || filter === "strong"
                 ? "bg-emerald-600 text-white"
                 : "text-emerald-400 hover:text-emerald-300"
@@ -234,7 +234,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           </button>
           <button
             onClick={() => setFilter("in_progress")}
-            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-all ${
+            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 whitespace-nowrap shrink-0 transition-all ${
               filter === "in_progress"
                 ? "bg-blue-600 text-white"
                 : "text-blue-400 hover:text-blue-300"
@@ -245,7 +245,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           </button>
           <button
             onClick={() => setFilter("needs_revision")}
-            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-all ${
+            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 whitespace-nowrap shrink-0 transition-all ${
               filter === "needs_revision" || filter === "weak"
                 ? "bg-red-600 text-white"
                 : "text-red-400 hover:text-red-300"
@@ -256,7 +256,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           </button>
           <button
             onClick={() => setFilter("Paper 1")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all ${
               filter === "Paper 1" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -264,7 +264,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           </button>
           <button
             onClick={() => setFilter("Paper 2")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 transition-all ${
               filter === "Paper 2" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -272,7 +272,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           </button>
           <button
             onClick={() => setFilter("flashcards")}
-            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1.5 whitespace-nowrap shrink-0 transition-all ${
               filter === "flashcards"
                 ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20"
                 : "text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/20"
@@ -283,7 +283,7 @@ export const SyllabusAnalyticsView: React.FC<SyllabusAnalyticsViewProps> = ({
           </button>
           <button
             onClick={() => setFilter("concept_map")}
-            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-all ${
+            className={`px-3 py-1.5 rounded-lg flex items-center space-x-1 whitespace-nowrap shrink-0 transition-all ${
               filter === "concept_map"
                 ? "bg-purple-600 text-white"
                 : "text-purple-400 hover:text-purple-300"

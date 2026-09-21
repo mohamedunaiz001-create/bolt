@@ -40,6 +40,7 @@ import { DEFAULT_ACTIVE_MODEL_CONFIG } from "./data/modelsData";
 import { loadUserProgress, saveUserProgress, logoutAccount, subscribeToAuthState, getCleanSyllabus, getCleanTimetableSlots } from "./services/userService";
 import { cacheSyllabusOffline, cacheTimetableOffline, flushOfflineQueue } from "./services/offlineSyncService";
 import { OfflineStatusIndicator } from "./components/OfflineStatusIndicator";
+import { ScrollToTopButton } from "./components/ScrollToTopButton";
 import { Search, Bookmark, X } from "lucide-react";
 
 export default function App() {
@@ -561,6 +562,8 @@ export default function App() {
             evaluations={evaluations}
             articles={articles}
             questions={questions}
+            timetableSlots={timetableSlots}
+            studySessions={studySessions}
             onNavigateTab={(tab) => setActiveTab(tab)}
             initialPrompt={boltInitialPrompt}
             onClearInitialPrompt={() => setBoltInitialPrompt(null)}
@@ -763,6 +766,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Page-Wide Smooth Scroll Button Component */}
+      <ScrollToTopButton />
     </div>
   );
 }

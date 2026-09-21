@@ -859,7 +859,9 @@ export const StudyPlanner: React.FC<StudyPlannerProps> = ({
                     </div>
 
                     {isAllCompleted && (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" title="Day completed" />
+                      <span title="Day completed">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      </span>
                     )}
                   </div>
 

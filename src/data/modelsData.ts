@@ -3,6 +3,20 @@ import { LaptopSpecs, ModelOption, ModelRecommendation, ActiveModelConfig, Train
 export const AVAILABLE_MODELS: ModelOption[] = [
   // Cloud Models
   {
+    id: "gemini-3.6-flash",
+    name: "Gemini 3.6 Flash (Cloud)",
+    type: "cloud",
+    provider: "Google DeepMind",
+    parameterSize: "Cloud Low Latency",
+    minRamGb: 2,
+    minVramGb: 0,
+    recommendedQuant: "Native Cloud FP16",
+    description: "High-stability, low-latency cloud engine with resilient multi-model failover. Ideal for fast Prelims MCQs and uninterrupted Bolt AI chat.",
+    strengths: ["Ultra-reliable availability", "Sub-second response time", "Automatic multi-model failover", "Zero local hardware load"],
+    ollamaCommand: "N/A (Managed Cloud API)",
+    contextWindow: "1,048,576 tokens",
+  },
+  {
     id: "gemini-3.8-flash",
     name: "Gemini 3.8 Flash (Cloud)",
     type: "cloud",
@@ -169,7 +183,7 @@ export const DEFAULT_LAPTOP_SPECS: LaptopSpecs = {
 };
 
 export const DEFAULT_ACTIVE_MODEL_CONFIG: ActiveModelConfig = {
-  selectedModelId: "gemini-3.8-flash",
+  selectedModelId: "gemini-3.6-flash",
   modelType: "cloud",
   localEndpoint: "http://localhost:11434",
   temperature: 0.7,

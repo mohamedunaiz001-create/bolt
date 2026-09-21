@@ -1,0 +1,1017 @@
+{
+  "nodes": [
+    {
+      "id": "t-admin-thought",
+      "title": "Administrative Thought",
+      "subtitle": "Paper 1 · Unit 2",
+      "type": "topic",
+      "paper": "Paper 1",
+      "unit": "Unit 2",
+      "importance": "High Yield",
+      "summary": "The foundational core of Public Administration. Encompasses Classical, Bureaucratic, Human Relations, Behavioural, and Dynamic administration paradigms.",
+      "keyThemes": [
+        "Efficiency vs Humanism",
+        "Hierarchy vs Flat Structures",
+        "Authority & Consent",
+        "Decision-Making Dynamics"
+      ],
+      "crossPaperBridge": "Administrative theory provides analytical frameworks for diagnosing pathologies in Indian bureaucracy, All India Services hierarchy, and administrative discretion.",
+      "x": 480,
+      "y": 280
+    },
+    {
+      "id": "t-decision-making",
+      "title": "Administrative Behaviour",
+      "subtitle": "Paper 1 · Unit 3",
+      "type": "topic",
+      "paper": "Paper 1",
+      "unit": "Unit 3",
+      "importance": "Core Doctrine",
+      "summary": "Examines the psychology of organizational actors: decision-making models, communication channels, leadership styles, and morale.",
+      "keyThemes": [
+        "Bounded Rationality",
+        "Leadership Grid",
+        "Motivation Hygiene",
+        "Communication Bottlenecks"
+      ],
+      "crossPaperBridge": "Explains how Indian district collectors and central ministers handle complex crises (disasters, protests) under severe time and informational constraints.",
+      "x": 240,
+      "y": 190
+    },
+    {
+      "id": "t-intro-pa",
+      "title": "Introduction & Paradigms",
+      "subtitle": "Paper 1 · Unit 1",
+      "type": "topic",
+      "paper": "Paper 1",
+      "unit": "Unit 1",
+      "importance": "High Yield",
+      "summary": "Traces the evolution of Public Administration from Wilsonian dichotomy to New Public Administration (NPA), Public Choice, NPM, and Digital Era Governance.",
+      "keyThemes": [
+        "Wilsonian Dichotomy",
+        "Minnowbrook Conferences",
+        "Public Choice Theory",
+        "Digital Era Governance"
+      ],
+      "crossPaperBridge": "Informs administrative reforms in India—from post-independence socialist planning to post-1991 liberalization and direct-benefit-transfer e-governance.",
+      "x": 740,
+      "y": 140
+    },
+    {
+      "id": "t-accountability",
+      "title": "Accountability & Control",
+      "subtitle": "Paper 1 · Unit 5",
+      "type": "topic",
+      "paper": "Paper 1",
+      "unit": "Unit 5",
+      "importance": "High Yield",
+      "summary": "Mechanisms to keep the administrative behemoth accountable: legislative, executive, judicial control, Citizen's Charters, Social Audits, and media.",
+      "keyThemes": [
+        "PAC & CAG Oversight",
+        "Judicial Review of Discretion",
+        "Social Audits & RTI",
+        "Lokpal & Ombudsman"
+      ],
+      "crossPaperBridge": "Directly maps to Paper 2 checks on Indian executive, CAG audits of central schemes, Parliamentary Committee oversight, and civil society RTI activism.",
+      "x": 820,
+      "y": 390
+    },
+    {
+      "id": "t-public-policy",
+      "title": "Public Policy Analysis",
+      "subtitle": "Paper 1 · Unit 7",
+      "type": "topic",
+      "paper": "Paper 1",
+      "unit": "Unit 7",
+      "importance": "Core Doctrine",
+      "summary": "Conceptual models of policy formulation, implementation traps, policy evaluation, and stakeholder feedback in complex socio-economic landscapes.",
+      "keyThemes": [
+        "Incrementalism vs Rationality",
+        "Optimal Policymaking",
+        "Implementation Gap",
+        "Policy Advocacy Coalitions"
+      ],
+      "crossPaperBridge": "Essential for analyzing NITI Aayog policy strategies, National Education Policy (NEP 2020), and climate transition roadmaps in India.",
+      "x": 180,
+      "y": 420
+    },
+    {
+      "id": "t-indian-admin",
+      "title": "Union Govt & Administration",
+      "subtitle": "Paper 2 · Unit 3",
+      "type": "topic",
+      "paper": "Paper 2",
+      "unit": "Unit 3",
+      "importance": "High Yield",
+      "summary": "Structure and functioning of the Union Executive in India: President, Prime Minister's Office (PMO), Cabinet Secretariat, and Ministries.",
+      "keyThemes": [
+        "PMO Ascendancy",
+        "Cabinet Committees",
+        "Inter-Ministerial Coordination",
+        "Cooperative Federalism"
+      ],
+      "crossPaperBridge": "Paper 1 structural principles (Gulick's POSDCORB, Appleby's coordination insights) explain PMO coordination vs line department frictions.",
+      "x": 610,
+      "y": 520
+    },
+    {
+      "id": "t-civil-services",
+      "title": "Civil Services in India",
+      "subtitle": "Paper 2 · Unit 6",
+      "type": "topic",
+      "paper": "Paper 2",
+      "unit": "Unit 6",
+      "importance": "Frequent PYQ",
+      "summary": "Recruitment, training, tenure, civil service neutrality, Generalist vs Specialist debate, and lateral entry in Indian administrative governance.",
+      "keyThemes": [
+        "Article 311 Safeguards",
+        "Lateral Entry Debates",
+        "Generalist vs Specialist",
+        "Mission Karmayogi"
+      ],
+      "crossPaperBridge": "Applies Weberian merit-tenure protections and New Public Management contractual accountability to contemporary Indian civil service reforms.",
+      "x": 370,
+      "y": 560
+    },
+    {
+      "id": "t-ethics-governance",
+      "title": "Ethics in Governance",
+      "subtitle": "Paper 2 & GS 4",
+      "type": "topic",
+      "paper": "Paper 2",
+      "unit": "Ethics",
+      "importance": "High Yield",
+      "summary": "Moral dilemmas, corruption detection, code of ethics, citizen-centricity, and structural probity in democratic administrative institutions.",
+      "keyThemes": [
+        "2nd ARC 4th Report",
+        "Kautilyan Anti-Corruption",
+        "Conflict of Interest",
+        "Whistleblower Safeguards"
+      ],
+      "crossPaperBridge": "Integrates Kautilya's Arthashastra mechanisms with Nolan Committee principles and 2nd ARC recommendations for Indian civil servants.",
+      "x": 880,
+      "y": 560
+    },
+    {
+      "id": "th-simon",
+      "title": "Herbert Simon",
+      "subtitle": "Nobel Laureate (1978)",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "Core Doctrine",
+      "summary": "Dismantled Classical 'Economic Man'. Formulated Bounded Rationality, Satisficing, Fact-Value dichotomy, and the concept of Administrative Behavior.",
+      "keyQuotes": [
+        "Human behavior in an organization is bounded by cognitive limitations, incomplete information, and time pressure.",
+        "Administrators satisfice because they have not the wits to maximize."
+      ],
+      "crossPaperBridge": "Use Simon to explain why Indian district administrators prioritize manageable 'good-enough' schemes over computationally optimal utopian plans.",
+      "x": 360,
+      "y": 130
+    },
+    {
+      "id": "th-barnard",
+      "title": "Chester Barnard",
+      "subtitle": "Social Systems Pioneer",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "President of New Jersey Bell. Wrote 'Functions of the Executive' (1938). Pioneered the Acceptance Theory of Authority, Zone of Indifference, and informal organization.",
+      "keyQuotes": [
+        "An organization is a system of consciously coordinated activities or forces of two or more persons.",
+        "The determination of authority lies in the person to whom it is addressed, not in the persons issuing it."
+      ],
+      "crossPaperBridge": "Directly explains why government digitization directives (e.g. digital attendance, geo-tagged audits) fail when orders fall outside the field staff's Zone of Indifference.",
+      "x": 520,
+      "y": 170
+    },
+    {
+      "id": "th-weber",
+      "title": "Max Weber",
+      "subtitle": "Sociological Architect",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "Core Doctrine",
+      "summary": "Formulated the Legal-Rational Bureaucracy ideal-type: monocratic hierarchy, jurisdiction by rules, written files, impersonal order, and career tenure.",
+      "keyQuotes": [
+        "Precision, speed, unambiguity, knowledge of the files, continuity, and discretion are offered to the optimum degree by strictly bureaucratic administration."
+      ],
+      "crossPaperBridge": "The steel frame of the Indian IAS/IPS is Weberian by design. Explains both its constitutional resilience and acute bureaupathologies (red tape, procedural fetishism).",
+      "x": 640,
+      "y": 280
+    },
+    {
+      "id": "th-taylor",
+      "title": "F.W. Taylor",
+      "subtitle": "Scientific Management",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "Father of Scientific Management. Proposed time-and-motion studies, functional foremanship, differential piece-rate, and the revolutionary 'Mental Revolution'.",
+      "keyQuotes": [
+        "In the past the man has been first; in the future the system must be first.",
+        "Scientific management requires a complete mental revolution on the part of both workers and managers."
+      ],
+      "crossPaperBridge": "Reflected in Indian public sector service-level metrics, PRAGATI monitoring by PMO, and DBT transaction latency tracking.",
+      "x": 380,
+      "y": 350
+    },
+    {
+      "id": "th-mayo",
+      "title": "Elton Mayo",
+      "subtitle": "Human Relations School",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "Directed the Hawthorne Experiments (1924-1932). Proved that informal social groups, recognition, and interpersonal climate outweigh purely physical conditions.",
+      "keyQuotes": [
+        "Man's desire to be continuously associated in work with his fellows is a strong, if not the strongest, human characteristic."
+      ],
+      "crossPaperBridge": "Vital in addressing burn-out in Indian healthcare, police personnel welfare boards, and fostering collaborative team spirit in district administration.",
+      "x": 540,
+      "y": 380
+    },
+    {
+      "id": "th-follett",
+      "title": "Mary Parker Follett",
+      "subtitle": "Dynamic Administration",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "Core Doctrine",
+      "summary": "Pioneered Constructive Conflict (Integration), Circular Response, Power-with instead of Power-over, and the 'Law of the Situation'.",
+      "keyQuotes": [
+        "Never let yourself be bullied by an 'either-or'. Find a third way: Integration.",
+        "Leadership is not defined by the exercise of power but by the capacity to increase the sense of power among those led."
+      ],
+      "crossPaperBridge": "A topper favorite for Paper 2! Follett's Integration resolves GST Council federal tax disputes and Inter-State water tribunal stalemates.",
+      "x": 320,
+      "y": 460
+    },
+    {
+      "id": "th-wilson",
+      "title": "Woodrow Wilson",
+      "subtitle": "Father of Public Admin",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "Core Doctrine",
+      "summary": "Wrote the seminal 1887 essay 'The Study of Administration'. Advocated separating politics (policy goal setting) from administration (execution efficiency).",
+      "keyQuotes": [
+        "It is getting to be harder to run a constitution than to frame one.",
+        "The field of administration is a field of business. It is removed from the hurry and strife of politics."
+      ],
+      "crossPaperBridge": "Contrasts with the reality of Indian administration where ministers and civil servants constantly negotiate blurred boundaries of discretion and policy.",
+      "x": 870,
+      "y": 190
+    },
+    {
+      "id": "th-lindblom",
+      "title": "Charles Lindblom",
+      "subtitle": "Incremental Policymaker",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "Formulated the 'Science of Muddling Through'. Discredited comprehensive rational models, arguing democratic states progress through successive limited comparisons.",
+      "keyQuotes": [
+        "Democracies do not remake society root and branch; they muddle through by incremental margins."
+      ],
+      "crossPaperBridge": "Perfect for explaining India's Union Budgets, gradual labor code rollouts, and calibrated farm policy adjustments.",
+      "x": 130,
+      "y": 280
+    },
+    {
+      "id": "th-dror",
+      "title": "Yehezkel Dror",
+      "subtitle": "Optimal Policy Pioneer",
+      "type": "thinker",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "Critiqued Lindblom as pro-inertia and anti-innovation. Formulated the Optimal Model combining rational quantitative logic with extra-rational intuition and metapolicy.",
+      "keyQuotes": [
+        "Incrementalism is a strategy of social conservatism, unsuited to developing nations needing quantum leaps."
+      ],
+      "crossPaperBridge": "Directly describes India's quantum leap reforms: Digital Public Infrastructure (UPI/India Stack), COVID-19 CoWIN rollout, and space missions.",
+      "x": 140,
+      "y": 530
+    },
+    {
+      "id": "th-second-arc",
+      "title": "2nd ARC (Veerappa Moily)",
+      "subtitle": "15 Landmark Reports",
+      "type": "thinker",
+      "paper": "Paper 2",
+      "importance": "Core Doctrine",
+      "summary": "The master roadmap for 21st-century Indian administrative reforms. Penned transformative recommendations on civil service code, RTI, ethics, and local governance.",
+      "keyQuotes": [
+        "Security of tenure must not become an insurance for incompetence and corruption.",
+        "Citizen-centric administration is not a slogan; it is the sole justification for sovereign state power."
+      ],
+      "crossPaperBridge": "Cited in over 60% of UPSC Paper 2 and GS 4 Mains questions. The ultimate authority on institutional overhaul in India.",
+      "x": 740,
+      "y": 480
+    },
+    {
+      "id": "th-kautilya",
+      "title": "Kautilya (Chanakya)",
+      "subtitle": "Arthashastra Statecraft",
+      "type": "thinker",
+      "paper": "Paper 2",
+      "importance": "High Yield",
+      "summary": "Author of Arthashastra. Formulated Saptanga (Seven Organs) theory, welfare kingship (Yogakshema), and detailed detection of 40 forms of bureaucratic embezzlement.",
+      "keyQuotes": [
+        "Just as fish moving underwater cannot possibly be known to have drunk water or not, so also officials handling government revenues cannot be easily known to have pocketed money."
+      ],
+      "crossPaperBridge": "Bridge ancient Indian governance with modern anti-corruption surveillance (CVC, CBI, ED) and citizen grievance redressal.",
+      "x": 930,
+      "y": 450
+    },
+    {
+      "id": "th-appleby",
+      "title": "Paul H. Appleby",
+      "subtitle": "Appleby Reports (1953/56)",
+      "type": "thinker",
+      "paper": "Paper 2",
+      "importance": "High Yield",
+      "summary": "American expert invited by Nehru. Commended Indian administration as among the top dozen in the world, while warning against excessive procedural checking and negative audits.",
+      "keyQuotes": [
+        "Administration is not something distinct from politics; it is the heart of politics.",
+        "India has too much checking and review before action, and too little inspection after action."
+      ],
+      "crossPaperBridge": "Core critique of Indian CAG audits and excessive Secretariat paperwork; recommended creation of O&M divisions and administrative decentralization.",
+      "x": 700,
+      "y": 620
+    },
+    {
+      "id": "c-bounded-rationality",
+      "title": "Bounded Rationality & Satisficing",
+      "subtitle": "Decision Theory",
+      "type": "concept",
+      "paper": "Paper 1",
+      "importance": "Core Doctrine",
+      "summary": "Humans possess neither complete information nor infinite computation. Instead of maximizing, organizational actors choose the first satisfactory alternative.",
+      "keyThemes": [
+        "Cognitive Limits",
+        "Fact-Value Synthesis",
+        "Satisficing Heuristic",
+        "AI Algorithmic Boundaries"
+      ],
+      "crossPaperBridge": "Explains Indian policy firefighting: why disaster mitigation guidelines often rely on proven standard operating procedures over speculative optimization.",
+      "x": 230,
+      "y": 80
+    },
+    {
+      "id": "c-zone-indifference",
+      "title": "Zone of Indifference",
+      "subtitle": "Authority Theory",
+      "type": "concept",
+      "paper": "Paper 1",
+      "importance": "Core Doctrine",
+      "summary": "The psychological zone within which a subordinate accepts orders unquestioningly without conscious appraisal of the authority's legitimacy.",
+      "keyThemes": [
+        "Bottom-up Authority",
+        "Incentives vs Burdens",
+        "Informal Acceptance",
+        "Digital Surveillance Backlash"
+      ],
+      "crossPaperBridge": "Explains why Indian teachers and grassroots ASHA workers protest app-based mandatory real-time selfie check-ins when outside their zone of indifference.",
+      "x": 470,
+      "y": 80
+    },
+    {
+      "id": "c-bureaupathology",
+      "title": "Bureaupathology & Red Tape",
+      "subtitle": "Sociological Dysfunction",
+      "type": "concept",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "Dysfunctions of strict rules: Merton's 'goal displacement' (rules become ends in themselves), trained incapacity, file pushing, and extreme risk aversion.",
+      "keyThemes": [
+        "Goal Displacement",
+        "Trained Incapacity",
+        "File Circulation Delays",
+        "De-humanized Service"
+      ],
+      "crossPaperBridge": "Explains why infrastructure clearance in India took 40+ departmental permissions prior to PM GatiShakti and National Single Window System.",
+      "x": 720,
+      "y": 260
+    },
+    {
+      "id": "c-hawthorne-effect",
+      "title": "Hawthorne Effect & Peer Norms",
+      "subtitle": "Organizational Sociology",
+      "type": "concept",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "Workers modify behaviour and surge in output when they perceive they are receiving special attention and sympathetic managerial interest.",
+      "keyThemes": [
+        "Bank Wiring Observation",
+        "Social Cohesion",
+        "Informal Leadership",
+        "Non-Financial Rewards"
+      ],
+      "crossPaperBridge": "Demonstrated during Mission Indradhanush vaccination campaigns where public recognition of ANMs doubled district immunization output.",
+      "x": 490,
+      "y": 470
+    },
+    {
+      "id": "c-constructive-conflict",
+      "title": "Constructive Conflict (Integration)",
+      "subtitle": "Dynamic Organization",
+      "type": "concept",
+      "paper": "Paper 1",
+      "importance": "Core Doctrine",
+      "summary": "Treating organizational friction not as warfare but as friction in mechanics: uncovering real underlying desires to build novel win-win solutions.",
+      "keyThemes": [
+        "Integration vs Compromise",
+        "Circular Response",
+        "Law of the Situation",
+        "Conflict as Catalyst"
+      ],
+      "crossPaperBridge": "The ultimate mechanism for resolving Inter-State River Water disputes (Cauvery/Sutlej-Yamuna) and GST tax slab negotiations in India.",
+      "x": 230,
+      "y": 340
+    },
+    {
+      "id": "c-muddling-through",
+      "title": "Incrementalism (Muddling Through)",
+      "subtitle": "Policy Realism",
+      "type": "concept",
+      "paper": "Paper 1",
+      "importance": "High Yield",
+      "summary": "Branch vs Root method. In pluralistic polities, consensus-driven incremental changes avoid catastrophic systemic backlash and policy failure.",
+      "keyThemes": [
+        "Root vs Branch Method",
+        "Partisan Mutual Adjustment",
+        "Marginal Comparison",
+        "Risk Minimization"
+      ],
+      "crossPaperBridge": "Explains India's calibrated banking reforms, gradual petroleum price deregulation, and step-by-step FDI cap liberalization.",
+      "x": 80,
+      "y": 200
+    },
+    {
+      "id": "c-lateral-entry",
+      "title": "Lateral Entry & Specialist Reform",
+      "subtitle": "Personnel Governance",
+      "type": "concept",
+      "paper": "Paper 2",
+      "importance": "Frequent PYQ",
+      "summary": "Appointing outside domain specialists to Joint Secretary & Director posts without UPSC civil service examination tenure protections.",
+      "keyThemes": [
+        "Domain Expertise",
+        "Institutional Resistance",
+        "Social Justice (Reservation)",
+        "Performance Contracts"
+      ],
+      "crossPaperBridge": "Tests Weber's closed-career principle vs NPM market-driven expertise; heavily debated in 2nd ARC 10th Report.",
+      "x": 440,
+      "y": 650
+    },
+    {
+      "id": "c-citizen-charter",
+      "title": "Citizen's Charter & Sevottam",
+      "subtitle": "Public Service Delivery",
+      "type": "concept",
+      "paper": "Paper 2",
+      "importance": "High Yield",
+      "summary": "Codification of service standards, delivery timelines, grievance officer contacts, and independent third-party audit (Sevottam model).",
+      "keyThemes": [
+        "Sevottam 3-Pillar Framework",
+        "Service Enforceability",
+        "Grievance Redressal Mechanisms",
+        "Public Value"
+      ],
+      "crossPaperBridge": "Enshrined in state Right to Public Service Acts (e.g. Sakala in Karnataka, Lokseva Guarantee in MP) and recommended by 2nd ARC 12th Report.",
+      "x": 850,
+      "y": 650
+    },
+    {
+      "id": "pyq-2025-simon-ai",
+      "title": "2025 P1: Bounded Rationality & AI",
+      "subtitle": "Paper 1 · 15 Marks",
+      "type": "pyq",
+      "paper": "Paper 1",
+      "year": 2025,
+      "marks": 15,
+      "importance": "Frequent PYQ",
+      "summary": "Critically evaluates whether modern AI, predictive big data, and automated algorithms eliminate Simon's bounds or create opaque new ones.",
+      "pyqPrompt": "Herbert Simon's concept of 'Bounded Rationality' dismantled the illusion of the Classical Economic Man. Critically examine its validity in the age of Big Data and AI-driven algorithmic governance.",
+      "modelAnswerTips": [
+        "Distinguish Simon's 3 bounds: cognitive limits, incomplete info, time cost.",
+        "Acknowledge AI removes speed and processing bounds on 'programmed decisions'.",
+        "Highlight new algorithmic bounds: training bias, black-box unexplainability, ethical value-conflicts.",
+        "Conclude with 2nd ARC ethics: 'Human-in-the-Loop' governance preserves moral accountability."
+      ],
+      "x": 290,
+      "y": 20
+    },
+    {
+      "id": "pyq-2024-barnard-remote",
+      "title": "2024 P1: Barnard's Zone in Remote Work",
+      "subtitle": "Paper 1 · 20 Marks",
+      "type": "pyq",
+      "paper": "Paper 1",
+      "year": 2024,
+      "marks": 20,
+      "importance": "Frequent PYQ",
+      "summary": "Applies Chester Barnard's authority acceptance theory to contemporary remote work, digital attendance apps, and automated supervisor surveillance.",
+      "pyqPrompt": "Chester Barnard argued that authority flows from the bottom up. How is this premise being renegotiated in contemporary public agencies under digital attendance, geo-fencing, and surveillance?",
+      "modelAnswerTips": [
+        "Explain Barnard's 4 conditions for order compliance (understanding, consistency with purpose, compatibility with self-interest, mental/physical ability).",
+        "Detail how intrusive geo-tracking pushes mandates outside the 'Zone of Indifference'.",
+        "Highlight grassroots resistance (e.g. NMMS app protests by NREGA workers).",
+        "Conclude with Chester Barnard's 'informal organization' as the lubricant of formal authority."
+      ],
+      "x": 580,
+      "y": 40
+    },
+    {
+      "id": "pyq-2023-weber-vuca",
+      "title": "2023 P1: Weber's Bureaucracy in VUCA",
+      "subtitle": "Paper 1 · 15 Marks",
+      "type": "pyq",
+      "paper": "Paper 1",
+      "year": 2023,
+      "marks": 15,
+      "importance": "Frequent PYQ",
+      "summary": "Examines if Max Weber's monocratic hierarchy is obsolete or indispensable in today's Volatile, Uncertain, Complex, and Ambiguous (VUCA) world.",
+      "pyqPrompt": "Is Max Weber's bureaucratic ideal-type a roadblock or an anchor of stability in the volatile, uncertain, complex, and ambiguous (VUCA) governance ecosystem of the 21st century?",
+      "modelAnswerTips": [
+        "State Weber's 6 tenets (hierarchy, division of labor, written files, rules, neutrality, salary/tenure).",
+        "Roadblock side: Bennis's critique (inflexible, slow response to crises, siloed).",
+        "Anchor side: Neutrality protects democracy from populist capture; rules prevent arbitrary autocracy.",
+        "Synthesize: Transition to 'Agile Bureaucracy' (Mintzberg adhocracy + Weberian constitutional anchors)."
+      ],
+      "x": 770,
+      "y": 200
+    },
+    {
+      "id": "pyq-2024-taylor-mayo",
+      "title": "2024 P1: Taylor & Mayo Synthesis",
+      "subtitle": "Paper 1 · 10 Marks",
+      "type": "pyq",
+      "paper": "Paper 1",
+      "year": 2024,
+      "marks": 10,
+      "importance": "Frequent PYQ",
+      "summary": "Evaluates the contemporary synthesis of Taylor's mechanical efficiency metrics with Elton Mayo's psychological well-being imperatives.",
+      "pyqPrompt": "Evaluate the synthesis of Taylor's Scientific Management (KPI metrics) and Mayo's Human Relations (workplace well-being) in modern administrative delivery systems.",
+      "modelAnswerTips": [
+        "Set up the dialectic: Taylor's Economic Man vs Mayo's Social Man.",
+        "Modern application: Public agency dashboards (Taylor) paired with employee wellness and psychological safety councils (Mayo).",
+        "Draw a clean comparative 2x2 matrix in the answer."
+      ],
+      "x": 480,
+      "y": 310
+    },
+    {
+      "id": "pyq-2023-follett-gst",
+      "title": "2023 P2: Follett's Integration in GST",
+      "subtitle": "Paper 2 · 15 Marks",
+      "type": "pyq",
+      "paper": "Paper 2",
+      "year": 2023,
+      "marks": 15,
+      "importance": "Frequent PYQ",
+      "summary": "Uses Mary Parker Follett's 'Integration' technique to propose structural solutions for Centre-State GST Council taxation disputes.",
+      "pyqPrompt": "Can Mary Parker Follett's concept of 'Integration' provide a viable pathway for resolving deadlocks in the GST Council and Inter-State River Water Disputes? Illustrate with case studies.",
+      "modelAnswerTips": [
+        "Define Integration vs Domination and Compromise with Follett's library window ventilation anecdote.",
+        "GST Council application: Revenue protection guarantees vs State fiscal autonomy.",
+        "River disputes application: Joint river basin management authorities replacing zero-sum territorial litigation."
+      ],
+      "x": 230,
+      "y": 490
+    },
+    {
+      "id": "pyq-2022-lindblom-dror",
+      "title": "2022 P1: Lindblom vs Dror in Crises",
+      "subtitle": "Paper 1 · 20 Marks",
+      "type": "pyq",
+      "paper": "Paper 1",
+      "year": 2022,
+      "marks": 20,
+      "importance": "Frequent PYQ",
+      "summary": "Contrasts Lindblom's incrementalism with Dror's optimal policymaking model during existential disruptions like pandemic lockdowns.",
+      "pyqPrompt": "Does incrementalism paralyze governance during unprecedented existential crises like pandemics and climate disasters? Contrast Lindblom with Yehezkel Dror's Optimal Model.",
+      "modelAnswerTips": [
+        "Show why Lindblom's 'muddling through' fails when past baselines are invalid.",
+        "Introduce Dror's metapolicymaking and extra-rational intuition as necessary for disruptive innovation.",
+        "Cite COVID-19 vaccine R&D (Operation Warp Speed / Mission Bharat Biotech) as Drorian quantum leaps."
+      ],
+      "x": 80,
+      "y": 470
+    },
+    {
+      "id": "pyq-2025-civil-services-2ndarc",
+      "title": "2025 P2: 2nd ARC on Civil Services",
+      "subtitle": "Paper 2 · 15 Marks",
+      "type": "pyq",
+      "paper": "Paper 2",
+      "year": 2025,
+      "marks": 15,
+      "importance": "Frequent PYQ",
+      "summary": "Critically evaluates 2nd ARC recommendations on balancing constitutional security of tenure (Article 311) with rigorous performance accountability.",
+      "pyqPrompt": "'Security of tenure should not become an insurance for incompetence.' In light of this statement, critically examine 2nd ARC recommendations on Civil Services Reforms.",
+      "modelAnswerTips": [
+        "Quote 2nd ARC 10th Report on 'Refurbishing Personnel Administration'.",
+        "Address amendment of Article 311 to expedite disciplinary inquiries for corruption.",
+        "Propose 360-degree performance appraisal and mandatory review at 15 & 20 years of service.",
+        "Balance with Hota Committee on insulating civil servants from partisan victimisation."
+      ],
+      "x": 540,
+      "y": 600
+    },
+    {
+      "id": "pyq-2024-kautilya-ethics",
+      "title": "2024 GS 4: Kautilya & 2nd ARC Ethics",
+      "subtitle": "GS 4 & Paper 2 · 15M",
+      "type": "pyq",
+      "paper": "GS 4 / Ethics",
+      "year": 2024,
+      "marks": 15,
+      "importance": "Frequent PYQ",
+      "summary": "Contrasts ancient Kautilyan undercover surveillance for detecting official embezzlement with modern whistleblowing and independent ombudsman frameworks.",
+      "pyqPrompt": "Contrast Kautilya's espionage system for detecting administrative venality with modern whistleblowing and independent ombudsman frameworks recommended by the 2nd ARC.",
+      "modelAnswerTips": [
+        "Kautilya's proactive espionage (Gudhapurushas) as executive-centric detection.",
+        "2nd ARC 4th Report 'Ethics in Governance': Citizen-centric transparency, Whistleblower Protection Act, Lokpal.",
+        "Evaluate ethics: Surveillance vs Trust; Reactive punishment vs Proactive institutional integrity."
+      ],
+      "x": 940,
+      "y": 330
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "t-admin-thought",
+      "target": "th-weber",
+      "label": "Bureaucracy Ideal-Type",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e2",
+      "source": "t-admin-thought",
+      "target": "th-taylor",
+      "label": "Scientific Management",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e3",
+      "source": "t-admin-thought",
+      "target": "th-mayo",
+      "label": "Human Relations",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e4",
+      "source": "t-admin-thought",
+      "target": "th-barnard",
+      "label": "Functions of Executive",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e5",
+      "source": "t-admin-thought",
+      "target": "th-simon",
+      "label": "Administrative Behaviour",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e6",
+      "source": "t-admin-thought",
+      "target": "th-follett",
+      "label": "Dynamic Administration",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e7",
+      "source": "t-decision-making",
+      "target": "th-simon",
+      "label": "Bounded Rationality",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e8",
+      "source": "t-decision-making",
+      "target": "th-lindblom",
+      "label": "Incremental Decision-Making",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e9",
+      "source": "t-public-policy",
+      "target": "th-lindblom",
+      "label": "Muddling Through",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e10",
+      "source": "t-public-policy",
+      "target": "th-dror",
+      "label": "Optimal Model",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e11",
+      "source": "t-intro-pa",
+      "target": "th-wilson",
+      "label": "Politics-Admin Dichotomy",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e12",
+      "source": "t-accountability",
+      "target": "th-second-arc",
+      "label": "Ethics & Oversight",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e13",
+      "source": "t-indian-admin",
+      "target": "th-appleby",
+      "label": "Secretariat Evaluation",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e14",
+      "source": "t-indian-admin",
+      "target": "th-second-arc",
+      "label": "State Modernization",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e15",
+      "source": "t-civil-services",
+      "target": "th-second-arc",
+      "label": "10th Report Overhaul",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e16",
+      "source": "t-civil-services",
+      "target": "th-weber",
+      "label": "Merit & Permanence",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e17",
+      "source": "t-ethics-governance",
+      "target": "th-kautilya",
+      "label": "Ancient Statecraft",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e18",
+      "source": "t-ethics-governance",
+      "target": "th-second-arc",
+      "label": "4th Report Mandates",
+      "relationship": "theorized_by"
+    },
+    {
+      "id": "e19",
+      "source": "th-simon",
+      "target": "c-bounded-rationality",
+      "label": "Formulated",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e20",
+      "source": "th-barnard",
+      "target": "c-zone-indifference",
+      "label": "Formulated",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e21",
+      "source": "th-weber",
+      "target": "c-bureaupathology",
+      "label": "Identified Pathologies",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e22",
+      "source": "th-mayo",
+      "target": "c-hawthorne-effect",
+      "label": "Discovered",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e23",
+      "source": "th-follett",
+      "target": "c-constructive-conflict",
+      "label": "Formulated",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e24",
+      "source": "th-lindblom",
+      "target": "c-muddling-through",
+      "label": "Formulated",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e25",
+      "source": "th-second-arc",
+      "target": "c-lateral-entry",
+      "label": "Recommended Rules",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e26",
+      "source": "th-second-arc",
+      "target": "c-citizen-charter",
+      "label": "Sevottam Framework",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e27",
+      "source": "c-bounded-rationality",
+      "target": "pyq-2025-simon-ai",
+      "label": "Examined Against AI",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e28",
+      "source": "c-zone-indifference",
+      "target": "pyq-2024-barnard-remote",
+      "label": "Tested in Digital Age",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e29",
+      "source": "c-bureaupathology",
+      "target": "pyq-2023-weber-vuca",
+      "label": "Tested in VUCA World",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e30",
+      "source": "c-hawthorne-effect",
+      "target": "pyq-2024-taylor-mayo",
+      "label": "Tested vs Taylorism",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e31",
+      "source": "c-constructive-conflict",
+      "target": "pyq-2023-follett-gst",
+      "label": "Applied to GST Council",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e32",
+      "source": "c-muddling-through",
+      "target": "pyq-2022-lindblom-dror",
+      "label": "Critiqued vs Dror",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e33",
+      "source": "c-lateral-entry",
+      "target": "pyq-2025-civil-services-2ndarc",
+      "label": "Tested on Tenure vs Merit",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e34",
+      "source": "th-kautilya",
+      "target": "pyq-2024-kautilya-ethics",
+      "label": "Compared to 2nd ARC",
+      "relationship": "tested_in_pyq"
+    },
+    {
+      "id": "e35",
+      "source": "th-taylor",
+      "target": "th-mayo",
+      "label": "Dialectical Counterpart",
+      "relationship": "critiques"
+    },
+    {
+      "id": "e36",
+      "source": "th-simon",
+      "target": "th-barnard",
+      "label": "Builds on Informal Systems",
+      "relationship": "conceptual_foundation"
+    },
+    {
+      "id": "e37",
+      "source": "th-lindblom",
+      "target": "th-simon",
+      "label": "Rejects Synoptic Rationality",
+      "relationship": "critiques"
+    },
+    {
+      "id": "e38",
+      "source": "th-dror",
+      "target": "th-lindblom",
+      "label": "Condemns Pro-Inertia Bias",
+      "relationship": "critiques"
+    },
+    {
+      "id": "e39",
+      "source": "c-constructive-conflict",
+      "target": "t-indian-admin",
+      "label": "Applies to Federal Deadlocks",
+      "relationship": "applied_to_paper2"
+    },
+    {
+      "id": "e40",
+      "source": "c-zone-indifference",
+      "target": "t-indian-admin",
+      "label": "Applies to Field Subordination",
+      "relationship": "applied_to_paper2"
+    },
+    {
+      "id": "e41",
+      "source": "th-kautilya",
+      "target": "th-second-arc",
+      "label": "Ancient vs Modern Probity",
+      "relationship": "synergistic_with"
+    },
+    {
+      "id": "e42",
+      "source": "th-appleby",
+      "target": "t-accountability",
+      "label": "Critiques Negative Audit",
+      "relationship": "applied_to_paper2"
+    }
+  ],
+  "clusters": [
+    {
+      "id": "cluster-decision-trio",
+      "name": "The Decision-Making Triad",
+      "badge": "Paper 1 · High Yield",
+      "description": "Simon's Bounded Rationality, Lindblom's Incremental Muddling Through, and Dror's Optimal Model form the most recurrent UPSC comparative questions.",
+      "primaryNodeId": "th-simon",
+      "connectedNodeIds": [
+        "th-simon",
+        "th-lindblom",
+        "th-dror",
+        "c-bounded-rationality",
+        "c-muddling-through",
+        "pyq-2025-simon-ai",
+        "pyq-2022-lindblom-dror"
+      ]
+    },
+    {
+      "id": "cluster-classical-human",
+      "name": "Classical vs Human Relations",
+      "badge": "Paper 1 · Unit 2",
+      "description": "Taylor's mechanistic efficiency (Scientific Management) dialectically contrasted with Elton Mayo's Hawthorne discoveries on informal peer norms.",
+      "primaryNodeId": "th-taylor",
+      "connectedNodeIds": [
+        "th-taylor",
+        "th-mayo",
+        "t-admin-thought",
+        "c-hawthorne-effect",
+        "pyq-2024-taylor-mayo"
+      ]
+    },
+    {
+      "id": "cluster-authority-compliance",
+      "name": "Authority, Consent & Digital Resistance",
+      "badge": "Paper 1 & Paper 2",
+      "description": "Chester Barnard's Zone of Indifference and Acceptance of Authority applied to modern digital attendance mandates and remote governance backlash.",
+      "primaryNodeId": "th-barnard",
+      "connectedNodeIds": [
+        "th-barnard",
+        "c-zone-indifference",
+        "t-admin-thought",
+        "t-indian-admin",
+        "pyq-2024-barnard-remote"
+      ]
+    },
+    {
+      "id": "cluster-federal-integration",
+      "name": "Follett's Integration in Indian Federalism",
+      "badge": "Topper Cross-Paper Bridge",
+      "description": "Using Mary Parker Follett's 'Integration' over compromise or domination to resolve Centre-State GST Council deadlocks and river water disputes.",
+      "primaryNodeId": "th-follett",
+      "connectedNodeIds": [
+        "th-follett",
+        "c-constructive-conflict",
+        "t-indian-admin",
+        "pyq-2023-follett-gst"
+      ]
+    },
+    {
+      "id": "cluster-civil-services-ethics",
+      "name": "Civil Services Integrity & Article 311",
+      "badge": "Paper 2 & GS 4",
+      "description": "2nd ARC 4th & 10th Reports synthesizing Weberian tenure security with Kautilyan anti-corruption detection and performance review.",
+      "primaryNodeId": "th-second-arc",
+      "connectedNodeIds": [
+        "th-second-arc",
+        "th-kautilya",
+        "th-weber",
+        "t-civil-services",
+        "t-ethics-governance",
+        "c-lateral-entry",
+        "c-citizen-charter",
+        "pyq-2025-civil-services-2ndarc",
+        "pyq-2024-kautilya-ethics"
+      ]
+    }
+  ],
+  "updatedAt": "2026-09-18T05:50:16.200Z"
+}

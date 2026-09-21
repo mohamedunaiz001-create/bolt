@@ -1,0 +1,54 @@
+[
+  {
+    "id": "job-1789921898312-ydcok",
+    "type": "embeddings_generation",
+    "status": "queued",
+    "progressPct": 0,
+    "title": "Acceptance Test Sample Job",
+    "params": {
+      "test": true
+    },
+    "createdAt": "2026-09-20T16:31:38.312Z",
+    "retryCount": 0,
+    "maxRetries": 2
+  },
+  {
+    "id": "job-1789921862855-j8pf4",
+    "type": "embeddings_generation",
+    "status": "queued",
+    "progressPct": 0,
+    "title": "Acceptance Test Sample Job",
+    "params": {
+      "test": true
+    },
+    "createdAt": "2026-09-20T16:31:02.855Z",
+    "retryCount": 0,
+    "maxRetries": 2
+  },
+  {
+    "id": "job-1789749328739-aq2mz",
+    "type": "embeddings_generation",
+    "status": "queued",
+    "progressPct": 0,
+    "title": "Acceptance Test Sample Job",
+    "params": {
+      "test": true
+    },
+    "createdAt": "2026-09-18T16:35:28.739Z",
+    "retryCount": 0,
+    "maxRetries": 2
+  },
+  {
+    "id": "job-1789749308898-ot30l",
+    "type": "benchmark_run",
+    "status": "queued",
+    "progressPct": 0,
+    "title": "Acceptance Test Sample Job",
+    "params": {
+      "test": true
+    },
+    "createdAt": "2026-09-18T16:35:08.898Z",
+    "retryCount": 0,
+    "maxRetries": 2
+  }
+]

@@ -474,6 +474,13 @@ export interface NewsArticle {
     possibleMainsQuestion: string;
   };
   isBookmarked?: boolean;
+  // Provenance and freshness metadata
+  sourceUrl?: string;
+  publishedAt?: string;
+  retrievedAt?: string;
+  contentHash?: string;
+  provenanceType?: "LIVE_SOURCE" | "CACHED_SOURCE" | "FALLBACK_DATA";
+  isLive?: boolean;
 }
 
 export interface ChatMessage {
@@ -482,6 +489,10 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   mode?: "general" | "public_admin" | "mains_eval" | "progress_analyst";
+  status?: "AI_SUCCESS" | "AI_FALLBACK" | "AI_UNAVAILABLE" | "RAG_NO_EVIDENCE";
+  isFallback?: boolean;
+  warning?: string;
+  engine?: string;
   citations?: {
     documentTitle: string;
     category: string;
