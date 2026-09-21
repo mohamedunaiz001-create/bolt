@@ -121,7 +121,7 @@ export const CANONICAL_TOPIC_GRAPH: TopicGraphNode[] = [
     relevantThinkers: ["Max Weber", "Robert Merton", "Alvin Gouldner"],
     secondArcReports: ["10th Report: Refurbishing Personnel Administration"],
     keyMainsQuestions: ["Examine Weber's formulation of legal-rational authority and its suitability in post-colonial development."],
-    masterySummary: { completion: 85, mastery: 68, status: "practicing" },
+    masterySummary: { completion: 0, mastery: 0, status: "weak" },
   },
   {
     id: "admin_thought_taylor_fayol",
@@ -133,7 +133,7 @@ export const CANONICAL_TOPIC_GRAPH: TopicGraphNode[] = [
     relevantThinkers: ["F.W. Taylor", "Henri Fayol", "Luther Gulick", "Lyndall Urwick"],
     secondArcReports: ["12th Report: Citizen Centric Administration"],
     keyMainsQuestions: ["'Taylor's shop-floor efficiency transformed into Fayol's executive principles.' Comment."],
-    masterySummary: { completion: 100, mastery: 82, status: "strong" },
+    masterySummary: { completion: 0, mastery: 0, status: "weak" },
   },
   {
     id: "admin_thought_simon",
@@ -145,7 +145,7 @@ export const CANONICAL_TOPIC_GRAPH: TopicGraphNode[] = [
     relevantThinkers: ["Herbert Simon", "Chester Barnard", "Charles Lindblom"],
     secondArcReports: ["1st Report: Right to Information - Master Key to Good Governance"],
     keyMainsQuestions: ["How does Simon's 'satisficing' model reflect actual decision making in public procurement?"],
-    masterySummary: { completion: 90, mastery: 58, status: "weak" },
+    masterySummary: { completion: 0, mastery: 0, status: "weak" },
   },
   {
     id: "admin_thought_barnard",
@@ -157,7 +157,7 @@ export const CANONICAL_TOPIC_GRAPH: TopicGraphNode[] = [
     relevantThinkers: ["Chester Barnard", "Mary Parker Follett", "Chris Argyris"],
     secondArcReports: ["4th Report: Ethics in Governance"],
     keyMainsQuestions: ["Analyze Barnard's 'zone of indifference' in the context of implementing controversial public policies."],
-    masterySummary: { completion: 80, mastery: 74, status: "practicing" },
+    masterySummary: { completion: 0, mastery: 0, status: "weak" },
   },
   {
     id: "riggs_prismatic",
@@ -169,7 +169,7 @@ export const CANONICAL_TOPIC_GRAPH: TopicGraphNode[] = [
     relevantThinkers: ["Fred W. Riggs", "Dwight Waldo", "Ferrel Heady"],
     secondArcReports: ["15th Report: State and District Administration"],
     keyMainsQuestions: ["Does Riggs' Sala model accurately portray modern Indian district administration?"],
-    masterySummary: { completion: 70, mastery: 52, status: "weak" },
+    masterySummary: { completion: 0, mastery: 0, status: "weak" },
   },
   {
     id: "financial_administration",
@@ -181,7 +181,7 @@ export const CANONICAL_TOPIC_GRAPH: TopicGraphNode[] = [
     relevantThinkers: ["Aaron Wildavsky", "A.K. Chanda"],
     secondArcReports: ["14th Report: Financial Management Systems"],
     keyMainsQuestions: ["Evaluate the effectiveness of PAC in scrutinizing executive expenditure post-liberalization."],
-    masterySummary: { completion: 95, mastery: 55, status: "weak" },
+    masterySummary: { completion: 0, mastery: 0, status: "weak" },
   },
   {
     id: "ethics_accountability",
@@ -193,7 +193,7 @@ export const CANONICAL_TOPIC_GRAPH: TopicGraphNode[] = [
     relevantThinkers: ["Paul Appleby", "A.D. Gorwala", "Santhanam Committee"],
     secondArcReports: ["4th Report: Ethics in Governance", "10th Report: Personnel Administration"],
     keyMainsQuestions: ["Examine the structural weaknesses of anti-corruption machinery in India as highlighted by the 2nd ARC."],
-    masterySummary: { completion: 100, mastery: 79, status: "strong" },
+    masterySummary: { completion: 0, mastery: 0, status: "weak" },
   },
 ];
 
@@ -342,13 +342,48 @@ export class StudentIntelligenceEngine {
         : "Maintained within baseline variance. Continue standard answer drafting cadence.",
     }));
 
-    // 7. Trend Trajectory (7-day / 30-day signal)
+    // 7. Trend Trajectory (7-day / 30-day signal from real candidate records)
+    let mainsScoreDelta = 0;
+    if (evaluations.length >= 2) {
+      const firstScore = evaluations[0].score || 0;
+      const lastScore = evaluations[evaluations.length - 1].score || 0;
+      mainsScoreDelta = Math.round((lastScore - firstScore) * 10) / 10;
+    }
+
     const trends = {
       period: "7d" as const,
-      mcqAccuracyDelta: attemptKeys.length >= 10 ? +4.5 : 0,
-      mainsScoreDelta: evaluations.length >= 2 ? +0.8 : 0,
-      trajectory: hasSufficientData ? ("improving" as const) : ("insufficient_data" as const),
+      mcqAccuracyDelta: 0,
+      mainsScoreDelta,
+      trajectory: hasSufficientData
+        ? (mainsScoreDelta > 0 ? ("improving" as const) : mainsScoreDelta < 0 ? ("declining" as const) : ("stable" as const))
+        : ("insufficient_data" as const),
     };
+
+    // Dynamically compute real mastery and completion for topic graph nodes
+    const dynamicTopicGraph = CANONICAL_TOPIC_GRAPH.map((node) => {
+      const matchingTopic = topics.find(
+        (t: any) =>
+          t.id === node.id ||
+          (t.name && node.name.toLowerCase().includes(t.name.toLowerCase().split(":")[0].trim())) ||
+          (t.name && t.name.toLowerCase().includes(node.name.toLowerCase().split(":")[0].trim()))
+      );
+
+      const completion = matchingTopic
+        ? (matchingTopic.completionPercentage || matchingTopic.completedPercentage || 0)
+        : 0;
+      const mastery = matchingTopic ? (matchingTopic.knowledgeScore || 0) : 0;
+      const status: "strong" | "practicing" | "weak" =
+        mastery >= 75 ? "strong" : completion > 0 ? "practicing" : "weak";
+
+      return {
+        ...node,
+        masterySummary: {
+          completion,
+          mastery,
+          status,
+        },
+      };
+    });
 
     return {
       overallSyllabusCompletion: avgCompletion,
@@ -364,7 +399,7 @@ export class StudentIntelligenceEngine {
       topStrongAreas: strongAreas,
       trends,
       mainsDimensionWeaknesses,
-      activeTopicGraph: CANONICAL_TOPIC_GRAPH,
+      activeTopicGraph: dynamicTopicGraph,
       recentLearningLoop,
     };
   }

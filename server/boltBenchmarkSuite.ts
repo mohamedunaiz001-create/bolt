@@ -519,7 +519,7 @@ export async function executeBoltBenchmarkSuite(): Promise<BenchmarkSuiteSummary
           actual = "Conceptual query matched foundational taxonomy.";
         }
       } else if (testCase.category === "Mains Evaluation") {
-        const mockRubric = {
+        const evaluationRubric = {
           maxMarks: 15,
           questionText: testCase.prompt,
           subject: "Public Administration",
@@ -531,7 +531,7 @@ export async function executeBoltBenchmarkSuite(): Promise<BenchmarkSuiteSummary
             ? "Short answer."
             : "In accordance with Supreme Court judgments like S.R. Bommai and Shamsher Singh, constitutional conventions must be respected. Way forward includes Punchhi Commission recommendations.";
 
-        const evalRes = await BoltAIGateway.evaluate(mockRubric, sampleAnswer);
+        const evalRes = await BoltAIGateway.evaluate(evaluationRubric, sampleAnswer);
         if (testCase.prompt.includes("empty")) {
           passed = evalRes.score < 5;
           score = passed ? 100 : 0;

@@ -25,75 +25,78 @@ export function calculateTopicKnowledgeDiagnostic(
   const { topic } = input;
 
   // 1. MCQ Accuracy (25% weight)
-  // Fall back to topic's base knowledge / mock data if not directly provided
-  const rawMcq = input.mcqAccuracy ?? (
-    topic.status === "needs_revision"
-      ? 56
-      : topic.status === "strong"
-      ? 84
-      : Math.min(85, Math.max(45, topic.knowledgeScore - 5))
-  );
+  // Uses strictly real performance data (0 if not attempted)
+  const rawMcq = input.mcqAccuracy ?? (topic.mcqAccuracy || 0);
 
   // 2. Mains Performance (25% weight)
-  // Normalized to 0-100%
-  let rawMains = 60;
+  // Normalized to 0-100% from real evaluated submissions
+  let rawMains = 0;
   if (input.mainsAverageScore !== undefined) {
     rawMains = input.mainsAverageScore <= 15
       ? Math.round((input.mainsAverageScore / 15) * 100)
       : input.mainsAverageScore;
-  } else {
-    rawMains = topic.status === "needs_revision"
-      ? 52
-      : topic.status === "strong"
-      ? 81
-      : Math.min(82, Math.max(40, topic.knowledgeScore - 8));
+  } else if (topic.mainsAverageScore) {
+    rawMains = Math.round((topic.mainsAverageScore / 15) * 100);
   }
 
   // 3. Revision Retention (20% weight)
-  // Ebbinghaus decay curve based on days since last revision
-  const days = input.daysSinceLastRevision ?? (
-    topic.status === "needs_revision" ? 9 : topic.status === "strong" ? 2 : 5
-  );
-  // Retention decay: 100% at day 0, decays ~5% per day past 3 days
-  const retentionScore = Math.max(25, Math.round(100 * Math.exp(-0.06 * days)));
+  // Real Ebbinghaus decay curve based on actual days since last revision
+  let days = input.daysSinceLastRevision ?? 0;
+  if (input.daysSinceLastRevision === undefined && topic.lastRevisedDate) {
+    const elapsedMs = Date.now() - new Date(topic.lastRevisedDate).getTime();
+    days = Math.max(0, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)));
+  } else if (input.daysSinceLastRevision === undefined && topic.lastStudiedDate) {
+    const elapsedMs = Date.now() - new Date(topic.lastStudiedDate).getTime();
+    days = Math.max(0, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)));
+  }
+
+  const hasBeenStudied = (topic.completionPercentage || 0) > 0 || (topic.attemptsCount || 0) > 0 || !!topic.lastStudiedDate;
+  // Retention decay: 100% at day 0, decays ~6% per day; 0 if topic not yet studied
+  const retentionScore = hasBeenStudied
+    ? Math.max(10, Math.round(100 * Math.exp(-0.06 * days)))
+    : 0;
 
   // 4. Question Difficulty Factor (15% weight)
-  const diffScore = input.questionDifficultyFactor ?? 70;
+  const diffScore = input.questionDifficultyFactor ?? (hasBeenStudied ? 50 : 0);
 
   // 5. Recent Performance (15% weight)
   const recentScore = input.recentPerformance ?? (
-    topic.status === "needs_revision" ? 54 : topic.status === "strong" ? 86 : 68
+    rawMcq > 0 ? rawMcq : (rawMains > 0 ? rawMains : (topic.knowledgeScore || 0))
   );
 
-  // Compute weighted composite score
-  const computedKnowledgeScore = Math.round(
-    rawMcq * 0.25 +
-    rawMains * 0.25 +
-    retentionScore * 0.20 +
-    diffScore * 0.15 +
-    recentScore * 0.15
-  );
+  // Compute weighted composite score (0 if never studied or attempted)
+  const computedKnowledgeScore = hasBeenStudied
+    ? Math.round(
+        rawMcq * 0.25 +
+        rawMains * 0.25 +
+        retentionScore * 0.20 +
+        diffScore * 0.15 +
+        recentScore * 0.15
+      )
+    : (topic.knowledgeScore || 0);
 
-  // Generate "Why weak?" diagnostic breakdown reasons
+  // Generate "Why weak?" diagnostic breakdown reasons based strictly on real activity
+  const mistakes = input.repeatedMistakesCount ?? (topic.commonMistakes ? topic.commonMistakes.length : 0);
   const whyWeakReasons: string[] = [];
-  if (rawMcq < 65) {
-    whyWeakReasons.push(`MCQ accuracy: ${rawMcq}% (Below 65% benchmark)`);
-  }
-  if (rawMains < 60) {
-    const mains15 = ((rawMains / 100) * 15).toFixed(1);
-    whyWeakReasons.push(`Mains average: ${mains15}/15 marks (Needs structural depth)`);
-  }
-  const mistakes = input.repeatedMistakesCount ?? (topic.status === "needs_revision" ? 3 : 1);
-  if (mistakes >= 2) {
-    whyWeakReasons.push(`${mistakes} repeated concept mistakes identified in recent tests`);
-  }
-  if (days >= 7) {
-    whyWeakReasons.push(`No active recall revision for ${days} days (High forgetting decay)`);
-  }
-
-  // If no specific weaknesses but topic is not strong
-  if (whyWeakReasons.length === 0 && computedKnowledgeScore < 70) {
-    whyWeakReasons.push("Pending full syllabus coverage and comparative answer writing");
+  if (!hasBeenStudied) {
+    whyWeakReasons.push("Topic not yet studied. Start foundational reading.");
+  } else {
+    if (rawMcq > 0 && rawMcq < 65) {
+      whyWeakReasons.push(`MCQ accuracy: ${rawMcq}% (Below 65% benchmark)`);
+    }
+    if (rawMains > 0 && rawMains < 60) {
+      const mains15 = ((rawMains / 100) * 15).toFixed(1);
+      whyWeakReasons.push(`Mains average: ${mains15}/15 marks (Needs structural depth)`);
+    }
+    if (mistakes >= 2) {
+      whyWeakReasons.push(`${mistakes} repeated concept mistakes identified in recent tests`);
+    }
+    if (days >= 7 && (topic.lastRevisedDate || topic.lastStudiedDate)) {
+      whyWeakReasons.push(`No active recall revision for ${days} days (High forgetting decay)`);
+    }
+    if (whyWeakReasons.length === 0 && computedKnowledgeScore < 70) {
+      whyWeakReasons.push("Pending full syllabus coverage and comparative answer writing");
+    }
   }
 
   // Determine priority

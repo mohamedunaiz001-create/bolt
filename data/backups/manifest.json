@@ -1,5 +1,42 @@
 [
   {
+    "id": "bolt-backup-2026-09-21T06-53-18-004Z",
+    "createdAt": "2026-09-21T06:53:18.008Z",
+    "description": "Automated DR Verification Snapshot",
+    "totalSizeKb": 348.7,
+    "filesBackedUp": [
+      "knowledge_store.json",
+      "current_affairs_store.json",
+      "knowledge_graph_store.json"
+    ],
+    "stats": {
+      "knowledgeDocsCount": 5,
+      "knowledgeChunksCount": 19,
+      "usersCount": 0,
+      "currentAffairsCount": 100
+    },
+    "verifiedRestoration": true,
+    "lastVerificationDate": "2026-09-21T06:53:18.013Z"
+  },
+  {
+    "id": "bolt-backup-2026-09-21T06-53-18-000Z",
+    "createdAt": "2026-09-21T06:53:18.004Z",
+    "description": "E2E Acceptance Test Backup",
+    "totalSizeKb": 348.7,
+    "filesBackedUp": [
+      "knowledge_store.json",
+      "current_affairs_store.json",
+      "knowledge_graph_store.json"
+    ],
+    "stats": {
+      "knowledgeDocsCount": 5,
+      "knowledgeChunksCount": 19,
+      "usersCount": 0,
+      "currentAffairsCount": 100
+    },
+    "verifiedRestoration": false
+  },
+  {
     "id": "bolt-backup-2026-09-20T16-31-38-319Z",
     "createdAt": "2026-09-20T16:31:38.324Z",
     "description": "Automated DR Verification Snapshot",
@@ -80,14 +117,13 @@
     "totalSizeKb": 368.3,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": true,
@@ -100,14 +136,13 @@
     "totalSizeKb": 368.3,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": false
@@ -119,14 +154,13 @@
     "totalSizeKb": 368.3,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": true,
@@ -139,14 +173,13 @@
     "totalSizeKb": 368.3,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": false
@@ -158,14 +191,13 @@
     "totalSizeKb": 368,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": true,
@@ -178,14 +210,13 @@
     "totalSizeKb": 368,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": false
@@ -197,14 +228,13 @@
     "totalSizeKb": 368,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": true,
@@ -217,14 +247,13 @@
     "totalSizeKb": 368,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": false
@@ -236,14 +265,13 @@
     "totalSizeKb": 367.6,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": true,
@@ -256,14 +284,13 @@
     "totalSizeKb": 367.6,
     "filesBackedUp": [
       "knowledge_store.json",
-      "user_store.json",
       "current_affairs_store.json",
       "knowledge_graph_store.json"
     ],
     "stats": {
       "knowledgeDocsCount": 5,
       "knowledgeChunksCount": 19,
-      "usersCount": 2,
+      "usersCount": 0,
       "currentAffairsCount": 100
     },
     "verifiedRestoration": false

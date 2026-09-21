@@ -1,5 +1,18 @@
 [
   {
+    "id": "job-1789973597999-chwsf",
+    "type": "embeddings_generation",
+    "status": "queued",
+    "progressPct": 0,
+    "title": "Acceptance Test Sample Job",
+    "params": {
+      "test": true
+    },
+    "createdAt": "2026-09-21T06:53:17.999Z",
+    "retryCount": 0,
+    "maxRetries": 2
+  },
+  {
     "id": "job-1789921898312-ydcok",
     "type": "embeddings_generation",
     "status": "queued",

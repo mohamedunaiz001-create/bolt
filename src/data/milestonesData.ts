@@ -18,9 +18,10 @@ export function generateMilestones(
     ? Math.max(...evaluations.map((e) => e.score))
     : 0;
 
-  // Best prelims accuracy
+  // Best prelims accuracy (0 if not attempted)
   const prelimsAttempted = user.questionsAttempted || 0;
-  const prelimsAccuracy = user.overallAccuracy || 74;
+  const prelimsAccuracy = user.overallAccuracy || 0;
+  const nowStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   const milestones: MilestoneBadge[] = [
     {
@@ -31,7 +32,7 @@ export function generateMilestones(
       badgeLevel: "Bronze",
       iconName: "book-open",
       isUnlocked: completedTopicsCount >= 1,
-      unlockedAt: completedTopicsCount >= 1 ? "Sep 12, 2026" : undefined,
+      unlockedAt: completedTopicsCount >= 1 ? nowStr : undefined,
       progress: Math.min(100, (completedTopicsCount / 1) * 100),
       criteria: "Complete 1 full syllabus unit (>= 80% coverage)",
       currentValue: `${completedTopicsCount} units`,
@@ -46,7 +47,7 @@ export function generateMilestones(
       badgeLevel: "Silver",
       iconName: "trophy",
       isUnlocked: strongTopicsCount >= 3,
-      unlockedAt: strongTopicsCount >= 3 ? "Sep 15, 2026" : undefined,
+      unlockedAt: strongTopicsCount >= 3 ? nowStr : undefined,
       progress: Math.min(100, Math.round((strongTopicsCount / 3) * 100)),
       criteria: "Achieve 'Strong' status in 3 syllabus units",
       currentValue: `${strongTopicsCount} of 3`,
@@ -61,10 +62,10 @@ export function generateMilestones(
       badgeLevel: "Gold",
       iconName: "target",
       isUnlocked: prelimsAccuracy >= 70 && prelimsAttempted >= 20,
-      unlockedAt: "Sep 14, 2026",
+      unlockedAt: prelimsAccuracy >= 70 && prelimsAttempted >= 20 ? nowStr : undefined,
       progress: Math.min(100, Math.round((prelimsAccuracy / 70) * 100)),
-      criteria: "Maintain >= 70% accuracy across practice sets",
-      currentValue: `${prelimsAccuracy}% accuracy`,
+      criteria: "Maintain >= 70% accuracy across practice sets (min 20 questions)",
+      currentValue: prelimsAttempted > 0 ? `${prelimsAccuracy}% accuracy` : "0% (No tests yet)",
       targetValue: "70%",
       rewardXp: 400,
     },
@@ -76,10 +77,10 @@ export function generateMilestones(
       badgeLevel: "Gold",
       iconName: "award",
       isUnlocked: highestMainsScore >= 10.0,
-      unlockedAt: highestMainsScore >= 10.0 ? "Sep 15, 2026" : undefined,
+      unlockedAt: highestMainsScore >= 10.0 ? nowStr : undefined,
       progress: Math.min(100, Math.round((highestMainsScore / 10.0) * 100)),
       criteria: "Obtain 10.0+ marks in Bolt UPSC answer evaluation",
-      currentValue: `${highestMainsScore.toFixed(1)} / 15`,
+      currentValue: evaluations.length > 0 ? `${highestMainsScore.toFixed(1)} / 15` : "0 / 15",
       targetValue: "10.0 / 15",
       rewardXp: 500,
     },
@@ -91,7 +92,7 @@ export function generateMilestones(
       badgeLevel: "Silver",
       iconName: "flame",
       isUnlocked: user.studyStreakDays >= 7,
-      unlockedAt: "Sep 11, 2026",
+      unlockedAt: user.studyStreakDays >= 7 ? nowStr : undefined,
       progress: Math.min(100, Math.round((user.studyStreakDays / 7) * 100)),
       criteria: "Log active study on 7 consecutive days",
       currentValue: `${user.studyStreakDays} days`,
@@ -106,7 +107,7 @@ export function generateMilestones(
       badgeLevel: "Silver",
       iconName: "star",
       isUnlocked: overallAvgCompletion >= 50,
-      unlockedAt: overallAvgCompletion >= 50 ? "Sep 14, 2026" : undefined,
+      unlockedAt: overallAvgCompletion >= 50 ? nowStr : undefined,
       progress: Math.min(100, Math.round((overallAvgCompletion / 50) * 100)),
       criteria: "Reach 50% overall syllabus completion",
       currentValue: `${overallAvgCompletion}%`,
@@ -121,7 +122,7 @@ export function generateMilestones(
       badgeLevel: "Platinum",
       iconName: "zap",
       isUnlocked: prelimsAttempted >= 1000,
-      unlockedAt: prelimsAttempted >= 1000 ? "Sep 16, 2026" : undefined,
+      unlockedAt: prelimsAttempted >= 1000 ? nowStr : undefined,
       progress: Math.min(100, Math.round((prelimsAttempted / 1000) * 100)),
       criteria: "Solve 1,000+ questions in practice view",
       currentValue: `${prelimsAttempted} solved`,
@@ -136,10 +137,10 @@ export function generateMilestones(
       badgeLevel: "Platinum",
       iconName: "trophy",
       isUnlocked: highestMainsScore >= 12.0,
-      unlockedAt: highestMainsScore >= 12.0 ? "Unlocked" : undefined,
+      unlockedAt: highestMainsScore >= 12.0 ? nowStr : undefined,
       progress: Math.min(100, Math.round((highestMainsScore / 12.0) * 100)),
       criteria: "Obtain 12.0+ marks in Bolt UPSC answer evaluation",
-      currentValue: `${highestMainsScore.toFixed(1)} / 15`,
+      currentValue: evaluations.length > 0 ? `${highestMainsScore.toFixed(1)} / 15` : "0 / 15",
       targetValue: "12.0 / 15",
       rewardXp: 1000,
     },

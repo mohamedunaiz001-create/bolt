@@ -17,31 +17,74 @@ export interface TopicDiagnostic {
 
 export function computeTopicDiagnostic(
   topicName: string,
-  isWeakTopic = false,
-  customKnowledgeScore = 60
+  actualMetricsOrIsWeak?:
+    | boolean
+    | {
+        knowledgeScore?: number;
+        mcqAccuracy?: number;
+        mainsPerformance?: number;
+        daysSinceLastRevision?: number;
+        questionDifficulty?: number;
+        recentPerformance?: number;
+        mistakesCount?: number;
+      },
+  customScore?: number
 ): TopicDiagnostic {
-  const isWeak = isWeakTopic || customKnowledgeScore < 65;
-  const rawMcq = isWeak ? 58 : 82;
-  const rawMains = isWeak ? 52 : 78;
-  const days = isWeak ? 9 : 3;
-  const retentionScore = Math.max(25, Math.round(100 * Math.exp(-0.06 * days)));
-  const diffScore = 70;
-  const recentScore = isWeak ? 54 : 85;
+  let metrics: {
+    knowledgeScore?: number;
+    mcqAccuracy?: number;
+    mainsPerformance?: number;
+    daysSinceLastRevision?: number;
+    questionDifficulty?: number;
+    recentPerformance?: number;
+    mistakesCount?: number;
+  };
 
-  const score = Math.round(
-    rawMcq * 0.25 +
-    rawMains * 0.25 +
-    retentionScore * 0.20 +
-    diffScore * 0.15 +
-    recentScore * 0.15
-  );
+  if (typeof actualMetricsOrIsWeak === "boolean") {
+    const isWeak = actualMetricsOrIsWeak;
+    const score = customScore !== undefined ? customScore : (isWeak ? 45 : 80);
+    metrics = {
+      knowledgeScore: score,
+      mcqAccuracy: isWeak ? 55 : 85,
+      mainsPerformance: isWeak ? 50 : 80,
+      daysSinceLastRevision: isWeak ? 8 : 2,
+      questionDifficulty: 60,
+      recentPerformance: score,
+      mistakesCount: isWeak ? 2 : 0,
+    };
+  } else {
+    metrics = actualMetricsOrIsWeak || {};
+  }
+
+  const score = metrics.knowledgeScore ?? 0;
+  const rawMcq = metrics.mcqAccuracy ?? 0;
+  const rawMains = metrics.mainsPerformance ?? 0;
+  const days = metrics.daysSinceLastRevision ?? 0;
+  const retentionScore = days > 0
+    ? Math.max(10, Math.round(100 * Math.exp(-0.06 * days)))
+    : (score > 0 ? 100 : 0);
+  const diffScore = metrics.questionDifficulty ?? (score > 0 ? 50 : 0);
+  const recentScore = metrics.recentPerformance ?? (rawMcq > 0 ? rawMcq : score);
+
+  const isWeak = score < 65 || (rawMcq > 0 && rawMcq < 65);
 
   const whyWeakReasons: string[] = [];
-  if (isWeak) {
-    whyWeakReasons.push(`MCQ accuracy: ${rawMcq}% (Below 65% benchmark)`);
-    whyWeakReasons.push(`Mains average: 7.8/15 marks (Limited theoretical citations)`);
-    whyWeakReasons.push(`3 repeated concept mistakes in recent tests`);
-    whyWeakReasons.push(`No active recall revision for ${days} days`);
+  if (score === 0 && rawMcq === 0 && rawMains === 0) {
+    whyWeakReasons.push("Topic not yet started. Begin foundational reading.");
+  } else {
+    if (rawMcq > 0 && rawMcq < 65) {
+      whyWeakReasons.push(`MCQ accuracy: ${rawMcq}% (Below 65% benchmark)`);
+    }
+    if (rawMains > 0 && rawMains < 60) {
+      const marks = ((rawMains / 100) * 15).toFixed(1);
+      whyWeakReasons.push(`Mains average: ${marks}/15 marks (Limited theoretical citations)`);
+    }
+    if (metrics.mistakesCount && metrics.mistakesCount >= 2) {
+      whyWeakReasons.push(`${metrics.mistakesCount} repeated concept mistakes in recent tests`);
+    }
+    if (days >= 7) {
+      whyWeakReasons.push(`No active recall revision for ${days} days`);
+    }
   }
 
   return {
