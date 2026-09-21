@@ -125,6 +125,7 @@ export interface UserProfile {
   name: string;
   email?: string;
   target: string;
+  targetYear?: string | number;
   optionalSubject: string;
   avatarUrl?: string;
   studyStreakDays: number;
@@ -515,6 +516,12 @@ export interface ChatMessage {
   isFallback?: boolean;
   warning?: string;
   engine?: string;
+  thoughtProcess?: string;
+  reasoningPhases?: {
+    phase: string;
+    title: string;
+    detail: string;
+  }[];
   citations?: {
     documentTitle: string;
     category: string;

@@ -161,7 +161,7 @@ export const DEFAULT_GATEWAY_CONFIG: AIGatewayConfig = {
   baseUrl: "",
   localEndpoint: "http://localhost:11434",
   localModelId: "llama3.1:8b-instruct-q4_K_M",
-  cloudModelId: "gemini-3.8-flash",
+  cloudModelId: "gemini-3.1-flash-lite",
   temperature: 0.7,
   contextWindow: 32768,
   activeAdapter: "bolt-upsc-pubadmin-adapter-v1",
@@ -703,7 +703,7 @@ export async function testConnection(params: {
 }> {
   const startTime = Date.now();
   const provider = (params.provider || "gemini").toLowerCase();
-  const modelId = params.modelId || (provider === "gemini" ? "gemini-3.8-flash" : "default");
+  const modelId = params.modelId || (provider === "gemini" ? "gemini-3.1-flash-lite" : "default");
 
   try {
     if (provider === "gemini" || provider === "cloud") {
@@ -721,7 +721,7 @@ export async function testConnection(params: {
       }
       try {
         const client = new GoogleGenAI({ apiKey: key });
-        const effectiveModel = modelId.startsWith("gemini") ? modelId : "gemini-3.8-flash";
+        const effectiveModel = modelId.startsWith("gemini") ? modelId : "gemini-3.1-flash-lite";
         const { result, usedModel } = await executeGeminiWithFailover(
           client,
           effectiveModel,
@@ -919,20 +919,40 @@ export async function testConnection(params: {
  * Known supported flash models in priority failover order
  */
 export const SUPPORTED_FLASH_MODELS = [
-  "gemini-3.8-flash",
-  "gemini-3.6-flash",
   "gemini-3.1-flash-lite",
+  "gemini-3.8-flash",
+  "gemini-flash-latest",
+  "gemini-3.6-flash",
 ];
 
+const modelCooldownMap = new Map<string, number>();
+
+export function recordModelCooldown(modelId: string, durationMs = 60000): void {
+  modelCooldownMap.set(modelId, Date.now() + durationMs);
+}
+
+export function isModelInCooldown(modelId: string): boolean {
+  const expiry = modelCooldownMap.get(modelId);
+  if (!expiry) return false;
+  if (Date.now() > expiry) {
+    modelCooldownMap.delete(modelId);
+    return false;
+  }
+  return true;
+}
+
 export function normalizeModelId(rawModel?: string): string {
-  if (!rawModel) return "gemini-3.6-flash";
+  if (!rawModel) return "gemini-3.1-flash-lite";
   const m = rawModel.trim();
   const lower = m.toLowerCase();
   if (lower === "gemini-2.5-flash" || lower === "gemini-2.0-flash" || lower === "gemini-1.5-flash") {
-    return "gemini-3.6-flash";
+    return "gemini-3.1-flash-lite";
   }
   if (lower === "gemini-2.5-pro" || lower === "gemini-1.5-pro") {
     return "gemini-3.1-pro-preview";
+  }
+  if (lower === "gemini-3.8-flash" && isModelInCooldown("gemini-3.8-flash")) {
+    return "gemini-3.1-flash-lite";
   }
   return m;
 }
@@ -940,7 +960,13 @@ export function normalizeModelId(rawModel?: string): string {
 export function getCandidateModels(preferredModel?: string): string[] {
   const normalized = normalizeModelId(preferredModel);
   const list = [normalized, ...SUPPORTED_FLASH_MODELS];
-  return Array.from(new Set(list));
+  const unique = Array.from(new Set(list));
+  // Sort models that are NOT currently in cooldown ahead of models experiencing high-demand spikes
+  return unique.sort((a, b) => {
+    const aCool = isModelInCooldown(a) ? 1 : 0;
+    const bCool = isModelInCooldown(b) ? 1 : 0;
+    return aCool - bCool;
+  });
 }
 
 /**
@@ -953,7 +979,7 @@ export async function executeGeminiWithFailover<T>(
   options?: { timeoutMs?: number; label?: string }
 ): Promise<{ result: T; usedModel: string }> {
   const candidates = getCandidateModels(preferredModel);
-  const timeoutMs = options?.timeoutMs || 30000;
+  const timeoutMs = options?.timeoutMs || 8000;
   let lastError: any = null;
 
   for (let i = 0; i < candidates.length; i++) {
@@ -977,12 +1003,17 @@ export async function executeGeminiWithFailover<T>(
         throw err;
       }
 
+      // Record cooldown on 503 high demand or 429 rate limit
+      if (errMsg.includes("503") || errMsg.includes("high demand") || errMsg.includes("overloaded")) {
+        recordModelCooldown(modelId, 60000);
+      }
+
       if (i < candidates.length - 1) {
-        console.warn(
-          `[GeminiFailover] Model "${modelId}" transient failure: ${errMsg.slice(0, 140)}. Automatically failing over to next model "${candidates[i + 1]}"...`
+        console.info(
+          `[GeminiFailover] Model "${modelId}" transient spike (${errMsg.includes("503") ? "503 high demand" : errMsg.slice(0, 50)}). Seamlessly routing to "${candidates[i + 1]}"...`
         );
-        // Short pause to clear transient spikes
-        await new Promise((resolve) => setTimeout(resolve, 350));
+        // Brief pause to clear transient spikes
+        await new Promise((resolve) => setTimeout(resolve, 200));
       } else {
         console.warn(
           `[GeminiFailover] All candidate models exhausted. Last error on "${modelId}": ${errMsg.slice(0, 140)}`
@@ -1201,7 +1232,7 @@ export class BoltAIGateway {
           contents.push({ role: "user", parts: [{ text: "Please continue and provide your guidance." }] });
         }
 
-        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.8-flash";
+        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.1-flash-lite";
 
         const { result: geminiRes, usedModel } = await executeGeminiWithFailover(
           gemini,
@@ -1279,7 +1310,7 @@ export class BoltAIGateway {
             contents.unshift({ role: "user", parts: [{ text: "Hello" }] });
           }
 
-          const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.8-flash";
+          const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.1-flash-lite";
 
           const { result: streamResult, usedModel } = await executeGeminiWithFailover(
             gemini,
@@ -1486,7 +1517,7 @@ export class BoltAIGateway {
     const gemini = getGeminiClient(apiKey);
     if (gemini) {
       try {
-        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.8-flash";
+        const effectiveModel = request.modelOverride || config.cloudModelId || "gemini-3.1-flash-lite";
 
         const { result: res, usedModel } = await executeGeminiWithFailover(
           gemini,
@@ -1626,7 +1657,7 @@ Return ONLY valid JSON matching this exact structure:
           if (ai) {
             const { result: res, usedModel } = await executeGeminiWithFailover(
               ai,
-              rubric.modelOverride || "gemini-3.8-flash",
+              rubric.modelOverride || "gemini-3.1-flash-lite",
               (modelId) =>
                 ai.models.generateContent({
                   model: modelId,
@@ -1864,7 +1895,75 @@ What's on your mind today? Are we exploring a new concept, practicing questions,
 > - [🗺️ Explore Concept Knowledge Graph](#action:knowledgeGraph)`;
   }
 
-  // 3. Weak areas / Diagnostic
+  // 3. Indian Independence & Modern History
+  if (
+    q.includes("independence") ||
+    q.includes("independent") ||
+    q.includes("1947") ||
+    q.includes("freedom struggle") ||
+    q.includes("british rule") ||
+    q.includes("mountbatten") ||
+    q.includes("tryst with destiny") ||
+    q.includes("partition") ||
+    q.includes("quit india")
+  ) {
+    return `India attained its independence from British colonial rule at the stroke of midnight on **August 15, 1947**.
+
+While this marks the historic birth of modern democratic India, in the context of your UPSC preparation—spanning **GS Paper 1 (Modern Indian History)** and **GS Paper 2 (Constitutional Framework & Governance)**—it represents several critical structural and political transitions:
+
+---
+
+### 1. Key Legislative & Constitutional Pillars
+- **The Indian Independence Act, 1947**: Passed by the British Parliament, receiving Royal Assent on **July 18, 1947**. It terminated British suzerainty over the princely states and established two independent Dominions: **India** and **Pakistan**.
+- **Mountbatten Plan (June 3, 1947)**: Laid down the political principles of partition, the demarcation of frontiers by the Radcliffe Boundary Commission, and the immediate transfer of power on dominion status basis.
+- **Constitutional Continuity**: Under Section 8 of the 1947 Act, both dominions were governed in accordance with the **Government of India Act, 1935** (with requisite modifications) until their respective Constituent Assemblies framed and enacted their own sovereign constitutions.
+
+### 2. The Sovereign Transition (1947 – 1950)
+- **Dominion Status to Sovereign Democratic Republic**: From August 15, 1947 until January 26, 1950, India functioned as a Dominion within the British Commonwealth, with the Governor-General (Lord Mountbatten until June 1948, followed by **C. Rajagopalachari**) acting as the constitutional head on the advice of Jawaharlal Nehru's interim Cabinet.
+- **Constituent Assembly's Dual Role**: The Constituent Assembly (first convened on December 9, 1946) served both as a constitution-making body (chaired by Dr. Rajendra Prasad, with the Drafting Committee chaired by Dr. B.R. Ambedkar) and as the Dominion Legislature (presided over by G.V. Mavalankar).
+
+### 3. Administrative Implications for Public Administration
+- **Sardar Patel & the All India Services**: Patel famously defended the continuation of the steel frame (Article 312), reorganizing the Indian Civil Service (ICS) and Indian Police (IP) into the modern **Indian Administrative Service (IAS)** and **Indian Police Service (IPS)** to safeguard national integration during the turbulent post-partition integration of over 560 princely states.
+
+Would you like to explore the constitutional debates in the Constituent Assembly, practice a Mains question on Sardar Patel's role in integration, or take a quick Prelims drill on the 1947 Act?`;
+  }
+
+  // 4. Constitution, Preamble, Fundamental Rights, Federalism
+  if (
+    q.includes("constitution") ||
+    q.includes("preamble") ||
+    q.includes("fundamental right") ||
+    q.includes("dpsp") ||
+    q.includes("directive principle") ||
+    q.includes("article 32") ||
+    q.includes("article 311") ||
+    q.includes("emergency") ||
+    q.includes("basic structure") ||
+    q.includes("kesavananda") ||
+    q.includes("federalism")
+  ) {
+    return `### 📜 Constitutional Dimensions & Institutional Architecture
+
+The Constitution of India is the supreme law of the land, drafted over 2 years, 11 months, and 18 days, adopted on **November 26, 1949** and brought into full force on **January 26, 1950**.
+
+#### Key Dimensions Relevant to UPSC:
+1. **Preamble as the Guiding Light**:
+   - Declares India a *Sovereign, Socialist, Secular, Democratic, Republic* securing *Justice, Liberty, Equality, and Fraternity*.
+   - In *Kesavananda Bharati (1973)*, the Supreme Court ruled that the Preamble is an integral part of the Constitution and subject to amendment under Article 368, provided the **Basic Structure** remains inviolate.
+
+2. **The Core Equilibrium: Fundamental Rights (Part III) vs DPSPs (Part IV)**:
+   - In *Minerva Mills (1980)*, the Supreme Court articulated that the Constitution is founded on the bedrock of the balance between Part III and Part IV. Neither is subordinate to the other.
+
+3. **Asymmetric Federalism**:
+   - Described by K.C. Wheare as *quasi-federal*, the Indian model balances a strong union centre with regional autonomy (Articles 245-263, 7th Schedule, Article 280 Finance Commission, and Article 279A GST Council).
+
+4. **Constitutional Safeguards for Civil Servants**:
+   - **Article 310 (Doctrine of Pleasure)** balanced by **Article 311**, which guarantees civil servants protection against arbitrary dismissal, removal, or reduction in rank without a reasonable opportunity to be heard.
+
+Which specific constitutional article, landmark judgment, or comparative dimension would you like to examine further?`;
+  }
+
+  // 5. Weak areas / Diagnostic
   if (q.includes("weak") || q.includes("struggling") || q.includes("progress") || q.includes("diagnostic")) {
     return `### 📊 Diagnostic Evaluation & Strategic Guidance
 

@@ -1,5 +1,42 @@
 [
   {
+    "id": "bolt-backup-2026-09-21T12-28-50-491Z",
+    "createdAt": "2026-09-21T12:28:50.494Z",
+    "description": "Automated DR Verification Snapshot",
+    "totalSizeKb": 338.1,
+    "filesBackedUp": [
+      "knowledge_store.json",
+      "current_affairs_store.json",
+      "knowledge_graph_store.json"
+    ],
+    "stats": {
+      "knowledgeDocsCount": 5,
+      "knowledgeChunksCount": 19,
+      "usersCount": 0,
+      "currentAffairsCount": 100
+    },
+    "verifiedRestoration": true,
+    "lastVerificationDate": "2026-09-21T12:28:50.499Z"
+  },
+  {
+    "id": "bolt-backup-2026-09-21T12-28-50-485Z",
+    "createdAt": "2026-09-21T12:28:50.490Z",
+    "description": "E2E Acceptance Test Backup",
+    "totalSizeKb": 338.1,
+    "filesBackedUp": [
+      "knowledge_store.json",
+      "current_affairs_store.json",
+      "knowledge_graph_store.json"
+    ],
+    "stats": {
+      "knowledgeDocsCount": 5,
+      "knowledgeChunksCount": 19,
+      "usersCount": 0,
+      "currentAffairsCount": 100
+    },
+    "verifiedRestoration": false
+  },
+  {
     "id": "bolt-backup-2026-09-21T06-53-18-004Z",
     "createdAt": "2026-09-21T06:53:18.008Z",
     "description": "Automated DR Verification Snapshot",

@@ -19,16 +19,23 @@ export const PROVIDER_METAS: ProviderMeta[] = [
     name: "Google Gemini",
     badge: "Native / Recommended",
     description: "Ultra-low latency, multimodal comprehension with up to 2M token context. Default cloud engine with automatic multi-model failover.",
-    defaultModel: "gemini-3.8-flash",
+    defaultModel: "gemini-3.1-flash-lite",
     apiKeyRequired: false,
     apiKeyPlaceholder: "AIzaSy... (Optional override; uses server key if left empty)",
     models: [
       {
+        id: "gemini-3.1-flash-lite",
+        name: "Gemini 3.1 Flash Lite",
+        description: "Ultra-fast, high-availability model with instant response times and resilient performance for Bolt chat and rapid guidance.",
+        context: "1,048,576 tokens",
+        badge: "Fastest & Stable",
+      },
+      {
         id: "gemini-3.8-flash",
         name: "Gemini 3.8 Flash",
-        description: "Latest generation ultra-fast model. Superb for full syllabus search, instant Mains evaluations, and zero-latency chat.",
+        description: "High-capability model for in-depth UPSC syllabus synthesis and full answer evaluations.",
         context: "1,048,576 tokens",
-        badge: "Fastest",
+        badge: "Advanced",
       },
       {
         id: "gemini-3.6-flash",
@@ -731,7 +738,7 @@ export const DEFAULT_LAPTOP_SPECS: LaptopSpecs = {
 };
 
 export const DEFAULT_ACTIVE_MODEL_CONFIG: ActiveModelConfig = {
-  selectedModelId: "gemini-3.8-flash",
+  selectedModelId: "gemini-3.1-flash-lite",
   modelType: "cloud",
   provider: "gemini",
   apiKey: "",

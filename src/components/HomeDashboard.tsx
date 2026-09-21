@@ -130,7 +130,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       id: "sess-" + Date.now(),
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       date: todayStr,
-      subject: "Public Administration Optional",
+      subject: "pub_ad",
       topic: topicTitle,
       durationMinutes: minutes,
       mode: "deep_work",

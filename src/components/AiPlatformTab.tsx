@@ -77,7 +77,7 @@ export const AiPlatformTab: React.FC<AiPlatformTabProps> = ({ onNotify = (_msg: 
     defaultProvider: "auto",
     localEndpoint: "http://localhost:11434",
     localModelId: "llama3.1:8b-instruct-q4_K_M",
-    cloudModelId: "gemini-3.8-flash",
+    cloudModelId: "gemini-3.1-flash-lite",
     strictContextTokens: 2048,
     activeAdapter: "bolt-upsc-pubadmin-8b-v1",
   });

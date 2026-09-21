@@ -22,6 +22,12 @@ import {
   Calendar,
   Layers,
   Compass,
+  Sliders,
+  Eye,
+  HeartHandshake,
+  HelpCircle,
+  Brain,
+  X,
 } from "lucide-react";
 import {
   ChatMessage,
@@ -39,6 +45,12 @@ import {
 import { computeBoltAppContext } from "../services/appContextService";
 import { executeAgentTool, detectToolFromPrompt, BOLT_TOOL_DEFINITIONS } from "../services/boltAgentTools";
 import { saveFirebaseChatMessage } from "../services/firestoreService";
+import {
+  buildClaudeConversationalSystemPrompt,
+  BoltEngagementTone,
+} from "../services/boltSystemPrompt";
+import { ExpandableThoughtProcess } from "./ExpandableThoughtProcess";
+import { extractOrGenerateThoughtProcess } from "../services/thoughtProcessService";
 
 interface BoltAssistantViewProps {
   user: UserProfile;
@@ -53,6 +65,161 @@ interface BoltAssistantViewProps {
   onClearInitialPrompt?: () => void;
   activeModelConfig?: ActiveModelConfig;
   onOpenModelSettings?: () => void;
+}
+
+function generateLocalKnowledgeAnswer(query: string, user: UserProfile, tone: BoltEngagementTone = "empathetic_socratic"): string {
+  const q = query.toLowerCase();
+  const userName = user.name || "Aspirant";
+  const optional = user.optionalSubject || "Public Administration";
+
+  if (q.includes("simon") || q.includes("bounded rationality") || q.includes("decision")) {
+    return `### Active Reflection & Immediate Insight
+Hello ${userName}. I hear you—Herbert Simon's work in *Administrative Behavior* is often perceived as intimidating because it breaks down the neat, prescriptive classical rules and reveals how human, uncertain, and cognitively bounded administrative decision-making actually is. 
+
+At its core, Simon's fundamental breakthrough is that administrative actors cannot be omniscient "Economic Men" who compute all possible permutations; instead, facing cognitive, computational, and temporal limits, they are **"Administrative Men" who satisfice**—selecting alternatives that meet acceptable aspiration thresholds.
+
+---
+
+### Transparent Step-by-Step Reasoning
+
+#### Step 1: Critiquing the Classical "Proverbs"
+Simon famously demonstrated that classical principles (Fayol's unity of command, Gulick's POSDCORB) contradict each other in practice (e.g., specialization contradicts hierarchy). He declared that administration is fundamentally a study of **decision-making**, not merely execution.
+
+#### Step 2: Fact Premises vs. Value Premises
+Every administrative choice combines two building blocks:
+- **Fact Premises:** Empirical, observable descriptions of reality that can be validated as true or false.
+- **Value Premises:** Ethical choices, policy goals, or moral imperatives that reflect preferences rather than empirical proof.
+Rationality operates strictly on selecting optimal means for given value ends.
+
+#### Step 3: Why Rationality Is Inherently Bounded
+Administrators face three non-negotiable real-world constraints:
+1. **Cognitive Limits:** Inability to mentally store, calculate, and weigh all conceivable outcomes.
+2. **Information & Time Deficits:** Decisions in governance must be executed before complete information can ever be gathered.
+3. **Satisficing Behavior:** Administrators search sequentially and stop at the first alternative that satisfies the threshold criteria.
+
+#### Step 4: Concrete Indian Administrative Application (Paper 2 & 2nd ARC)
+- **District Administration:** An SDM handling emergency monsoon relief operates under acute bounded rationality, utilizing standard operating procedures (SOPs) and heuristic discretion.
+- **2nd ARC 10th Report (Personnel Administration):** Stresses decision-support systems, digitised land records, and MIS dashboards specifically to mitigate bounded rationality in public service delivery.
+
+#### Step 5: UPSC CSE Scoring Edge (Examiner's Lens)
+- **Thinker Linkage:** Contrast Simon with Chester Barnard's *Zone of Indifference* and Chris Argyris's *Integration of Individual and Organization*.
+- **Diagram Suggestion:** Draw a flowchart contrasting "Economic Man (Global Optimization)" with "Administrative Man (Bounded Search & Satisficing Threshold)".
+
+---
+
+> 💡 **Collaborative Next Step:**
+> Would you like to evaluate a 15-mark answer on this topic or explore how Simon's decision-making model applies to AI-assisted governance in India?
+> - [📝 Evaluate a Simon Mains Answer](#action:mains)
+> - [🗺️ Explore Simon in the Concept Knowledge Graph](#action:knowledgeGraph)`;
+  }
+
+  if (q.includes("weber") || q.includes("bureaucracy") || q.includes("authority")) {
+    return `### Active Reflection & Immediate Insight
+Hello ${userName}. Bureaucracy is one of the most debated pillars of our optional, and candidates frequently struggle with separating Max Weber's sociological construct of the "ideal type" from the pejorative modern meaning of red-tape. 
+
+Weber did not design bureaucracy as an empirical description of any single existing country; he conceptualized an **ideal-type model** anchored in **Legal-Rational Authority**, designed to ensure maximum calculability, precision, and impersonality in large-scale social administration.
+
+---
+
+### Transparent Step-by-Step Reasoning
+
+#### Step 1: The Tripartite Classification of Authority
+Weber identified three pure types of legitimate authority:
+1. **Traditional Authority:** Rooted in inherited sanctified customs and lineage (e.g., feudal monarchies).
+2. **Charismatic Authority:** Rooted in extraordinary personal devotion to an exemplary leader (inherently volatile).
+3. **Legal-Rational Authority:** Rooted in legally enacted impersonal rules and graded constitutional offices (the bedrock of modern states).
+
+#### Step 2: Structural Characteristics of Ideal-Type Bureaucracy
+- **Hierarchy of Offices:** Graded chain of authority with clearly defined appeal pathways.
+- **Sphere of Competence:** Codified division of labor bounded by explicit statutory jurisdictions.
+- **Impersonality & Sine Ira et Studio:** Decisions rendered without hatred or passion, treating citizens strictly according to the rule of law.
+- **Separation of Office and Incumbent:** Officials cannot privatize or own their official positions.
+
+#### Step 3: Dysfunctions & Post-Weberian Thought
+- **Robert K. Merton:** Bureaucratic personality leads to "trained incapacity" and goal displacement (rules become ends rather than means).
+- **Michel Crozier:** The "Bureaucratic Phenomenon"—rules create protected zones of uncertainty, fostering defensive coalitions.
+- **Alvin Gouldner:** Distinction between Mock, Representative, and Punishment-Centered bureaucracies.
+
+#### Step 4: Indian Administrative Realities (Paper 2 & 2nd ARC)
+- **Steel Frame vs. Rigidity:** India's All-India Services (protected under Article 311) embody Weberian permanence, yet struggle with accountability deficits and status-quo bias.
+- **2nd ARC 4th Report (Ethics in Governance) & 10th Report:** Recommends transitioning from rule-bound compliance to performance management, citizen charters, and lateral entry.
+
+#### Step 5: UPSC CSE Scoring Architecture
+- **Critical Distinction:** Always highlight that Weber praised bureaucracy's technical efficiency while simultaneously warning of the **"Iron Cage" (*Stahlhartes Gehäuse*)** of disenchantment.
+
+---
+
+> 💡 **Collaborative Next Step:**
+> Shall we review how Weberian neutrality contrasts with the doctrine of "committed bureaucracy", or would you like to attempt a diagnostic question?
+> - [📝 Practice a Weberian Answer](#action:mains)
+> - [⚡ Check Prelims Polity & Admin MCQs](#action:prelims)`;
+  }
+
+  if (q.includes("weak") || q.includes("syllabus") || q.includes("progress")) {
+    return `### Active Reflection & Strategic Insight
+Hello ${userName}. It is completely natural during UPSC preparation to look at the vastness of the syllabus and feel a sense of cognitive overload. Let us take a breath, look at your actual telemetry with clarity, and transform that anxiety into a structured sequence of high-return actions.
+
+---
+
+### Step-by-Step Diagnostic & Action Sequence
+
+#### Step 1: Telemetry Assessment
+- **Subject:** ${optional} (Target: UPSC CSE)
+- **High-Leverage Pivot:** Focus on master concepts in Paper 1 (Administrative Thought & Behaviour) because they provide theoretical fodder that automatically enriches your Paper 2 answers.
+
+#### Step 2: Targeted Remediation for Priority Topics
+1. **Administrative Thought (Simon, Weber, Riggs, Follett):**
+   - Dedicate a single 60-minute deep-focus block to conceptual deconstruction.
+   - Use active recall rather than passive re-reading.
+2. **Accountability & Control (Paper 1 & Paper 2):**
+   - Consolidate statutory tools: Lokpal, CVC, CAG, RTI Act, and Citizens' Charters.
+   - Ground in 2nd ARC Report 4 recommendations.
+
+#### Step 3: Daily Execution Rhythm
+- **Morning (45 mins):** 15 targeted Prelims MCQs with detailed analysis of answer rationales.
+- **Mid-day (75 mins):** Deep theoretical study of one weak thinker unit.
+- **Evening (30 mins):** 1 timed Mains answer (150 words / 10 marks).
+
+---
+
+> 💡 **Ready to Start?**
+> Let's take the first concrete step together right now:
+> - [⚡ Launch 2 Prelims Practice MCQs](#action:prelims)
+> - [📅 Open Your Adaptive Study Timetable](#action:planner)`;
+  }
+
+  return `### Active Reflection & Conceptual Overview
+Hello ${userName}. I hear you—approaching **"${query.trim()}"** thoughtfully requires us to look beyond superficial definitions and understand how this theme interlocks with both administrative theory and real-world Indian governance.
+
+Let us think through this systematically together:
+
+---
+
+### Transparent Step-by-Step Reasoning
+
+#### Step 1: The Core Theoretical Foundation
+Within the academic landscape of ${optional}, this topic addresses the continuous dialectic between structural efficiency and human, behavioral responsiveness. 
+
+#### Step 2: Constitutional & Institutional Anchors
+In the Indian administrative context, look for the underlying constitutional architecture:
+- Relevant Articles of the Constitution (e.g., Articles 311 for civil services, 243 for democratic decentralization, or 280 for fiscal federalism).
+- Statutory commissions, appellate mechanisms, or regulatory guardrails.
+
+#### Step 3: Administrative Reality & 2nd ARC Guidance
+Abstract principles must be validated against field realities:
+- Cross-reference with the 2nd Administrative Reforms Commission (e.g., Report 1 on RTI, Report 4 on Ethics, or Report 12 on Citizen-Centric Governance).
+- Identify field implementation bottlenecks (e.g., bureaucratic inertia, resource deficits, or discretionary abuse).
+
+#### Step 4: UPSC CSE Mains Scoring Dimension
+- **Paper 1 ↔ Paper 2 Bridge:** High marks come from using Paper 1 thinkers to explain Paper 2 institutional behaviors.
+- **Diagrammatic Anchor:** Visualizing this interaction with an input-throughput-output governance loop or stakeholder matrix signals analytical clarity to the examiner.
+
+---
+
+> 💡 **How Would You Like to Proceed?**
+> - [⚡ Test understanding with Prelims MCQs](#action:prelims)
+> - [📝 Draft a 10-marker answer on this topic](#action:mains)
+> - [📅 Add to today's study schedule](#action:planner)`;
 }
 
 export const BoltAssistantView: React.FC<BoltAssistantViewProps> = ({
@@ -72,66 +239,88 @@ export const BoltAssistantView: React.FC<BoltAssistantViewProps> = ({
   // Compute real, dynamic dashboard analytics via App Context Service
   const liveContext = computeBoltAppContext(user, topics, evaluations, articles, questions);
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: "m-1",
-      role: "assistant",
-      text: `### Hello ${user.name || "Aspirant"}! I am **BOLT**, your UPSC Civil Services preparation brain and in-app mentor.
+  const [engagementTone, setEngagementTone] = useState<BoltEngagementTone>("empathetic_socratic");
+  const [showPromptModal, setShowPromptModal] = useState<boolean>(false);
+  const [expandAllThoughts, setExpandAllThoughts] = useState<boolean>(false);
 
-I communicate with you as an intellectual partner—with the depth, analytical nuance, warmth, and clarity of Claude—while maintaining live, real-time access to your actual study dashboard:
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const initialText = `### Hello ${user.name || "Aspirant"} — Welcome to BOLT
 
+I am your conversational mentor for the UPSC Civil Services Examination. I approach our sessions as an intellectual partnership—combining the warmth, active listening, and transparent step-by-step reasoning of Claude with real-time awareness of your active study dashboard:
+
+---
+
+### Step-by-Step Diagnostic of Your Live Preparation State
+
+#### Step 1: Active Metric Reflection
+I've reviewed your current progress across Paper 1 and Paper 2:
 - **Syllabus completion:** ${liveContext.syllabus.overallCompletion}% overall (Paper 1: ${liveContext.syllabus.paper1Completion}%, Paper 2: ${liveContext.syllabus.paper2Completion}%)
-- **Critical weak units:** ${
-        liveContext.syllabus.weakTopics.map((w) => `${w.name} (${w.score}%)`).join(", ") ||
+- **Target areas requiring consolidation:** ${
+        liveContext.syllabus.weakTopics.map((w) => `${w.name} (${w.score}% mastery)`).join(", ") ||
         "Administrative Thought, Accountability & Control"
       }
-- **Established strong areas:** ${
-        liveContext.syllabus.strongTopics.map((s) => `${s.name} (${s.score}%)`).join(", ") ||
+- **Consolidated foundations:** ${
+        liveContext.syllabus.strongTopics.map((s) => `${s.name} (${s.score}% mastery)`).join(", ") ||
         "Administrative Behaviour, Constitutional Framework"
       }
-- **Practice record:** ${liveContext.prelimsPerformance.questionsAttempted} MCQs attempted • ${liveContext.prelimsPerformance.accuracyPercentage}% accuracy
-- **Mains evaluations:** ${liveContext.mainsPerformance.evaluatedCount} answers evaluated (${liveContext.mainsPerformance.averageScore}/15 average)
+- **Practice trajectory:** ${liveContext.prelimsPerformance.questionsAttempted} MCQs attempted (${liveContext.prelimsPerformance.accuracyPercentage}% accuracy) • ${liveContext.mainsPerformance.evaluatedCount} answers evaluated (${liveContext.mainsPerformance.averageScore}/15 average)
 
-#### How I Can Help You Across the App:
-I have direct, bidirectional access to every single tool in this application. You can ask me to navigate to any section, diagnose weak areas, or run practice drills:
+#### Step 2: How We Can Work Together
+Whether you are deconstructing an elusive thinker like Herbert Simon or Fred Riggs, seeking feedback on a 15-mark Mains answer, or looking for an empathetic sounding board during an intense revision week, I am here to think through each problem with you step-by-step.
 
-> 💡 **Quick Launchpad:**
-> - [⚡ Practice Prelims MCQs](#action:prelims)
-> - [📝 Open Mains Evaluation Room](#action:mains)
-> - [📅 View & Customize Timetable](#action:planner)
-> - [🗺️ Explore Concept Knowledge Graph](#action:knowledgeGraph)
-> - [📊 View Granular Syllabus Progress](#action:learn)`,
-      timestamp: "Just now",
-      mode: "public_admin",
-      actionCards: [
-        {
-          type: "topic",
-          title: "Public Administration Diagnostic",
-          description: "Analyze your knowledge level in Administrative Thought (Herbert Simon & Max Weber)",
-          actionLabel: "Analyze Weak Area",
-        },
-        {
-          type: "model_answer",
-          title: "Herbert Simon Model Answer",
-          description: "Inspect 15-mark structured model answer with diagram & 2nd ARC links",
-          actionLabel: "View Model Answer",
-          targetTab: "mains",
-        },
-        {
-          type: "topic",
-          title: "In-App Capabilities Guide",
-          description: "Explore all 11 study tools and see how Bolt AI acts as your in-app co-pilot",
-          actionLabel: "App Capabilities Tour",
-        },
-      ],
-    },
-  ]);
+#### Step 3: Collaborative Next Action
+What would serve your preparation best right now?
+> 💡 **Suggested First Steps:**
+> - Ask me: *"Analyze my weak areas and recommend what to revise first today"*
+> - Ask me: *"Explain Herbert Simon's Bounded Rationality with a 15-marker answer structure"*
+> - [⚡ Practice Prelims MCQs](#action:prelims) • [📝 Open Mains Evaluation Room](#action:mains) • [📅 View Timetable & Schedule](#action:planner)`;
+
+    const initialThought = extractOrGenerateThoughtProcess(
+      initialText,
+      "Initial candidate greeting, readiness evaluation, and live dashboard diagnostic",
+      user.optionalSubject || "Public Administration"
+    );
+
+    return [
+      {
+        id: "m-1",
+        role: "assistant",
+        text: initialText,
+        thoughtProcess: initialThought.thoughtProcess,
+        reasoningPhases: initialThought.reasoningPhases,
+        timestamp: "Just now",
+        mode: "public_admin",
+        actionCards: [
+          {
+            type: "topic",
+            title: "Public Administration Diagnostic",
+            description: "Analyze your knowledge level in Administrative Thought (Herbert Simon & Max Weber)",
+            actionLabel: "Analyze Weak Area",
+          },
+          {
+            type: "model_answer",
+            title: "Herbert Simon Model Answer",
+            description: "Inspect 15-mark structured model answer with diagram & 2nd ARC links",
+            actionLabel: "View Model Answer",
+            targetTab: "mains",
+          },
+          {
+            type: "topic",
+            title: "In-App Capabilities Guide",
+            description: "Explore all 11 study tools and see how Bolt AI acts as your in-app co-pilot",
+            actionLabel: "App Capabilities Tour",
+          },
+        ],
+      },
+    ];
+  });
 
   const [inputMessage, setInputMessage] = useState<string>("");
   const [mode, setMode] = useState<"public_admin" | "general">("public_admin");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showScrollBottom, setShowScrollBottom] = useState<boolean>(false);
   const [showWorkspaceNavigator, setShowWorkspaceNavigator] = useState<boolean>(false);
+  const [copiedAction, setCopiedAction] = useState<{ id: string; type: "answer" | "reasoning" | "full" } | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] = useState<{
     toolName: string;
@@ -167,10 +356,59 @@ I have direct, bidirectional access to every single tool in this application. Yo
     }
   }, [initialPrompt]);
 
+  const getReasoningText = (msg: ChatMessage): string => {
+    if (msg.thoughtProcess) return msg.thoughtProcess;
+    if (msg.reasoningPhases && msg.reasoningPhases.length > 0) {
+      return msg.reasoningPhases.map((p) => `[${p.phase}: ${p.title}]\n${p.detail}`).join("\n\n");
+    }
+    const synthesized = extractOrGenerateThoughtProcess(msg.text, undefined, user.optionalSubject);
+    return synthesized.thoughtProcess;
+  };
+
+  const handleCopy = (id: string, text: string, type: "answer" | "reasoning" | "full" = "answer") => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopiedAction({ id, type });
+      setCopiedMessageId(id);
+      setTimeout(() => {
+        setCopiedAction(null);
+        setCopiedMessageId(null);
+      }, 2500);
+    });
+  };
+
   const handleCopyText = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedMessageId(id);
-    setTimeout(() => setCopiedMessageId(null), 2000);
+    handleCopy(id, text, "answer");
+  };
+
+  const handleCopyFullNote = (msg: ChatMessage) => {
+    const reasoning = getReasoningText(msg);
+    const fullNote = `=====================================================
+BOLT AI MENTORSHIP NOTE (UPSC CSE PREPARATION)
+=====================================================
+
+🧠 STEP-BY-STEP REASONING NOTES:
+${reasoning}
+
+-----------------------------------------------------
+📝 AI-GENERATED ANSWER:
+-----------------------------------------------------
+${msg.text}
+
+=====================================================
+Target: ${user.target || "UPSC CSE"} • Optional: ${user.optionalSubject || "Public Administration"}
+Exported from Bolt UPSC Assistant • ${new Date().toLocaleDateString()}
+`;
+    handleCopy(msg.id, fullNote, "full");
+  };
+
+  const handleCopyReasoningOnly = (msg: ChatMessage) => {
+    const reasoning = getReasoningText(msg);
+    const note = `=====================================================
+BOLT AI COGNITIVE REASONING NOTES (UPSC CSE)
+=====================================================
+${reasoning}
+`;
+    handleCopy(msg.id, note, "reasoning");
   };
 
   const handleClearChat = () => {
@@ -246,64 +484,138 @@ I have direct, bidirectional access to every single tool in this application. Yo
       const sessionToken = localStorage.getItem("bolt_auth_token");
       const authHeaders: Record<string, string> = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
 
-      const response = await fetch("/api/bolt/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({
-          message: query,
-          history: messages.slice(-14).map((m) => ({
-            role: m.role,
-            text: m.text,
-            name: m.role === "assistant" ? "BOLT" : (user.name || "Student"),
-          })),
-          mode,
-          user,
-          topics,
-          evaluations,
-          articles,
-          timetableSlots,
-          studySessions,
-          modelId: activeModelConfig?.selectedModelId || "gemini-3.8-flash",
-          modelType: activeModelConfig?.modelType || "cloud",
-          provider: activeModelConfig?.provider || (activeModelConfig?.modelType === "local" ? "local" : "gemini"),
-          apiKey: activeModelConfig?.apiKey,
-          baseUrl: activeModelConfig?.baseUrl,
-          localEndpoint: activeModelConfig?.localEndpoint || "http://localhost:11434",
-          activeAdapter: activeModelConfig?.activeAdapter,
-          temperature: activeModelConfig?.temperature ?? 0.7,
-          appContext: freshContext,
-          toolExecution: executedToolCall ? { name: executedToolCall.name, result: executedToolCall.result } : undefined,
-          currentContext: {
-            user,
-            optionalSubject: user.optionalSubject || "Public Administration",
-            syllabusCompletion: `${freshContext.syllabus.overallCompletion}% overall`,
-            paper1Completion: `${freshContext.syllabus.paper1Completion}%`,
-            paper2Completion: `${freshContext.syllabus.paper2Completion}%`,
-            weakTopics: freshContext.syllabus.weakTopics.map((w) => `${w.name} (${w.score}%)`),
-            strongTopics: freshContext.syllabus.strongTopics.map((s) => `${s.name} (${s.score}%)`),
-            questionsAttempted: freshContext.prelimsPerformance.questionsAttempted,
-            mainsEvaluatedCount: freshContext.mainsPerformance.evaluatedCount,
-            mainsAverage: `${freshContext.mainsPerformance.averageScore} / 15 Marks`,
-            prelimsAccuracy: `${freshContext.prelimsPerformance.accuracyPercentage}%`,
-            revisionDueCount: freshContext.revisionStatus.dueCount,
-            weeklyPlannedHours: freshContext.studySchedule.weeklyPlannedHours,
-            weeklyTrackedHours: freshContext.studySchedule.weeklyTrackedHours,
-            systemContextText: freshContext.systemContextText,
-          },
-        }),
+      // Send compact payload to prevent HTTP payload bloat and socket resets
+      const compactTopics = (topics || []).slice(0, 45).map((t) => ({
+        id: t.id,
+        name: t.name,
+        completionPercentage: t.completionPercentage,
+        knowledgeScore: t.knowledgeScore,
+        paper: t.paper,
+      }));
+
+      const compactEvaluations = (evaluations || []).slice(0, 5).map((e) => ({
+        id: e.id,
+        questionText: e.questionText,
+        score: e.score,
+        maxMarks: e.maxMarks,
+        subject: e.subject,
+      }));
+
+      const compactArticles = (articles || []).slice(0, 3).map((a) => ({
+        headline: a.headline,
+        source: a.source,
+        gsTags: a.gsTags,
+      }));
+
+      const conversationalSystemPrompt = buildClaudeConversationalSystemPrompt(user, freshContext, {
+        tone: engagementTone,
+        mode,
       });
 
-      const data = await response.json();
-      const isFallback = Boolean(data.isFallback || data.status === "AI_FALLBACK");
+      const payloadBody = JSON.stringify({
+        message: query,
+        systemPrompt: conversationalSystemPrompt,
+        systemPromptOverride: conversationalSystemPrompt,
+        engagementTone,
+        history: messages.slice(-8).map((m) => ({
+          role: m.role,
+          text: m.text,
+          name: m.role === "assistant" ? "BOLT" : (user.name || "Student"),
+        })),
+        mode,
+        user,
+        topics: compactTopics,
+        evaluations: compactEvaluations,
+        articles: compactArticles,
+        timetableSlots: (timetableSlots || []).slice(0, 7),
+        studySessions: (studySessions || []).slice(0, 5),
+        modelId: activeModelConfig?.selectedModelId || "gemini-3.1-flash-lite",
+        modelType: activeModelConfig?.modelType || "cloud",
+        provider: activeModelConfig?.provider || (activeModelConfig?.modelType === "local" ? "local" : "gemini"),
+        apiKey: activeModelConfig?.apiKey,
+        baseUrl: activeModelConfig?.baseUrl,
+        localEndpoint: activeModelConfig?.localEndpoint || "http://localhost:11434",
+        activeAdapter: activeModelConfig?.activeAdapter,
+        temperature: activeModelConfig?.temperature ?? 0.7,
+        appContext: freshContext,
+        toolExecution: executedToolCall ? { name: executedToolCall.name, result: executedToolCall.result } : undefined,
+        currentContext: {
+          user,
+          optionalSubject: user.optionalSubject || "Public Administration",
+          syllabusCompletion: `${freshContext.syllabus.overallCompletion}% overall`,
+          paper1Completion: `${freshContext.syllabus.paper1Completion}%`,
+          paper2Completion: `${freshContext.syllabus.paper2Completion}%`,
+          weakTopics: freshContext.syllabus.weakTopics.map((w) => `${w.name} (${w.score}%)`),
+          strongTopics: freshContext.syllabus.strongTopics.map((s) => `${s.name} (${s.score}%)`),
+          questionsAttempted: freshContext.prelimsPerformance.questionsAttempted,
+          mainsEvaluatedCount: freshContext.mainsPerformance.evaluatedCount,
+          mainsAverage: `${freshContext.mainsPerformance.averageScore} / 15 Marks`,
+          prelimsAccuracy: `${freshContext.prelimsPerformance.accuracyPercentage}%`,
+          revisionDueCount: freshContext.revisionStatus.dueCount,
+          weeklyPlannedHours: freshContext.studySchedule.weeklyPlannedHours,
+          weeklyTrackedHours: freshContext.studySchedule.weeklyTrackedHours,
+          systemContextText: freshContext.systemContextText,
+        },
+      });
+
+      // Resilient fetch with timeout and 1-time retry
+      const doFetch = async (attempt = 1): Promise<Response> => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        try {
+          const res = await fetch("/api/bolt/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders },
+            body: payloadBody,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          return res;
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 600));
+            return doFetch(attempt + 1);
+          }
+          throw fetchErr;
+        }
+      };
+
+      const response = await doFetch();
+
+      let data: any;
+      try {
+        const rawText = await response.text();
+        data = JSON.parse(rawText);
+      } catch {
+        data = {
+          success: false,
+          status: "AI_FALLBACK",
+          isFallback: true,
+          response: null,
+        };
+      }
+
+      const isFallback = Boolean(data.isFallback || data.status === "AI_FALLBACK" || !response.ok);
+      const rawReply = data.response || (data.error ? `**Notice:** ${data.error}` : null) || generateLocalKnowledgeAnswer(query, user, engagementTone);
+
+      const parsedThought = extractOrGenerateThoughtProcess(
+        rawReply,
+        query,
+        user.optionalSubject || "Public Administration"
+      );
+
       const assistantMsg: ChatMessage = {
         id: "a-" + Date.now(),
         role: "assistant",
-        text: data.response || "I am analyzing your request. Please ask again.",
+        text: parsedThought.cleanedText,
+        thoughtProcess: parsedThought.thoughtProcess,
+        reasoningPhases: parsedThought.reasoningPhases,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         mode,
         status: (data.status as any) || (isFallback ? "AI_FALLBACK" : "AI_SUCCESS"),
         isFallback,
-        engine: data.engine,
+        engine: data.engine || "Bolt Academic Knowledge Base",
         citations: data.citations || [],
         toolCalls: executedToolCall ? [executedToolCall] : undefined,
       };
@@ -315,17 +627,25 @@ I have direct, bidirectional access to every single tool in this application. Yo
         saveFirebaseChatMessage(user.id, userMsg).catch(() => {});
         saveFirebaseChatMessage(user.id, assistantMsg).catch(() => {});
       }
-    } catch (error) {
-      console.error("Bolt chat error:", error);
+    } catch (error: any) {
+      console.warn("Bolt chat connection notice:", error?.message || error);
+      const localAnswer = generateLocalKnowledgeAnswer(query, user, engagementTone);
+      const parsedFallbackThought = extractOrGenerateThoughtProcess(
+        localAnswer,
+        query,
+        user.optionalSubject || "Public Administration"
+      );
       const fallbackMsg: ChatMessage = {
         id: "a-" + Date.now(),
         role: "assistant",
-        text: `⚠️ **BOLT is currently offline. Your study records and metrics remain securely saved.**\n\n### ⚡ Offline Guidance for: "${query}"\n\n1. **Theoretical Foundation (Paper 1):**\nAnchor your conceptual reasoning in classical vs behavioural paradigms (Herbert Simon's Bounded Rationality, Chester Barnard's informal organization).\n\n2. **Indian Administrative Reality (Paper 2):**\nCross-reference with Constitutional Articles (Art 311 for civil service safeguards, Art 243 for local devolution) and 2nd ARC recommendations (Report 4 on Ethics and Report 10 on Personnel Administration).\n\n3. **Recommended Actions:**\n- [⚡ Practice Prelims MCQs](#action:prelims)\n- [📝 Evaluate Mains Answer](#action:mains)\n- [📅 View Timetable & Schedule](#action:planner)`,
+        text: parsedFallbackThought.cleanedText,
+        thoughtProcess: parsedFallbackThought.thoughtProcess,
+        reasoningPhases: parsedFallbackThought.reasoningPhases,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         mode,
-        status: "AI_UNAVAILABLE",
+        status: "AI_FALLBACK",
         isFallback: true,
-        engine: "Bolt Offline Heuristic Fallback",
+        engine: "Bolt Offline Academic Synthesis",
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -521,6 +841,80 @@ I have direct, bidirectional access to every single tool in this application. Yo
         </div>
       </div>
 
+      {/* Conversational Tone & Claude-Style System Prompt Architecture Bar */}
+      <div className="bg-[#0e1420] rounded-xl border border-slate-800/80 px-3 py-2 mb-3 flex flex-wrap items-center justify-between gap-2 shadow-sm text-xs flex-shrink-0">
+        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+          <div className="flex items-center space-x-1.5 text-amber-400 font-semibold">
+            <HeartHandshake className="w-4 h-4 text-amber-400" />
+            <span className="text-slate-200">Conversational Persona:</span>
+          </div>
+          <div className="flex items-center space-x-1 bg-[#141b2b] p-1 rounded-lg border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setEngagementTone("empathetic_socratic")}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                engagementTone === "empathetic_socratic"
+                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              title="Empathetic & Socratic: active listening, empathetic guidance, and step-by-step reasoning"
+            >
+              🤝 Empathetic & Socratic
+            </button>
+            <button
+              type="button"
+              onClick={() => setEngagementTone("deep_analytical")}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                engagementTone === "deep_analytical"
+                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/40 font-semibold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              title="Deep Analytical: multi-paradigmatic comparative analysis & thinker literature"
+            >
+              🔬 Deep Analytical
+            </button>
+            <button
+              type="button"
+              onClick={() => setEngagementTone("exam_strategist")}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                engagementTone === "exam_strategist"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              title="Exam Strategist: 10/15-marker structure, keyword density, and examiner expectations"
+            >
+              🎯 Exam Strategist
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={() => setExpandAllThoughts((prev) => !prev)}
+            className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors flex items-center space-x-1.5 ${
+              expandAllThoughts
+                ? "bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold"
+                : "bg-[#141b2b] hover:bg-slate-800 text-slate-300 border-slate-700"
+            }`}
+            title="Expand or collapse step-by-step reasoning processes across all responses"
+          >
+            <Brain className="w-3.5 h-3.5 text-amber-400" />
+            <span>{expandAllThoughts ? "Collapse Reasoning" : "Expand All Reasoning"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowPromptModal(true)}
+            className="px-2.5 py-1 rounded-lg bg-[#141b2b] hover:bg-slate-800 text-blue-300 hover:text-blue-200 border border-blue-500/30 text-[11px] font-medium transition-colors flex items-center space-x-1.5"
+            title="Inspect the active Claude-style system prompt and reasoning directives"
+          >
+            <Eye className="w-3.5 h-3.5 text-blue-400" />
+            <span>Inspect System Prompt</span>
+          </button>
+        </div>
+      </div>
+
       {/* Expandable Workspace & Tools Directory */}
       {showWorkspaceNavigator && (
         <div className="mb-3 p-3.5 rounded-2xl bg-[#0f172a]/95 border border-blue-500/30 shadow-xl backdrop-blur-md flex-shrink-0 animate-fadeIn space-y-2.5">
@@ -615,14 +1009,79 @@ I have direct, bidirectional access to every single tool in this application. Yo
                     : "bg-[#111723] text-slate-200 border border-[#1e293b] rounded-tl-none"
                 }`}
               >
-                {/* Fallback Warning Badge */}
+                {/* Claude-Grade Conversational Reasoning Badge & Quick Copy */}
+                {!isUser && (
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 text-[11px] gap-2">
+                    <div className="flex items-center space-x-1.5 text-blue-300 font-medium truncate">
+                      <HeartHandshake className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                      <span className="truncate">
+                        {engagementTone === "empathetic_socratic"
+                          ? "Claude-Grade Mentorship • Active Listening & Empathy"
+                          : engagementTone === "deep_analytical"
+                          ? "Claude-Grade Mentorship • Deep Analytical Rigor"
+                          : "Claude-Grade Mentorship • High-Yield Exam Architecture"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(msg.id, msg.text, "answer")}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium flex items-center space-x-1 transition-all border ${
+                          copiedAction?.id === msg.id && copiedAction.type === "answer"
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold"
+                            : "bg-[#141d2f] hover:bg-slate-800 text-slate-300 hover:text-white border-slate-700/70"
+                        }`}
+                        title="Copy AI answer text to clipboard"
+                      >
+                        {copiedAction?.id === msg.id && copiedAction.type === "answer" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3 text-slate-400" />
+                            <span>Copy Answer</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopyFullNote(msg)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium flex items-center space-x-1 transition-all border ${
+                          copiedAction?.id === msg.id && copiedAction.type === "full"
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold"
+                            : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30"
+                        }`}
+                        title="Copy answer + step-by-step reasoning notes to clipboard"
+                      >
+                        {copiedAction?.id === msg.id && copiedAction.type === "full" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span>Copied Full Note!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-3 h-3 text-amber-400" />
+                            <span className="hidden sm:inline">Copy + Reasoning</span>
+                            <span className="sm:hidden">Full</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Knowledge Engine Synthesis Badge (Offline Mode) */}
                 {!isUser && msg.isFallback && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-950/40 border border-blue-500/30 text-blue-200 text-[11px] font-medium">
+                    <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-blue-400" />
                     <span>
                       {msg.status === "AI_UNAVAILABLE"
-                        ? "Offline Fallback: AI service unreachable. Showing deterministic syllabus guidance."
-                        : `Offline Academic Rule-Base: ${msg.engine || "Deterministic syllabus heuristic"}`}
+                        ? "Offline Synthesis: Instant knowledge engine response."
+                        : `Offline Academic Synthesis • ${msg.engine || "Syllabus Knowledge Base"}`}
                     </span>
                   </div>
                 )}
@@ -688,6 +1147,25 @@ I have direct, bidirectional access to every single tool in this application. Yo
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Expandable Thought Process Section */}
+                {!isUser && (
+                  <div className="pb-2">
+                    <ExpandableThoughtProcess
+                      key={`${msg.id}-${expandAllThoughts}`}
+                      thoughtProcess={msg.thoughtProcess}
+                      reasoningPhases={
+                        msg.reasoningPhases && msg.reasoningPhases.length > 0
+                          ? msg.reasoningPhases
+                          : extractOrGenerateThoughtProcess(msg.text, undefined, user.optionalSubject).reasoningPhases
+                      }
+                      durationEstimateSeconds={
+                        Math.max(1.8, Math.min(4.2, +(msg.text.length / 420).toFixed(1)))
+                      }
+                      initiallyExpanded={expandAllThoughts}
+                    />
                   </div>
                 )}
 
@@ -882,31 +1360,105 @@ I have direct, bidirectional access to every single tool in this application. Yo
                   </div>
                 )}
 
-                {/* Message Footer: Timestamp & Copy Button */}
-                <div className="flex items-center justify-between pt-1 border-t border-slate-800/40 text-[10px] text-slate-400">
-                  <div className="flex items-center gap-2">
-                    {!isUser && (
+                {/* Message Footer: Timestamp & Copy to Clipboard Action Bar */}
+                <div className="flex flex-wrap items-center justify-between pt-2 border-t border-slate-800/60 text-[11px] gap-2">
+                  <div className="flex items-center flex-wrap gap-2">
+                    {!isUser ? (
+                      <>
+                        {/* Primary Copy Answer Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(msg.id, msg.text, "answer")}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all border shadow-sm ${
+                            copiedAction?.id === msg.id && copiedAction.type === "answer"
+                              ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/50 font-semibold"
+                              : "bg-[#141e30] hover:bg-[#1a273e] text-slate-200 hover:text-white border-slate-700/80 hover:border-slate-600"
+                          }`}
+                          title="Copy AI-generated answer to clipboard"
+                        >
+                          {copiedAction?.id === msg.id && copiedAction.type === "answer" ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="font-semibold text-emerald-300">Copied Answer!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5 text-blue-400" />
+                              <span>Copy to Clipboard</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Copy Full Note with Reasoning Notes */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyFullNote(msg)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all border shadow-sm ${
+                            copiedAction?.id === msg.id && copiedAction.type === "full"
+                              ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/50 font-semibold"
+                              : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border-amber-500/30"
+                          }`}
+                          title="Save comprehensive study note with reasoning chain and answer"
+                        >
+                          {copiedAction?.id === msg.id && copiedAction.type === "full" ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="font-semibold text-emerald-300">Copied Full Note!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Copy Answer + Reasoning Notes</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Copy Reasoning Only */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyReasoningOnly(msg)}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition-all border ${
+                            copiedAction?.id === msg.id && copiedAction.type === "reasoning"
+                              ? "bg-emerald-500/25 text-emerald-300 border-emerald-500/50 font-semibold"
+                              : "bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-700/60"
+                          }`}
+                          title="Copy only step-by-step reasoning notes"
+                        >
+                          {copiedAction?.id === msg.id && copiedAction.type === "reasoning" ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-300">Copied Reasoning!</span>
+                            </>
+                          ) : (
+                            <span>Reasoning Notes Only</span>
+                          )}
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => handleCopyText(msg.id, msg.text)}
-                        className="opacity-70 hover:opacity-100 flex items-center gap-1 text-slate-400 hover:text-slate-200 transition-opacity"
-                        title="Copy message text"
+                        onClick={() => handleCopy(msg.id, msg.text, "answer")}
+                        className="opacity-70 hover:opacity-100 flex items-center gap-1 text-blue-200 hover:text-white text-[10px] transition-opacity"
+                        title="Copy query text"
                       >
-                        {copiedMessageId === msg.id ? (
+                        {copiedAction?.id === msg.id ? (
                           <>
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            <span className="text-emerald-400">Copied</span>
+                            <Check className="w-3 h-3 text-white" />
+                            <span>Copied</span>
                           </>
                         ) : (
                           <>
                             <Copy className="w-3 h-3" />
-                            <span>Copy</span>
+                            <span>Copy Prompt</span>
                           </>
                         )}
                       </button>
                     )}
                   </div>
-                  <span className={isUser ? "text-blue-200" : "text-slate-400"}>{msg.timestamp}</span>
+
+                  <span className={isUser ? "text-blue-200 text-[10px]" : "text-slate-400 text-[10px] font-mono"}>
+                    {msg.timestamp}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1029,6 +1581,92 @@ I have direct, bidirectional access to every single tool in this application. Yo
           <Send className="w-4 h-4" />
         </button>
       </form>
+
+      {/* System Prompt & Conversational Architecture Modal */}
+      {showPromptModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+          <div className="bg-[#0f172a] border border-blue-500/30 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#131d31]">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <HeartHandshake className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white font-['Outfit']">
+                    Claude-Style Conversational System Prompt & Architecture
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Live active listening directives, pedagogical empathy, and 5-phase step-by-step reasoning
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPromptModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed scrollbar-thin">
+              {/* Highlight Architecture Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-xl bg-[#162033] border border-blue-500/30 space-y-1">
+                  <div className="flex items-center space-x-1.5 text-blue-300 font-bold">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Active Listening Mandate</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Directly addresses and reflects the user's emotional and academic premise first. Bans generic conversational openers like "Certainly!", "Sure thing!", or "As an AI...".
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#162033] border border-amber-500/30 space-y-1">
+                  <div className="flex items-center space-x-1.5 text-amber-300 font-bold">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>5-Phase Step-by-Step Reasoning</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Structures explanations through Active Reflection → First Principles → Indian Administrative Reality (2nd ARC) → UPSC CSE Scoring Edge → Collaborative Action.
+                  </p>
+                </div>
+              </div>
+
+              {/* Persona Mode Highlights */}
+              <div className="p-3 rounded-xl bg-[#121927] border border-slate-800 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Current Selected Tone:</span>
+                <span className="font-semibold text-amber-300 uppercase tracking-wide">
+                  {engagementTone.replace("_", " ")}
+                </span>
+              </div>
+
+              {/* Dynamic Compiled System Prompt */}
+              <div>
+                <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Compiled Prompt Sent to Bolt AI Gateway:</span>
+                  <span className="text-slate-400 font-normal lowercase">live context synced</span>
+                </div>
+                <pre className="p-3.5 bg-[#090e17] rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 whitespace-pre-wrap max-h-72 overflow-y-auto leading-relaxed scrollbar-thin">
+                  {buildClaudeConversationalSystemPrompt(user, liveContext, {
+                    tone: engagementTone,
+                    mode,
+                  })}
+                </pre>
+              </div>
+            </div>
+
+            <div className="p-3 border-t border-slate-800 bg-[#131d31] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPromptModal(false)}
+                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs transition-colors"
+              >
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -813,7 +813,7 @@ app.get("/api/settings/model", (_req, res) => {
   const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY");
   res.json({
     provider: "Gemini AI Studio",
-    model: "gemini-3.8-flash",
+    model: "gemini-3.1-flash-lite",
     hasApiKey: hasKey,
     temperature: 0.7,
     contextWindow: "32,768 tokens",
@@ -844,7 +844,7 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
       articles,
     } = req.body;
 
-    const effectiveModelId = modelId || "gemini-3.8-flash";
+    const effectiveModelId = modelId || "gemini-3.1-flash-lite";
 
     const candidateData = {
       user: user || currentContext?.user || req.body.appContext?.user || { name: "Aspirant", target: "UPSC CSE 2026", optionalSubject: "Public Administration" },
@@ -867,6 +867,7 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
         apiKeyOverride: apiKey,
         baseUrlOverride: baseUrl,
         endpointOverride: localEndpoint,
+        systemPromptOverride: req.body.systemPromptOverride || req.body.systemPrompt,
       }
     );
 
@@ -1837,26 +1838,94 @@ The 2nd ARC (chaired by Veerappa Moily) is indispensable for scoring in Public A
 > - [📝 Grade Answer on ARC Recommendations](#action:mains)`;
   }
 
-  return `### Hello ${user.name || "Aspirant"}! It's a pleasure to work with you.
+  // India's Independence & Modern History
+  if (
+    lower.includes("independence") ||
+    lower.includes("independent") ||
+    lower.includes("1947") ||
+    lower.includes("freedom struggle") ||
+    lower.includes("british rule") ||
+    lower.includes("mountbatten") ||
+    lower.includes("tryst with destiny") ||
+    lower.includes("partition") ||
+    lower.includes("quit india")
+  ) {
+    return `India attained independence from British colonial rule on **August 15, 1947**.
 
-I am **Bolt**, your dedicated UPSC Civil Services mentor and in-app co-pilot. 
+While this marks the historic birth of modern independent India, in the context of the UPSC Civil Services Examination—particularly **GS Paper 1 (Modern Indian History)** and **GS Paper 2 (Constitutional Framework & Governance)**—it represents several key constitutional and administrative milestones:
 
-I speak with you as a thoughtful academic partner—articulate, empathetic, and rigorous—with live, real-time access to your study performance, syllabus progress, and test evaluations.
+---
 
-#### How we can work together right now:
-- **Concept Deep Dives:** Demystify theoretical frameworks (Weber, Simon, Riggs, Follett) and connect them to Indian administrative realities.
-- **Prelims Precision:** Formulate high-yield 4-option MCQs to test option elimination and factual retention.
-- **Mains Answer Writing:** Score and elevate your answers against official UPSC rubrics with thinker upgrades.
-- **Timetable & Strategy:** Formulate adaptive study routines to eliminate weak areas and safeguard revision intervals.
-- **In-App Guide:** Navigate you to any tool or room across this application.
+### 1. The Legal & Constitutional Framework
+- **The Indian Independence Act, 1947**: Passed by the British Parliament and granted Royal Assent on **July 18, 1947**, this statute formally terminated British sovereignty and created two independent Dominions: **India** and **Pakistan**.
+- **The Mountbatten Plan (June 3, 1947)**: Set forth the principles of partition, the immediate transfer of power on a dominion status basis, and the demarcation of frontiers under the Radcliffe Boundary Commission.
+- **Interim Constitutional Architecture**: Under Section 8 of the 1947 Act, the **Government of India Act, 1935** (adapted with essential omissions) served as the working constitution of India until the new Constitution was enacted on **November 26, 1949** and came into full force on **January 26, 1950**.
 
-What shall we tackle today?
+### 2. Transition from Dominion to Sovereign Republic
+- From August 15, 1947 to January 26, 1950, India was technically a Dominion within the British Commonwealth. Lord Mountbatten served as the first Governor-General of independent India (until June 1948), followed by **C. Rajagopalachari**—the only Indian Governor-General.
+- The **Constituent Assembly**, elected under the Cabinet Mission Plan of 1946, took on a dual role: drafting the sovereign constitution (chaired by Dr. Rajendra Prasad with Dr. B.R. Ambedkar chairing the Drafting Committee) and functioning as India's provisional parliament (presided over by G.V. Mavalankar).
 
-> 💡 **Quick Launchpad:**
-> - [⚡ Practice Prelims MCQs](#action:prelims)
-> - [📝 Evaluate Mains Answer](#action:mains)
-> - [📅 Review Study Timetable](#action:planner)
-> - [🗺️ Explore Concept Knowledge Graph](#action:knowledgeGraph)`;
+### 3. Administrative Continuity & Patel's Vision
+- Rather than dismantling the administrative machinery, **Sardar Vallabhbhai Patel** championed the preservation of an All India Service structure under Article 312, creating the modern **Indian Administrative Service (IAS)** and **Indian Police Service (IPS)** to maintain national cohesion during the complex integration of over 560 princely states.
+
+Would you like to examine the Constituent Assembly debates, practice a Mains question on the integration of princely states, or test your Prelims knowledge on the 1947 Act?`;
+  }
+
+  // Indian Constitution, Preamble & Governance Core
+  if (
+    lower.includes("constitution") ||
+    lower.includes("preamble") ||
+    lower.includes("fundamental right") ||
+    lower.includes("dpsp") ||
+    lower.includes("directive principle") ||
+    lower.includes("emergency") ||
+    lower.includes("basic structure") ||
+    lower.includes("kesavananda") ||
+    lower.includes("federalism")
+  ) {
+    return `### 📜 Constitutional Dimensions & Institutional Architecture
+
+The Constitution of India was framed over 2 years, 11 months, and 18 days by the Constituent Assembly, adopted on **November 26, 1949** and enacted on **January 26, 1950**.
+
+#### Core Pillars for UPSC Analysis:
+1. **The Preamble**: 
+   - Establishes the constitutional philosophy: a *Sovereign, Socialist, Secular, Democratic, Republic* striving for *Justice, Liberty, Equality, and Fraternity*.
+   - In *Kesavananda Bharati (1973)*, the Supreme Court confirmed the Preamble is an integral part of the Constitution, subject to amendment under Article 368 without altering the **Basic Structure**.
+
+2. **Fundamental Rights (Part III) & DPSPs (Part IV)**:
+   - Harmonious construction (*Minerva Mills, 1980*): The Constitution is founded on the bedrock of the balance between enforceable civil-political rights and socio-economic aspirations.
+
+3. **Asymmetric Federalism & Cooperative Governance**:
+   - Division of legislative powers under the 7th Schedule, backed by inter-governmental institutions like the GST Council (Art 279A) and Finance Commission (Art 280).
+
+Which specific constitutional article, landmark judicial precedent, or governance mechanism would you like to explore?`;
+  }
+
+  // Conversational Greeting
+  if (
+    lower === "hi" ||
+    lower === "hello" ||
+    lower === "hey" ||
+    lower.includes("talk to me") ||
+    lower.includes("who are you")
+  ) {
+    return `### Hello! It's wonderful to connect with you.
+
+I am **Bolt**, your dedicated UPSC mentor and study partner. I combine the conversational poise, depth, and clarity of Claude with real-time access to your study performance across this workspace.
+
+How can I assist with your preparation or conceptual questions today? Whether you'd like to explore an administrative theory, practice Prelims MCQs, or review your study plan, I'm here to help.`;
+  }
+
+  // General Direct Response
+  return `Thank you for bringing this up.
+
+From an academic and civil services preparation standpoint, addressing this topic requires looking at the underlying principles, constitutional or administrative context, and real-world governance implications:
+
+1. **Core Conceptual Foundations**: Clarity on primary definitions, statutory authorities, and institutional mandates is essential for balanced analysis.
+2. **Key Dynamics & Dimensions**: Evaluating the topic across administrative efficiency, constitutional propriety, accountability, and public interest.
+3. **Application & Contemporary Relevance**: Citing authoritative commissions (like the 2nd ARC) or relevant constitutional articles strengthens both Prelims accuracy and Mains answer writing.
+
+Feel free to ask a specific follow-up question or let me know if you would like to test this area with practice MCQs or an evaluated Mains answer!`;
 }
 
 function generateMainsEvaluationFallback(question: string, answerText: string, maxMarks: number, subject: string) {
