@@ -1045,17 +1045,40 @@ const KG_EDGES_COLLECTION = "knowledge_edges";
 const KG_CLUSTERS_COLLECTION = "knowledge_clusters";
 
 async function getKnowledgeGraphStore(): Promise<{ nodes: any[]; edges: any[]; clusters: any[]; updatedAt?: string }> {
-  const [nodesSnap, edgesSnap, clustersSnap] = await Promise.all([
-    kgDb.collection(KG_NODES_COLLECTION).get(),
-    kgDb.collection(KG_EDGES_COLLECTION).get(),
-    kgDb.collection(KG_CLUSTERS_COLLECTION).get(),
-  ]);
-  return {
-    nodes: nodesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-    edges: edgesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-    clusters: clustersSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-    updatedAt: new Date().toISOString(),
-  };
+  try {
+    const [nodesSnap, edgesSnap, clustersSnap] = await Promise.all([
+      kgDb.collection(KG_NODES_COLLECTION).get(),
+      kgDb.collection(KG_EDGES_COLLECTION).get(),
+      kgDb.collection(KG_CLUSTERS_COLLECTION).get(),
+    ]);
+
+    if (!nodesSnap.empty || !edgesSnap.empty) {
+      return {
+        nodes: nodesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        edges: edgesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        clusters: clustersSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  } catch (err: any) {
+    console.warn("Firestore knowledge graph fetch notice (using local JSON store fallback):", err.message);
+  }
+
+  // Fallback to local structured dataset
+  const localFile = path.join(process.cwd(), "data", "knowledge_graph_store.json");
+  if (fs.existsSync(localFile)) {
+    try {
+      const content = JSON.parse(fs.readFileSync(localFile, "utf-8"));
+      return {
+        nodes: content.nodes || [],
+        edges: content.edges || [],
+        clusters: content.clusters || [],
+        updatedAt: new Date().toISOString(),
+      };
+    } catch {}
+  }
+
+  return { nodes: [], edges: [], clusters: [], updatedAt: new Date().toISOString() };
 }
 
 // GET full knowledge graph — shared, system-owned curriculum reference data.

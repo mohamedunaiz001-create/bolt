@@ -141,6 +141,10 @@ export function listBackups(): BackupManifestItem[] {
   return loadManifest();
 }
 
+export async function createFullBackupAsync(description: string = "Manual Scheduled Snapshot"): Promise<BackupManifestItem> {
+  return createFullBackup(description);
+}
+
 /**
  * Executes a live, non-destructive disaster recovery verification test.
  * 1. Creates a clean snapshot

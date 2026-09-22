@@ -18,6 +18,7 @@ declare global {
 
 const JWT_SECRET = process.env.BOLT_JWT_SECRET || "bolt_prod_secret_token_signing_key_2026";
 const ADMIN_EMAILS = new Set([
+  "mohamedunaiz001@gmail.com",
   "autumnr092006@gmail.com",
   "admin@bolt.internal",
   "admin@upsc-bolt.org",

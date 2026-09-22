@@ -421,3 +421,33 @@ export function deleteUserAccount(userId: string): boolean {
   return true;
 }
 
+export async function registerUserAsync(params: {
+  name: string;
+  email: string;
+  password?: string;
+  target?: string;
+  optionalSubject?: string;
+  initialData?: any;
+}): Promise<any> {
+  return registerUser(params);
+}
+
+export async function saveUserProgressAsync(
+  userId: string,
+  data: Partial<StoredUserProgress>
+): Promise<any> {
+  return saveUserProgress(userId, data);
+}
+
+export async function getUserProgressAsync(userIdOrEmail: string): Promise<StoredUserProgress | null> {
+  return getUserProgress(userIdOrEmail);
+}
+
+export async function exportAllUserDataAsync(userId: string): Promise<any> {
+  return exportAllUserData(userId);
+}
+
+export async function deleteUserAccountAsync(userId: string): Promise<boolean> {
+  return deleteUserAccount(userId);
+}
+

@@ -11,8 +11,9 @@
 import fs from "fs";
 import path from "path";
 import { validatePrelimsMcq } from "../server/currentAffairsPipeline";
-import { indexNewDocument, listDocuments, archiveDocument, deleteDocument } from "../server/ragService";
-import { registerUser, loginUser } from "../server/userStore";
+import { indexNewDocument, listDocuments, archiveDocument, deleteDocument, searchKnowledgeChunksAdvanced } from "../server/ragService";
+import { registerUser, loginUser, deleteUserAccountAsync, saveUserProgressAsync, getUserProgressAsync } from "../server/userStore";
+import { jobQueue } from "../server/jobQueue";
 
 interface TestReport {
   name: string;
@@ -56,6 +57,7 @@ async function runSecurityTestSuite() {
     "mainsEvaluations/{userId}",
     "documents/{userId}",
     "chatHistory/{userId}",
+    "backgroundJobs/{jobId}",
   ];
 
   for (const col of sensitiveCollections) {
@@ -84,6 +86,51 @@ async function runSecurityTestSuite() {
     canAccess(userAId, userAId),
     "User A Self-Access Allowed",
     "User A was not allowed to access their own resource"
+  );
+
+  // 2b. Test Background Job Ownership & Multi-Tenant Isolation
+  const jobA = jobQueue.enqueue(
+    "current_affairs_sync",
+    "User A Confidential Daily Sync",
+    { testKey: "secret_data_a" },
+    { ownerId: userAId }
+  );
+
+  // User B attempting to view User A's job directly
+  const crossUserJobView = jobQueue.getJob(jobA.id, userBId);
+  assert(
+    crossUserJobView === null,
+    "Job Queue Cross-User Read Blocked",
+    "User B was able to view User A's background job"
+  );
+
+  // User A viewing own job
+  const ownJobView = jobQueue.getJob(jobA.id, userAId);
+  assert(
+    ownJobView !== null && ownJobView.id === jobA.id,
+    "Job Queue Owner Self-Read Allowed",
+    "User A could not access their own job"
+  );
+
+  // User B attempting to retry User A's job
+  let retryBlocked = false;
+  try {
+    await jobQueue.retryJob(jobA.id, userBId);
+  } catch (err) {
+    retryBlocked = true;
+  }
+  assert(
+    retryBlocked,
+    "Job Queue Cross-User Mutation Blocked",
+    "User B was able to retry or mutate User A's job"
+  );
+
+  // User B listing jobs does not leak User A's job
+  const userBJobs = jobQueue.listJobs({ ownerId: userBId });
+  assert(
+    !userBJobs.some((j) => j.id === jobA.id),
+    "Job Queue List Isolation Enforced",
+    "User A's job leaked into User B's listJobs result"
   );
 
   // 3. Test Zero Plaintext Password Storage
@@ -135,6 +182,35 @@ async function runSecurityTestSuite() {
     assert(delResult, "Document Deletion Functionality", "Failed to delete document");
   }
 
+  // 4b. Test RAG Document Multi-Tenant Isolation
+  const userADoc = indexNewDocument({
+    title: "User A Confidential UPSC Revision Notes",
+    category: "Custom Upload",
+    content: "Confidential Strategy Note: Focus intensely on Public Administration Paper 2 district collectorate role.",
+    userId: userAId,
+  });
+
+  if (userADoc.success && userADoc.document) {
+    // User A should see their document in listDocuments
+    const userADocs = listDocuments(userAId);
+    assert(
+      userADocs.some((d) => d.id === userADoc.document!.id),
+      "RAG User A Documents Visible to User A",
+      "User A could not see their own uploaded document"
+    );
+
+    // User B should NOT see User A's document in listDocuments
+    const userBDocs = listDocuments(userBId);
+    assert(
+      !userBDocs.some((d) => d.id === userADoc.document!.id),
+      "RAG Document Multi-Tenant List Isolation",
+      "User A's document leaked into User B's document list"
+    );
+
+    // Clean up test document
+    deleteDocument(userADoc.document.id);
+  }
+
   // 5. Test Strict Prelims MCQ Validation Engine
   const validMcq = {
     questionText: "With reference to the Indian Constitution, consider the following statements regarding Article 356:",
@@ -177,6 +253,73 @@ async function runSecurityTestSuite() {
   };
   const validationFailureCount = validatePrelimsMcq(invalidMcqWrongOptionsCount);
   assert(!validationFailureCount.isValid, "Prelims MCQ Rejects Non-4 Options Count", "Non-4 options was not rejected");
+
+  // 6. Test User Account Deletion Functionality (GDPR / Right-to-be-Forgotten)
+  const deleteTestUser = registerUser({
+    name: "Deletion Test Aspirant",
+    email: `deletion_test_${Date.now()}@upsc-bolt.org`,
+    password: "Password123!",
+    target: "UPSC CSE 2026",
+    optionalSubject: "Public Administration",
+  });
+  assert(deleteTestUser.success && !!deleteTestUser.account, "Deletion Test User Created", "Failed to register test user for deletion");
+
+  if (deleteTestUser.account) {
+    const delUid = deleteTestUser.account.id;
+    // Save progress
+    await saveUserProgressAsync(delUid, {
+      studySessions: [{ id: "s1", durationMinutes: 45, topicName: "Ethics" }],
+    });
+    const beforeDelProgress = await getUserProgressAsync(delUid);
+    assert(beforeDelProgress !== null, "Progress Recorded Before Deletion", "Progress was not saved prior to deletion");
+
+    // Perform deletion
+    const delResult = await deleteUserAccountAsync(delUid);
+    assert(delResult === true, "deleteUserAccountAsync Succeeded", "deleteUserAccountAsync returned false");
+
+    // Verify user no longer exists
+    const afterDelProgress = await getUserProgressAsync(delUid);
+    assert(afterDelProgress === null, "User Progress Purged on Deletion", "User progress remained in store after deletion");
+
+    const reLogin = loginUser({ email: deleteTestUser.account.email, password: "Password123!" });
+    assert(!reLogin.success, "Deleted User Cannot Log In", "Deleted user was able to log in");
+  }
+
+  // 7. Comprehensive Two-User Isolation Verification
+  const user1 = registerUser({
+    name: "Aspirant One",
+    email: `aspirant_one_${Date.now()}@upsc-bolt.org`,
+    password: "PasswordOne123!",
+  });
+  const user2 = registerUser({
+    name: "Aspirant Two",
+    email: `aspirant_two_${Date.now()}@upsc-bolt.org`,
+    password: "PasswordTwo123!",
+  });
+
+  assert(user1.success && user2.success, "Two Distinct Users Registered", "Failed to register two test users");
+
+  if (user1.account && user2.account) {
+    // User 1 stores private notes and sessions
+    await saveUserProgressAsync(user1.account.id, {
+      studySessions: [{ id: "session-secret-1", durationMinutes: 60, topicName: "Top Secret Essay Notes" }],
+    });
+
+    const user1Data = await getUserProgressAsync(user1.account.id);
+    const user2Data = await getUserProgressAsync(user2.account.id);
+
+    assert(user1Data?.userId === user1.account.id, "User 1 Own Data Integrity Verified", "User 1 data corrupted");
+    assert(user2Data?.userId === user2.account.id, "User 2 Own Data Integrity Verified", "User 2 data corrupted");
+    assert(
+      !user2Data?.studySessions?.some((s: any) => s.topicName === "Top Secret Essay Notes"),
+      "User 2 Cannot Read User 1 Private Study Sessions",
+      "User 1 private session leaked to User 2"
+    );
+
+    // Clean up test accounts
+    await deleteUserAccountAsync(user1.account.id);
+    await deleteUserAccountAsync(user2.account.id);
+  }
 
   console.log("\n==================================================");
   const total = reports.length;

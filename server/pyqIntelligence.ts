@@ -56,8 +56,10 @@ export interface RecurringThemeAnalysis {
 export interface PyqSearchFilter {
   stage?: "Prelims" | "Mains" | "All";
   paper?: string;
+  year?: number;
   yearStart?: number;
   yearEnd?: number;
+  subject?: string;
   topic?: string;
   recurringThemeId?: string;
   searchQuery?: string;
@@ -450,12 +452,27 @@ export function searchUpscPyqs(filter?: PyqSearchFilter): UpscPyqItem[] {
     list = list.filter((p) => p.paper === filter.paper);
   }
 
+  if (filter.year) {
+    list = list.filter((p) => p.year === filter.year);
+  }
+
   if (filter.yearStart) {
     list = list.filter((p) => p.year >= filter.yearStart!);
   }
 
   if (filter.yearEnd) {
     list = list.filter((p) => p.year <= filter.yearEnd!);
+  }
+
+  if (filter.subject && filter.subject.trim()) {
+    const s = filter.subject.toLowerCase().trim();
+    list = list.filter(
+      (p) =>
+        p.paper.toLowerCase().includes(s) ||
+        p.unit.toLowerCase().includes(s) ||
+        p.topic.toLowerCase().includes(s) ||
+        (s.includes("polity") && (p.paper.toLowerCase().includes("gs 2") || p.unit.toLowerCase().includes("polity") || p.paper.toLowerCase().includes("pubadmin")))
+    );
   }
 
   if (filter.recurringThemeId) {

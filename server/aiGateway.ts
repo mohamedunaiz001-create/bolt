@@ -1724,6 +1724,49 @@ function evaluateRuleBasedMains(
   const lower = answer.toLowerCase();
   const wordCount = answer.split(/\s+/).filter(Boolean).length;
 
+  if (wordCount < 15) {
+    return {
+      score: 1.8,
+      maxMarks: 15,
+      criteria: {
+        questionDemand: 1,
+        content: 1,
+        structure: 1,
+        analysis: 1,
+        examples: 1,
+        conclusion: 1,
+        introductionScore: 0.3,
+        conceptualClarityScore: 0.3,
+        contentDemandScore: 0.4,
+        analysisScore: 0.2,
+        examplesAndThinkersScore: 0.2,
+        structureScore: 0.2,
+        conclusionScore: 0.2,
+      },
+      whatWentWell: ["Attempted response recorded"],
+      needsImprovement: [
+        "Severe content deficiency: Word count is critically below the 150-250 word UPSC standard",
+        "No thinker grounding or conceptual elaboration",
+        "Lacks structure, arguments, and balanced conclusion",
+      ],
+      missingDimensions: [
+        "Core theoretical framework",
+        "Substantive examples & 2nd ARC recommendations",
+        "Pragmatic way forward",
+      ],
+      repeatedWeaknesses: ["Empty or superficial answer submitted"],
+      boltFeedback:
+        "Severe content deficiency detected. This answer contains fewer than 15 words. A 15-mark UPSC Mains question requires 250 words with rigorous theoretical grounding, empirical administrative examples, and a balanced conclusion.",
+      modelAnswerOutline: [
+        "Define the core concept and its administrative context",
+        "Elaborate theoretical perspectives with relevant thinkers",
+        "Analyze contemporary Indian governance realities with 2nd ARC citations",
+        "Provide a pragmatic way forward and balanced conclusion",
+      ],
+      providerUsed: "BOLT Academic Evaluation Engine",
+    };
+  }
+
   let intro = wordCount > 30 ? 1.0 : 0.6;
   let clarity = 1.2;
   let demand = 2.4;

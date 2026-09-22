@@ -350,7 +350,7 @@ export function deleteDocument(docId: string): boolean {
 
 export function searchKnowledgeChunks(
   query: string,
-  optionsOrCategory?: string | { category?: string; limit?: number; includeArchived?: boolean },
+  optionsOrCategory?: string | { category?: string; limit?: number; includeArchived?: boolean; userId?: string },
   maybeLimit?: number
 ): KnowledgeChunk[] {
   const store = ensureStore();
@@ -476,11 +476,11 @@ export interface AdvancedRagRetrievalResult {
  */
 export function searchKnowledgeChunksAdvanced(
   query: string,
-  options?: { category?: string; limit?: number; minConfidenceThreshold?: number }
+  options?: { category?: string; limit?: number; minConfidenceThreshold?: number; userId?: string }
 ): AdvancedRagRetrievalResult {
   const threshold = options?.minConfidenceThreshold ?? 0.38;
   const limit = options?.limit ?? 4;
-  const chunks = searchKnowledgeChunks(query, { category: options?.category, limit });
+  const chunks = searchKnowledgeChunks(query, { category: options?.category, limit, userId: options?.userId });
 
   if (chunks.length === 0) {
     return {
