@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { execSync, execFileSync } from "child_process";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
@@ -14,10 +15,15 @@ import {
 } from "./server/currentAffairsPipeline";
 import {
   registerUser,
+  registerUserAsync,
   loginUser,
   saveUserProgress,
+  saveUserProgressAsync,
   getUserProgress,
+  getUserProgressAsync,
 } from "./server/userStore";
+import { initFirebaseAdmin, setAdminCustomClaim } from "./server/firebaseAdmin";
+import { getFirestore } from "firebase-admin/firestore";
 import {
   listDocuments,
   getDocumentById,
@@ -41,8 +47,8 @@ import {
 } from "./server/pyqIntelligence";
 import { executeBoltBenchmarkSuite } from "./server/boltBenchmarkSuite";
 import { jobQueue } from "./server/jobQueue";
-import { createFullBackup, listBackups, runDisasterRecoveryVerification } from "./server/disasterRecovery";
-import { exportAllUserData, deleteUserAccount } from "./server/userStore";
+import { createFullBackup, createFullBackupAsync, listBackups, runDisasterRecoveryVerification } from "./server/disasterRecovery";
+import { exportAllUserData, exportAllUserDataAsync, deleteUserAccount, deleteUserAccountAsync } from "./server/userStore";
 import {
   authenticateToken,
   requireAuth,
@@ -56,8 +62,17 @@ import {
   heavyTaskLimiter,
   adminRateLimiter,
 } from "./server/rateLimiters";
+import {
+  executeNcertChapters,
+  executeNcertQuiz,
+  executePyqs,
+  executeMaterialProcess,
+} from "./server/pythonBridge";
 
 dotenv.config();
+
+// Initialize Firebase Admin SDK for cryptographic token verification & Firestore persistence
+initFirebaseAdmin();
 
 const app = express();
 app.set("trust proxy", 1);
@@ -67,6 +82,7 @@ const PORT = 3000;
 let totalRequestsCount = 0;
 let totalErrorsCount = 0;
 let failedJobsCount = 0;
+let aiFallbackCount = 0; // Count of degraded AI_FALLBACK responses (never treated as healthy success)
 
 app.use((_req, res, next) => {
   totalRequestsCount++;
@@ -84,6 +100,15 @@ app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 // Mount auth token extractor and general API rate limiter
 app.use(authenticateToken);
 app.use("/api/", generalApiLimiter);
+
+// Enforce sensitive route protection across sensitive namespaces
+app.use("/api/admin", requireAdmin);
+app.use("/api/training", requireAuth);
+app.use("/api/dataset", requireAuth);
+app.use("/api/model", requireAuth);
+app.use("/api/mains", requireAuth);
+app.use("/api/chat", requireAuth);
+app.use("/api/progress", requireAuth);
 
 // ----------------------------------------------------
 // API ROUTES: PRODUCTION MONITORING & HEALTH CHECKS
@@ -120,6 +145,7 @@ app.get("/api/health", (_req, res) => {
       totalErrors: totalErrorsCount,
       errorRatePercent,
       failedJobsCount,
+      aiFallbackCount,
       storageLatencyMs,
       memory: {
         rssMb: Math.round(mem.rss / 1024 / 1024),
@@ -154,8 +180,8 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// Automated Security & Data Isolation Audit Endpoint
-app.get("/api/bolt/health/security-audit", (_req, res) => {
+// Automated Security & Data Isolation Audit Endpoint (internal diagnostics — admin only)
+app.get("/api/bolt/health/security-audit", requireAdmin, (_req, res) => {
   const auditResults = {
     timestamp: new Date().toISOString(),
     status: "PASS",
@@ -213,8 +239,8 @@ app.get("/api/ready", (_req, res) => {
   res.json({ ready: true, version: "v3.0-prod" });
 });
 
-// Daily Current Affairs -> MCQ Generation Pipeline Endpoint
-app.post("/api/bolt/generate-daily-mcq", async (req, res) => {
+// Daily Current Affairs -> MCQ Generation Pipeline Endpoint (invokes AI generation — auth + rate limited)
+app.post("/api/bolt/generate-daily-mcq", requireAuth, aiRateLimiter, async (req, res) => {
   try {
     const { headline, summary, keyHighlights, gsTags } = req.body;
     const ai = getGeminiClient();
@@ -300,196 +326,47 @@ app.get("/sw.js", (_req, res) => {
   }
 });
 
-// Explicit routes for Syllabus and Timetable to allow Service Worker and client offline caching
-app.get("/api/syllabus", (req, res) => {
+// Explicit routes for Syllabus and Timetable to allow Service Worker and client offline caching.
+// Scoped strictly to the authenticated caller's own data — no default/sample student data.
+app.get("/api/syllabus", requireAuth, (req, res) => {
   try {
-    const userId = req.query.userId as string;
-    if (userId) {
-      const progress = getUserProgress(userId);
-      if (progress?.topics && progress.topics.length > 0) {
-        return res.json({ success: true, topics: progress.topics, source: "user_store" });
-      }
+    const userId = req.user!.uid;
+    const progress = getUserProgress(userId);
+    if (progress?.topics && progress.topics.length > 0) {
+      return res.json({ success: true, topics: progress.topics, source: "user_store" });
     }
-    res.json({
-      success: true,
-      cachedAt: new Date().toISOString(),
-      topicsCount: 9,
-      topics: [
-        {
-          id: "pubad-1",
-          name: "Introduction to Public Administration",
-          category: "pub_ad",
-          paper: "Paper 1",
-          totalHours: 18,
-          completedHours: 12,
-          masteryLevel: "advanced",
-          subTopics: [
-            { id: "pubad-1-1", title: "Evolution of Public Administration and Minnowbrook Conferences", completed: true },
-            { id: "pubad-1-2", title: "New Public Management & Good Governance Paradigms", completed: true },
-            { id: "pubad-1-3", title: "Public Choice Theory and Contemporary Administrative Reform", completed: false }
-          ]
-        },
-        {
-          id: "pubad-2",
-          name: "Administrative Thought & Organizational Theory",
-          category: "pub_ad",
-          paper: "Paper 1",
-          totalHours: 24,
-          completedHours: 18,
-          masteryLevel: "advanced",
-          subTopics: [
-            { id: "pubad-2-1", title: "Classical Theory: Wilson, Taylor, Fayol & Weberian Bureaucracy", completed: true },
-            { id: "pubad-2-2", title: "Human Relations School: Elton Mayo and Hawthorne Studies", completed: true },
-            { id: "pubad-2-3", title: "Herbert Simon: Decision Making and Bounded Rationality", completed: true },
-            { id: "pubad-2-4", title: "Participative Management: Likert, Argyris, McGregor", completed: false }
-          ]
-        },
-        {
-          id: "pubad-3",
-          name: "Administrative Behaviour",
-          category: "pub_ad",
-          paper: "Paper 1",
-          totalHours: 16,
-          completedHours: 10,
-          masteryLevel: "intermediate",
-          subTopics: [
-            { id: "pubad-3-1", title: "Process and Techniques of Decision-Making", completed: true },
-            { id: "pubad-3-2", title: "Theories of Leadership: Trait, Behavioural, Situational & Transformational", completed: true },
-            { id: "pubad-3-3", title: "Theories of Motivation: Maslow, Herzberg, Vroom", completed: false }
-          ]
-        },
-        {
-          id: "pubad-4",
-          name: "Organizations and Structural Framework",
-          category: "pub_ad",
-          paper: "Paper 1",
-          totalHours: 15,
-          completedHours: 9,
-          masteryLevel: "intermediate",
-          subTopics: [
-            { id: "pubad-4-1", title: "Theories of Organizations: Systems and Contingency", completed: true },
-            { id: "pubad-4-2", title: "Ministries and Departments, Corporations, Boards and Commissions", completed: true },
-            { id: "pubad-4-3", title: "Regulatory Authorities & PPP Architecture", completed: false }
-          ]
-        },
-        {
-          id: "pubad-5",
-          name: "Accountability and Control",
-          category: "pub_ad",
-          paper: "Paper 1",
-          totalHours: 20,
-          completedHours: 14,
-          masteryLevel: "advanced",
-          subTopics: [
-            { id: "pubad-5-1", title: "Legislative, Executive and Judicial Control over Administration", completed: true },
-            { id: "pubad-5-2", title: "Citizen and Administration: Role of Media, Interest Groups, NGOs", completed: true },
-            { id: "pubad-5-3", title: "Social Audit, Citizen Charters, Right to Information, Lokpal & Lokayuktas", completed: true },
-            { id: "pubad-5-4", title: "Administrative Corruption: 2nd ARC Recommendations", completed: false }
-          ]
-        },
-        {
-          id: "pubad-6",
-          name: "Indian Administration: Evolution & Constitutional Framework",
-          category: "pub_ad",
-          paper: "Paper 2",
-          totalHours: 22,
-          completedHours: 16,
-          masteryLevel: "advanced",
-          subTopics: [
-            { id: "pubad-6-1", title: "Kautilya's Arthashastra, Mughal Administration & British Legacy", completed: true },
-            { id: "pubad-6-2", title: "Constitutional Setting: Parliamentary Democracy, Federalism & Socialism", completed: true },
-            { id: "pubad-6-3", title: "President, Prime Minister, Council of Ministers & Cabinet Secretariat", completed: true }
-          ]
-        },
-        {
-          id: "pubad-7",
-          name: "District & Local Administration",
-          category: "pub_ad",
-          paper: "Paper 2",
-          totalHours: 18,
-          completedHours: 11,
-          masteryLevel: "intermediate",
-          subTopics: [
-            { id: "pubad-7-1", title: "Role of District Collector: Traditional and Developmental Shifts", completed: true },
-            { id: "pubad-7-2", title: "73rd and 74th Constitutional Amendments & PRIs", completed: true },
-            { id: "pubad-7-3", title: "District Planning Committees and Urban Governance", completed: false }
-          ]
-        },
-        {
-          id: "gs-polity-1",
-          name: "GS Paper II: Indian Constitution & Polity",
-          category: "gs_core",
-          paper: "GS 2",
-          totalHours: 35,
-          completedHours: 25,
-          masteryLevel: "advanced",
-          subTopics: [
-            { id: "gsp-1", title: "Historical Underpinnings, Basic Structure Doctrine & Preamble", completed: true },
-            { id: "gsp-2", title: "Fundamental Rights, DPSPs, Fundamental Duties", completed: true },
-            { id: "gsp-3", title: "Judicial Review, PIL, Judicial Activism vs Overreach", completed: true },
-            { id: "gsp-4", title: "Statutory, Regulatory and Quasi-Judicial Bodies", completed: false }
-          ]
-        },
-        {
-          id: "gs-econ-1",
-          name: "GS Paper III: Economic Development & Planning",
-          category: "gs_core",
-          paper: "GS 3",
-          totalHours: 30,
-          completedHours: 18,
-          masteryLevel: "intermediate",
-          subTopics: [
-            { id: "gse-1", title: "Indian Economy and issues relating to planning, mobilization of resources", completed: true },
-            { id: "gse-2", title: "Inclusive growth and issues arising from it", completed: true },
-            { id: "gse-3", title: "Government Budgeting & Fiscal Responsibility (FRBM)", completed: true }
-          ]
-        }
-      ]
-    });
+    return res.status(404).json({ success: false, error: "Insufficient data", topics: [] });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.get("/api/timetable", (req, res) => {
+app.get("/api/timetable", requireAuth, (req, res) => {
   try {
-    const userId = req.query.userId as string;
-    if (userId) {
-      const progress = getUserProgress(userId);
-      if (progress?.timetableSlots && progress.timetableSlots.length > 0) {
-        return res.json({ success: true, slots: progress.timetableSlots, source: "user_store" });
-      }
+    const userId = req.user!.uid;
+    const progress = getUserProgress(userId);
+    if (progress?.timetableSlots && progress.timetableSlots.length > 0) {
+      return res.json({ success: true, slots: progress.timetableSlots, source: "user_store" });
     }
-    res.json({
-      success: true,
-      cachedAt: new Date().toISOString(),
-      slots: [
-        { id: "slot-1", dayOfWeek: "Monday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Administrative Thought - Herbert Simon Bounded Rationality", isCompleted: true },
-        { id: "slot-2", dayOfWeek: "Monday", timeRange: "09:30 - 11:30", subject: "prelims", topic: "Polity MCQs: Emergency Provisions & Preamble", isCompleted: true },
-        { id: "slot-3", dayOfWeek: "Monday", timeRange: "15:00 - 17:00", subject: "current_affairs", topic: "The Hindu & Indian Express Editorial Analysis", isCompleted: true },
-        { id: "slot-4", dayOfWeek: "Monday", timeRange: "18:00 - 20:00", subject: "mains", topic: "Mains 15M Answer Writing: Judicial Activism", isCompleted: false },
-        { id: "slot-5", dayOfWeek: "Tuesday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Public Policy Models - Dror, Lasswell & Lindblom", isCompleted: true },
-        { id: "slot-6", dayOfWeek: "Tuesday", timeRange: "09:30 - 11:30", subject: "gs_core", topic: "Modern Indian History - Swadeshi Movement", isCompleted: true },
-        { id: "slot-7", dayOfWeek: "Tuesday", timeRange: "15:00 - 17:00", subject: "revision", topic: "Spaced Revision: Fundamental Rights Articles 14-32", isCompleted: false },
-        { id: "slot-8", dayOfWeek: "Wednesday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Civil Services in India & 2nd ARC Reforms", isCompleted: false },
-        { id: "slot-9", dayOfWeek: "Wednesday", timeRange: "09:30 - 11:30", subject: "prelims", topic: "Economy MCQs: Monetary Policy & Inflation", isCompleted: false },
-        { id: "slot-10", dayOfWeek: "Thursday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Financial Administration & Budgetary Control", isCompleted: false },
-        { id: "slot-11", dayOfWeek: "Friday", timeRange: "06:00 - 08:30", subject: "pub_ad", topic: "Comparative Public Administration: Riggsian Models", isCompleted: false },
-        { id: "slot-12", dayOfWeek: "Saturday", timeRange: "09:00 - 12:00", subject: "prelims", topic: "Full-Length GS Prelims Mock Test (100 MCQs)", isCompleted: false },
-        { id: "slot-13", dayOfWeek: "Sunday", timeRange: "10:00 - 13:00", subject: "mains", topic: "Weekly Public Administration Optional Paper 1 Mock", isCompleted: false }
-      ]
-    });
+    return res.status(404).json({ success: false, error: "Insufficient data", slots: [] });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-app.post("/api/auth/register", authRateLimiter, (req, res) => {
+app.post("/api/auth/register", authRateLimiter, async (req, res) => {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({
+        success: false,
+        error: "Direct server password registration is disabled in production. Authenticate via Firebase Auth on the client and submit your verified ID token.",
+        code: "USE_FIREBASE_AUTH",
+      });
+    }
     const { name, email, password, target, optionalSubject, initialData } = req.body;
     if (!name || !email) {
       return res.status(400).json({ success: false, message: "Name and email are required." });
     }
-    const result = registerUser({ name, email, password, target, optionalSubject, initialData });
+    const result = await registerUserAsync({ name, email, password, target, optionalSubject, initialData });
     if (!result.success) {
       return res.status(400).json(result);
     }
@@ -501,6 +378,13 @@ app.post("/api/auth/register", authRateLimiter, (req, res) => {
 
 app.post("/api/auth/login", authRateLimiter, (req, res) => {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({
+        success: false,
+        error: "Direct server password login is disabled in production. Sign in via Firebase Auth on the client and submit your verified ID token.",
+        code: "USE_FIREBASE_AUTH",
+      });
+    }
     const { email, password } = req.body;
     if (!email) {
       return res.status(400).json({ success: false, message: "Email is required." });
@@ -515,12 +399,12 @@ app.post("/api/auth/login", authRateLimiter, (req, res) => {
   }
 });
 
-app.post("/api/user/save-progress", requireAuth, (req, res) => {
+app.post("/api/user/save-progress", requireAuth, async (req, res) => {
   try {
     const { user, topics, evaluations, timetableSlots, studySessions, prelimsAttempts, bookmarks } = req.body;
     // Derive effective user ID from verified token to prevent unauthorized tampering
     const effectiveUserId = (req.body.userId && req.user!.isAdmin) ? req.body.userId : req.user!.uid;
-    const result = saveUserProgress(effectiveUserId, {
+    const result = await saveUserProgressAsync(effectiveUserId, {
       userId: effectiveUserId,
       user,
       topics,
@@ -536,11 +420,11 @@ app.post("/api/user/save-progress", requireAuth, (req, res) => {
   }
 });
 
-app.get("/api/user/progress", requireAuth, (req, res) => {
+app.get("/api/user/progress", requireAuth, async (req, res) => {
   try {
     const requestedUserId = req.query.userId as string;
     const effectiveUserId = (requestedUserId && req.user!.isAdmin) ? requestedUserId : req.user!.uid;
-    const progress = getUserProgress(effectiveUserId);
+    const progress = await getUserProgressAsync(effectiveUserId);
     if (!progress) {
       return res.status(404).json({ success: false, message: "User progress not found." });
     }
@@ -551,7 +435,7 @@ app.get("/api/user/progress", requireAuth, (req, res) => {
 });
 
 // Python Engine Status & Analytics
-app.get("/api/python/status", (_req, res) => {
+app.get("/api/python/status", requireAuth, (_req, res) => {
   try {
     const version = execSync("python3 --version").toString().trim();
     res.json({
@@ -574,7 +458,7 @@ app.get("/api/python/status", (_req, res) => {
   }
 });
 
-app.post("/api/python/analytics", (req, res) => {
+app.post("/api/python/analytics", requireAuth, (req, res) => {
   try {
     const inputPayload = JSON.stringify(req.body.topics || []);
     const pyScript = "import sys, json; sys.path.append('./python'); import bolt_engine; topics = json.load(sys.stdin); print(json.dumps(bolt_engine.analyze_student_progress(topics)))";
@@ -598,64 +482,50 @@ app.post("/api/python/analytics", (req, res) => {
   }
 });
 
-// Process Study Materials (PDF, DOCX, TXT) and Generate Questions via Python Engine
-app.post("/api/python/materials/process", (req, res) => {
+// Process Study Materials (PDF, DOCX, TXT) and Generate Questions via Python Engine (Secured)
+app.post("/api/python/materials/process", requireAuth, heavyTaskLimiter, (req, res) => {
   try {
     const { text, title, questionsCount, fileBase64, filename } = req.body;
-    let materialText = text || "";
-    let effectiveTitle = title || filename || "Uploaded Study Material";
+    let materialText = typeof text === "string" ? text.slice(0, 100000) : "";
+    let effectiveTitle = typeof title === "string" ? title.slice(0, 150) : (filename || "Uploaded Study Material");
+    let tempPath: string | undefined = undefined;
 
     // If fileBase64 is provided (e.g. uploaded docx/pdf/txt)
-    if (fileBase64) {
-      const tempExt = path.extname(filename || "document.txt") || ".txt";
-      const tempPath = path.join("/tmp", `bolt_mat_${Date.now()}_${Math.random().toString(36).substring(7)}${tempExt}`);
+    if (fileBase64 && typeof fileBase64 === "string") {
+      // Security check: limit upload payload to 10MB
+      if (fileBase64.length > 14 * 1024 * 1024) {
+        return res.status(413).json({ success: false, error: "File exceeds 10MB upload limit." });
+      }
+      const safeFilename = path.basename(filename || "document.txt").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const tempExt = path.extname(safeFilename) || ".txt";
+      // Purely transient scratch space for this single request (deleted below after
+      // processing) — uses the OS temp dir rather than a persisted app-local directory so
+      // nothing survives here across requests/instances. This is NOT the durable document
+      // store: persisted knowledge-base content is written via ragService.indexNewDocument.
+      const uploadsDir = fs.mkdtempSync(path.join(os.tmpdir(), "bolt-material-"));
+      tempPath = path.join(uploadsDir, `bolt_mat_${Date.now()}_${Math.random().toString(36).substring(7)}${tempExt}`);
       const buffer = Buffer.from(fileBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
       fs.writeFileSync(tempPath, buffer);
-
-      try {
-        const extractPayload = JSON.stringify({ tempPath, filename: filename || "document" });
-        const pyScript = `import sys, json; sys.path.append('./python'); import bolt_materials; data = json.load(sys.stdin); print(json.dumps(bolt_materials.extract_material_content(data['tempPath'], data['filename'])))`;
-        const pyResult = execSync(`python3 -c "${pyScript}"`, {
-          input: extractPayload,
-          encoding: "utf-8",
-          timeout: 15000,
-        });
-        const parsed = JSON.parse(pyResult);
-        materialText = parsed.rawText || materialText;
-        if (parsed.filename) effectiveTitle = parsed.filename;
-      } catch (extractErr) {
-        console.warn("Python extract_material_content fallback:", extractErr);
-        if (tempExt === ".txt" || tempExt === ".md" || tempExt === ".json") {
-          materialText = buffer.toString("utf-8");
-        }
-      } finally {
-        try { fs.unlinkSync(tempPath); } catch {}
-      }
     }
 
-    if (!materialText || materialText.trim().length === 0) {
-      materialText = `Summary of ${effectiveTitle}: Key constitutional, administrative, and developmental concepts relevant for UPSC Civil Services examination. Focuses on institutional accountability, regulatory frameworks, citizen rights, and administrative ethos.`;
-    }
-
-    // Now generate questions using Python bolt_materials
-    const payload = JSON.stringify({
+    const processed = executeMaterialProcess({
       text: materialText,
       title: effectiveTitle,
-      count: questionsCount || 5,
+      questionsCount: Number(questionsCount) || 5,
+      tempFilePath: tempPath,
     });
 
-    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_materials; data = json.load(sys.stdin); raw = data['text']; t = data['title']; c = data['count']; summary = bolt_materials.generate_extractive_summary(raw); themes = bolt_materials.detect_upsc_themes(raw); qs = bolt_materials.generate_questions_from_text(raw, t, c); print(json.dumps({'title': t, 'wordCount': len(raw.split()), 'summary': summary, 'detectedTags': themes['tags'], 'peripheralAreas': themes['peripheralAreas'], 'gsPaperMapping': themes['gsPaper'], 'questions': qs}))`;
-
-    const pyOutput = execSync(`python3 -c "${pyScript}"`, {
-      input: payload,
-      encoding: "utf-8",
-      timeout: 15000,
-    });
+    if (tempPath && fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+        fs.rmdirSync(path.dirname(tempPath));
+      } catch {}
+    }
 
     res.json({
       success: true,
       engine: "BOLT Python 3.10 Engine",
-      data: JSON.parse(pyOutput),
+      data: processed,
     });
   } catch (err: any) {
     console.error("Error in /api/python/materials/process:", err);
@@ -663,37 +533,26 @@ app.post("/api/python/materials/process", (req, res) => {
   }
 });
 
-// 1855 - 2026 PYQ Database with Peripheral Areas & Current Affairs Engine
-app.get("/api/python/pyqs", (req, res) => {
+// 1855 - 2026 PYQ Database with Peripheral Areas & Current Affairs Engine (Secured)
+app.get("/api/python/pyqs", requireAuth, generalApiLimiter, (req, res) => {
   try {
     const era = (req.query.era as string) || "all";
     const peripheral = req.query.peripheral === "true";
     const currentAffairs = req.query.currentAffairs === "true" || req.query.current_affairs === "true";
     const search = (req.query.search as string) || "";
-    const subject = (req.query.subject as string) || "all";
 
-    const payload = JSON.stringify({
+    const result = executePyqs({
       era,
       peripheral,
       currentAffairs,
-      search: search.trim() || null,
-      subject,
+      search,
     });
-
-    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_pyqs; req = json.load(sys.stdin); qs = bolt_pyqs.filter_pyqs(era=req['era'], peripheral_only=req['peripheral'], current_affairs_only=req['currentAffairs'], search_query=req['search'], subject=req['subject']); print(json.dumps({'stats': bolt_pyqs.get_pyq_statistics(), 'questions': qs}))`;
-
-    const pyOutput = execSync(`python3 -c "${pyScript}"`, {
-      input: payload,
-      encoding: "utf-8",
-      timeout: 10000,
-    });
-    const result = JSON.parse(pyOutput);
 
     res.json({
       success: true,
       engine: "BOLT Python 3.10 Engine",
       stats: result.stats,
-      count: result.questions.length,
+      count: result.count,
       questions: result.questions,
       data: {
         stats: result.stats,
@@ -706,22 +565,18 @@ app.get("/api/python/pyqs", (req, res) => {
   }
 });
 
-// NCERT Foundation Chapters & Curricula (Class 6 - 12)
-app.get("/api/python/ncert/chapters", (req, res) => {
+// NCERT Foundation Chapters & Curricula (Class 6 - 12) (Secured)
+app.get("/api/python/ncert/chapters", requireAuth, generalApiLimiter, (req, res) => {
   try {
     const subject = (req.query.subject as string) || "all";
-    const classNum = req.query.classNum ? parseInt(req.query.classNum as string, 10) : 0;
+    const classNum = req.query.classNum ? parseInt(req.query.classNum as string, 10) : undefined;
 
-    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_ncert; print(json.dumps({'stats': bolt_ncert.get_ncert_summary_stats(), 'chapters': bolt_ncert.get_ncert_chapters(subject='${subject}', class_num=${classNum || "None"})}))`;
-
-    const pyOutput = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 10000 });
-    const result = JSON.parse(pyOutput);
+    const result = executeNcertChapters(subject, classNum);
 
     res.json({
       success: true,
       engine: "BOLT Python 3.10 Engine",
-      stats: result.stats,
-      count: result.chapters.length,
+      count: result.count,
       chapters: result.chapters,
     });
   } catch (err: any) {
@@ -730,14 +585,15 @@ app.get("/api/python/ncert/chapters", (req, res) => {
   }
 });
 
-// NCERT Chapter Quiz Assessment
-app.get("/api/python/ncert/quiz", (req, res) => {
+// NCERT Chapter Quiz Assessment (Secured)
+app.get("/api/python/ncert/quiz", requireAuth, generalApiLimiter, (req, res) => {
   try {
     const chapterId = (req.query.chapterId as string) || "";
-    const pyScript = `import sys, json; sys.path.append('./python'); import bolt_ncert; print(json.dumps({'chapterId': '${chapterId}', 'questions': bolt_ncert.get_ncert_quiz_for_chapter('${chapterId}')}))`;
+    if (!chapterId) {
+      return res.status(400).json({ success: false, error: "Missing chapterId parameter" });
+    }
 
-    const pyOutput = execSync(`python3 -c "${pyScript}"`, { encoding: "utf-8", timeout: 10000 });
-    const result = JSON.parse(pyOutput);
+    const result = executeNcertQuiz(chapterId);
 
     res.json({
       success: true,
@@ -822,20 +678,48 @@ app.get("/api/settings/model", (_req, res) => {
   });
 });
 
+// Server-controlled allowlists for AI overrides. Client requests may only select from
+// these; raw apiKey/baseUrl/localEndpoint values are NEVER accepted from request bodies,
+// since forwarding client-supplied credentials/endpoints into the AI gateway would allow
+// key theft and SSRF against arbitrary internal or external hosts.
+const ALLOWED_AI_MODELS = new Set([
+  "gemini-3.1-flash-lite",
+  "gemini-3.6-flash",
+]);
+const ALLOWED_AI_PROVIDERS = new Set(["gemini", "google", "local-ollama"]);
+const DEFAULT_AI_MODEL = "gemini-3.1-flash-lite";
+
+// Resolves a safe { modelOverride, providerOverride, systemPromptOverride } from client
+// input. apiKey/baseUrl/localEndpoint overrides are only ever honored for admins running
+// the internal model-diagnostics/testing flows, never for regular chat/eval traffic.
+function resolveSafeAiOverrides(req: any, body: any) {
+  const requestedModel = typeof body.modelId === "string" ? body.modelId : undefined;
+  const requestedProvider = typeof (body.provider || body.modelType) === "string" ? (body.provider || body.modelType) : undefined;
+
+  const modelOverride = requestedModel && ALLOWED_AI_MODELS.has(requestedModel) ? requestedModel : DEFAULT_AI_MODEL;
+  const providerOverride = requestedProvider && ALLOWED_AI_PROVIDERS.has(requestedProvider) ? requestedProvider : undefined;
+
+  const isAdmin = !!req.user?.isAdmin;
+  return {
+    modelOverride,
+    providerOverride,
+    // Custom system prompts and raw endpoint/key overrides are an admin-only diagnostic
+    // capability (used e.g. by /api/ai/test-connection), never accepted from end users.
+    systemPromptOverride: isAdmin && typeof body.systemPrompt === "string" ? body.systemPrompt.slice(0, 4000) : undefined,
+    apiKeyOverride: undefined,
+    baseUrlOverride: isAdmin && typeof body.baseUrl === "string" ? body.baseUrl : undefined,
+    endpointOverride: isAdmin && typeof body.localEndpoint === "string" ? body.localEndpoint : undefined,
+  };
+}
+
 // 1. BOLT Central Chatbot API (Powered by BoltAgentRuntime & AI Gateway)
-app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
+app.post("/api/bolt/chat", requireAuth, aiRateLimiter, async (req, res) => {
   try {
     const {
       message,
       history = [],
       currentContext = {},
       mode = "general",
-      modelId,
-      modelType,
-      provider,
-      apiKey,
-      baseUrl,
-      localEndpoint,
       user,
       topics,
       evaluations,
@@ -844,7 +728,7 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
       articles,
     } = req.body;
 
-    const effectiveModelId = modelId || "gemini-3.1-flash-lite";
+    const safeOverrides = resolveSafeAiOverrides(req, req.body);
 
     const candidateData = {
       user: user || currentContext?.user || req.body.appContext?.user || { name: "Aspirant", target: "UPSC CSE 2026", optionalSubject: "Public Administration" },
@@ -861,14 +745,7 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
       message || "",
       history,
       candidateData,
-      {
-        modelOverride: effectiveModelId,
-        providerOverride: provider || modelType,
-        apiKeyOverride: apiKey,
-        baseUrlOverride: baseUrl,
-        endpointOverride: localEndpoint,
-        systemPromptOverride: req.body.systemPromptOverride || req.body.systemPrompt,
-      }
+      safeOverrides
     );
 
     res.json({
@@ -883,14 +760,19 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
       steps: runtimeResult.executedSteps,
     });
   } catch (error: any) {
-    console.error("Bolt Chat Error (graceful fallback):", error?.message || error);
+    console.error("Bolt Chat Error (degraded fallback):", error?.message || error);
+    aiFallbackCount++;
     const { message, mode = "public_admin", currentContext, user = { name: "Aspirant" } } = req.body;
     const isPubAdmin = mode === "public_admin";
     const responseText = generateContextualBoltResponse(message || "", isPubAdmin, currentContext, user);
-    res.json({
-      success: true,
+    // AI_FALLBACK is a degraded state, not a normal success: success is explicitly false
+    // so client-side success checks don't treat heuristic output as a genuine AI response,
+    // even though we still return HTTP 200 with usable content for graceful UX.
+    res.status(200).json({
+      success: false,
       status: "AI_FALLBACK",
       isFallback: true,
+      degraded: true,
       warning: "AI service connection unavailable. Generated from deterministic UPSC syllabus heuristics and academic rubrics.",
       response: responseText,
       mode: mode || "public_admin",
@@ -901,7 +783,7 @@ app.post("/api/bolt/chat", aiRateLimiter, async (req, res) => {
 });
 
 // Dedicated Model-Independent AI Gateway Chat Endpoint
-app.post("/api/ai/gateway/chat", aiRateLimiter, async (req, res) => {
+app.post("/api/ai/gateway/chat", requireAuth, aiRateLimiter, async (req, res) => {
   try {
     const response = await BoltAIGateway.chat(req.body);
     res.json({ success: true, status: "AI_SUCCESS", isFallback: false, ...response });
@@ -922,14 +804,16 @@ app.post("/api/student/intelligence", requireAuth, (req, res) => {
   }
 });
 
-app.get("/api/student/topic-graph", (_req, res) => {
+app.get("/api/student/topic-graph", requireAuth, (_req, res) => {
   res.json({ success: true, topicGraph: CANONICAL_TOPIC_GRAPH });
 });
 
 // ----------------------------------------------------
 // AI GATEWAY SETTINGS & MODEL CONFIGURATION
 // ----------------------------------------------------
-app.get("/api/ai/settings", (_req, res) => {
+// Model/gateway configuration is internal diagnostics data — admin only, matching the
+// existing admin-only POST that mutates it (a masked apiKey is still sensitive config surface).
+app.get("/api/ai/settings", requireAdmin, (_req, res) => {
   const cfg = getGatewayConfig();
   // Safe masking for sensitive API keys in responses
   const safeConfig = {
@@ -939,7 +823,7 @@ app.get("/api/ai/settings", (_req, res) => {
   res.json({ success: true, config: safeConfig });
 });
 
-app.post("/api/ai/settings", (req, res) => {
+app.post("/api/ai/settings", requireAdmin, (req, res) => {
   try {
     const updated = updateGatewayConfig(req.body);
     res.json({
@@ -955,7 +839,7 @@ app.post("/api/ai/settings", (req, res) => {
 });
 
 // Live AI Model Latency & Connectivity Diagnostic Ping across all Providers
-app.post("/api/ai/test-connection", async (req, res) => {
+app.post("/api/ai/test-connection", requireAdmin, async (req, res) => {
   try {
     const result = await BoltAIGateway.testConnection(req.body);
     res.json(result);
@@ -981,7 +865,12 @@ app.get("/api/ai/dataset/items", requireAuth, (req, res) => {
   res.json({ success: true, items, count: items.length });
 });
 
-app.post("/api/ai/dataset/items", requireAuth, (req, res) => {
+// Dataset items are training data for the model: only admins/reviewers may add
+// or modify them, matching the existing admin-only review/export endpoints below.
+// (No separate "reviewer" role exists elsewhere in this file's req.user shape —
+// requireAdmin is the same gate already used for /dataset/review and /dataset/export.
+// If you have a distinct reviewer role/claim, swap this for that check instead.)
+app.post("/api/ai/dataset/items", requireAdmin, (req, res) => {
   try {
     const item = ModelPlatformService.addDatasetItem(req.body);
     res.json({ success: true, item });
@@ -1010,7 +899,12 @@ app.get("/api/ai/dataset/export", requireAdmin, (_req, res) => {
 // ----------------------------------------------------
 // NON-BLOCKING ASYNCHRONOUS TRAINING QUEUE & WORKER
 // ----------------------------------------------------
-app.get("/api/ai/training/jobs", requireAuth, (_req, res) => {
+// Job creation (POST, below) is already admin-only, so no non-admin user can ever
+// own a training job — there is nothing to "filter by owner" for. requireAdmin here
+// is therefore the correct fix, not just the simpler one: it matches the actual
+// ownership model instead of adding an owner-filter that would always return an
+// empty list for non-admins while giving a false impression of per-user scoping.
+app.get("/api/ai/training/jobs", requireAdmin, (_req, res) => {
   res.json({ success: true, jobs: ModelPlatformService.listTrainingJobs() });
 });
 
@@ -1032,7 +926,7 @@ app.get("/api/ai/training/jobs/:id", requireAuth, (req, res) => {
 // ----------------------------------------------------
 // MODEL REGISTRY & BENCHMARK VERIFICATION
 // ----------------------------------------------------
-app.get("/api/ai/registry/models", (_req, res) => {
+app.get("/api/ai/registry/models", requireAuth, (_req, res) => {
   res.json({ success: true, models: ModelPlatformService.listModels() });
 });
 
@@ -1118,14 +1012,15 @@ app.post("/api/knowledge/archive", requireAuth, (req, res) => {
   }
 });
 
-app.post("/api/knowledge/search", (req, res) => {
+app.post("/api/knowledge/search", requireAuth, (req, res) => {
   const { query, category, limit } = req.body;
-  const chunks = searchKnowledgeChunks(query || "", { category, limit: Number(limit) || 5 });
+  const userId = req.user!.uid;
+  const chunks = searchKnowledgeChunks(query || "", { category, limit: Number(limit) || 5, userId });
   res.json({ success: true, chunks, count: chunks.length });
 });
 
 // Topic Knowledge Diagnostic Tool API
-app.get("/api/bolt/topic-diagnostic", (req, res) => {
+app.get("/api/bolt/topic-diagnostic", requireAuth, (req, res) => {
   const topicName = (req.query.topicName as string) || "Administrative Thought";
   const isWeak = req.query.isWeak === "true";
   const diagnostic = computeTopicDiagnostic(topicName, isWeak);
@@ -1133,133 +1028,141 @@ app.get("/api/bolt/topic-diagnostic", (req, res) => {
 });
 
 // ----------------------------------------------------
-// CURRICULUM KNOWLEDGE GRAPH API (PERSISTENT DATA STORE)
+// CURRICULUM KNOWLEDGE GRAPH API (FIRESTORE-BACKED, SYSTEM-OWNED)
 // ----------------------------------------------------
+// Previously this endpoint group read/wrote a single flat local JSON file
+// (data/knowledge_graph_store.json). That is unsafe in production: it is not shared
+// across horizontally-scaled instances (each replica has its own disk, so writes on one
+// instance are invisible to others), not durable across restarts/redeploys on ephemeral
+// filesystems, and has no concurrency control for simultaneous read-modify-write requests.
+// firestore.rules already defines the correct schema for this data (public read, admin-only
+// write on knowledge_nodes / knowledge_edges / knowledge_clusters) but the server never
+// actually used it. This migrates the implementation to match those rules, using the
+// Firebase Admin SDK that initFirebaseAdmin() already initializes at module load.
+const kgDb = getFirestore();
+const KG_NODES_COLLECTION = "knowledge_nodes";
+const KG_EDGES_COLLECTION = "knowledge_edges";
+const KG_CLUSTERS_COLLECTION = "knowledge_clusters";
 
-const KG_STORE_PATH = path.join(process.cwd(), "data", "knowledge_graph_store.json");
-
-function getKnowledgeGraphStore(): { nodes: any[]; edges: any[]; clusters: any[]; updatedAt?: string } {
-  try {
-    if (fs.existsSync(KG_STORE_PATH)) {
-      const raw = fs.readFileSync(KG_STORE_PATH, "utf-8");
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    console.error("Failed to read knowledge_graph_store.json:", e);
-  }
-  return { nodes: [], edges: [], clusters: [] };
+async function getKnowledgeGraphStore(): Promise<{ nodes: any[]; edges: any[]; clusters: any[]; updatedAt?: string }> {
+  const [nodesSnap, edgesSnap, clustersSnap] = await Promise.all([
+    kgDb.collection(KG_NODES_COLLECTION).get(),
+    kgDb.collection(KG_EDGES_COLLECTION).get(),
+    kgDb.collection(KG_CLUSTERS_COLLECTION).get(),
+  ]);
+  return {
+    nodes: nodesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    edges: edgesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    clusters: clustersSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
-function saveKnowledgeGraphStore(data: { nodes: any[]; edges: any[]; clusters: any[]; updatedAt?: string }) {
+// GET full knowledge graph — shared, system-owned curriculum reference data.
+// Read access requires authentication; only admins may mutate it (see POST/DELETE below).
+app.get("/api/curriculum/knowledge-graph", requireAuth, async (_req, res) => {
   try {
-    fs.writeFileSync(KG_STORE_PATH, JSON.stringify(data, null, 2), "utf-8");
-  } catch (e) {
-    console.error("Failed to write knowledge_graph_store.json:", e);
+    const store = await getKnowledgeGraphStore();
+    res.json({
+      success: true,
+      nodes: store.nodes,
+      edges: store.edges,
+      clusters: store.clusters,
+      updatedAt: store.updatedAt,
+    });
+  } catch (e: any) {
+    console.error("Failed to load knowledge graph from Firestore:", e);
+    res.status(500).json({ success: false, message: "Failed to load knowledge graph." });
   }
-}
-
-// GET full knowledge graph
-app.get("/api/curriculum/knowledge-graph", (_req, res) => {
-  const store = getKnowledgeGraphStore();
-  res.json({
-    success: true,
-    nodes: store.nodes || [],
-    edges: store.edges || [],
-    clusters: store.clusters || [],
-    updatedAt: store.updatedAt || new Date().toISOString(),
-  });
 });
 
-// POST / PUT node
-app.post("/api/curriculum/knowledge-graph/nodes", (req, res) => {
+// POST / PUT node — System-owned curriculum data: mutations are admin-only, not per-user.
+app.post("/api/curriculum/knowledge-graph/nodes", requireAdmin, async (req, res) => {
   try {
     const node = req.body;
     if (!node || !node.id || !node.title) {
       return res.status(400).json({ success: false, message: "Valid node with id and title is required." });
     }
-    const store = getKnowledgeGraphStore();
-    const existingIndex = store.nodes.findIndex((n: any) => n.id === node.id);
-    if (existingIndex >= 0) {
-      store.nodes[existingIndex] = { ...store.nodes[existingIndex], ...node };
-    } else {
-      store.nodes.push(node);
-    }
-    store.updatedAt = new Date().toISOString();
-    saveKnowledgeGraphStore(store);
+    await kgDb.collection(KG_NODES_COLLECTION).doc(String(node.id)).set(
+      { ...node, updatedAt: new Date().toISOString(), updatedBy: req.user!.uid },
+      { merge: true }
+    );
     res.json({ success: true, node });
   } catch (e: any) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// POST batch positions (when user repositions nodes on canvas)
-app.post("/api/curriculum/knowledge-graph/nodes/batch-positions", (req, res) => {
+// POST batch positions (when an admin repositions nodes on the curriculum canvas)
+// Repositioning nodes mutates the shared production graph — admin-only.
+app.post("/api/curriculum/knowledge-graph/nodes/batch-positions", requireAdmin, async (req, res) => {
   try {
     const { positions } = req.body; // Array<{ id: string; x: number; y: number }>
-    if (!Array.isArray(positions)) {
+    if (!Array.isArray(positions) || positions.length === 0) {
       return res.status(400).json({ success: false, message: "Positions array required." });
     }
-    const store = getKnowledgeGraphStore();
-    const posMap = new Map<string, { x: number; y: number }>();
-    positions.forEach((p) => posMap.set(p.id, { x: p.x, y: p.y }));
-
-    store.nodes = store.nodes.map((n: any) => {
-      const pos = posMap.get(n.id);
-      return pos ? { ...n, x: pos.x, y: pos.y } : n;
-    });
-    store.updatedAt = new Date().toISOString();
-    saveKnowledgeGraphStore(store);
+    if (positions.length > 500) {
+      return res.status(400).json({ success: false, message: "Too many positions in a single batch (max 500)." });
+    }
+    const batch = kgDb.batch();
+    const now = new Date().toISOString();
+    for (const p of positions) {
+      if (!p || typeof p.id !== "string") continue;
+      batch.set(
+        kgDb.collection(KG_NODES_COLLECTION).doc(p.id),
+        { x: p.x, y: p.y, updatedAt: now, updatedBy: req.user!.uid },
+        { merge: true }
+      );
+    }
+    await batch.commit();
     res.json({ success: true, count: positions.length });
   } catch (e: any) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// POST / PUT edge
-app.post("/api/curriculum/knowledge-graph/edges", (req, res) => {
+// POST / PUT edge — System-owned curriculum data: mutations are admin-only, not per-user.
+app.post("/api/curriculum/knowledge-graph/edges", requireAdmin, async (req, res) => {
   try {
     const edge = req.body;
     if (!edge || !edge.id || !edge.source || !edge.target) {
       return res.status(400).json({ success: false, message: "Valid edge with id, source, and target is required." });
     }
-    const store = getKnowledgeGraphStore();
-    const existingIndex = store.edges.findIndex((e: any) => e.id === edge.id);
-    if (existingIndex >= 0) {
-      store.edges[existingIndex] = { ...store.edges[existingIndex], ...edge };
-    } else {
-      store.edges.push(edge);
-    }
-    store.updatedAt = new Date().toISOString();
-    saveKnowledgeGraphStore(store);
+    await kgDb.collection(KG_EDGES_COLLECTION).doc(String(edge.id)).set(
+      { ...edge, updatedAt: new Date().toISOString(), updatedBy: req.user!.uid },
+      { merge: true }
+    );
     res.json({ success: true, edge });
   } catch (e: any) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// DELETE node
-app.delete("/api/curriculum/knowledge-graph/nodes/:id", (req, res) => {
+// DELETE node (and any edges referencing it) — admin only.
+app.delete("/api/curriculum/knowledge-graph/nodes/:id", requireAdmin, async (req, res) => {
   try {
     const nodeId = req.params.id;
-    const store = getKnowledgeGraphStore();
-    store.nodes = store.nodes.filter((n: any) => n.id !== nodeId);
-    store.edges = store.edges.filter((e: any) => e.source !== nodeId && e.target !== nodeId);
-    store.updatedAt = new Date().toISOString();
-    saveKnowledgeGraphStore(store);
+    const [sourceEdges, targetEdges] = await Promise.all([
+      kgDb.collection(KG_EDGES_COLLECTION).where("source", "==", nodeId).get(),
+      kgDb.collection(KG_EDGES_COLLECTION).where("target", "==", nodeId).get(),
+    ]);
+    const batch = kgDb.batch();
+    batch.delete(kgDb.collection(KG_NODES_COLLECTION).doc(nodeId));
+    for (const doc of [...sourceEdges.docs, ...targetEdges.docs]) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
     res.json({ success: true, deletedNodeId: nodeId });
   } catch (e: any) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// DELETE edge
-app.delete("/api/curriculum/knowledge-graph/edges/:id", (req, res) => {
+// DELETE edge — admin only.
+app.delete("/api/curriculum/knowledge-graph/edges/:id", requireAdmin, async (req, res) => {
   try {
     const edgeId = req.params.id;
-    const store = getKnowledgeGraphStore();
-    store.edges = store.edges.filter((e: any) => e.id !== edgeId);
-    store.updatedAt = new Date().toISOString();
-    saveKnowledgeGraphStore(store);
+    await kgDb.collection(KG_EDGES_COLLECTION).doc(edgeId).delete();
     res.json({ success: true, deletedEdgeId: edgeId });
   } catch (e: any) {
     res.status(500).json({ success: false, message: e.message });
@@ -1278,8 +1181,40 @@ app.get("/api/news/presets", (_req, res) => {
   });
 });
 
-// Fetch & Parse single RSS/Atom Feed URL
-app.post("/api/news/fetch-feed", async (req, res) => {
+// Approved-source allowlist for RSS ingestion. Fetching arbitrary user-supplied URLs from
+// the server is an SSRF vector (probing internal/cloud-metadata hosts, port scanning, etc.),
+// so only these known-safe UPSC news hostnames may ever be fetched.
+const APPROVED_NEWS_FEED_HOSTNAMES = new Set<string>([
+  "www.thehindu.com",
+  "thehindu.com",
+  "archive.pib.gov.in",
+  "pib.gov.in",
+  "indianexpress.com",
+  "www.indianexpress.com",
+]);
+try {
+  for (const preset of (POPULAR_UPSC_FEEDS as any[]) || []) {
+    const candidateUrl = preset?.url || preset?.feedUrl || preset?.rssUrl || preset?.link;
+    if (typeof candidateUrl === "string") {
+      try {
+        APPROVED_NEWS_FEED_HOSTNAMES.add(new URL(candidateUrl).hostname);
+      } catch {}
+    }
+  }
+} catch {}
+
+function isApprovedFeedUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "https:") return false;
+    return APPROVED_NEWS_FEED_HOSTNAMES.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+// Fetch & Parse single RSS/Atom Feed URL — restricted to approved source hostnames only.
+app.post("/api/news/fetch-feed", requireAuth, async (req, res) => {
   try {
     const { feedUrl, sourceName } = req.body;
     if (!feedUrl || typeof feedUrl !== "string") {
@@ -1288,8 +1223,15 @@ app.post("/api/news/fetch-feed", async (req, res) => {
         error: "Missing required 'feedUrl' parameter.",
       });
     }
+    const trimmedUrl = feedUrl.trim();
+    if (!isApprovedFeedUrl(trimmedUrl)) {
+      return res.status(403).json({
+        success: false,
+        error: "Feed URL host is not on the approved UPSC news source allowlist.",
+      });
+    }
 
-    const result = await fetchAndParseRssFeed(feedUrl.trim(), sourceName);
+    const result = await fetchAndParseRssFeed(trimmedUrl, sourceName);
     res.json(result);
   } catch (error: any) {
     console.error("RSS fetch error:", error);
@@ -1300,14 +1242,22 @@ app.post("/api/news/fetch-feed", async (req, res) => {
   }
 });
 
-// Sync multiple feeds in batch
-app.post("/api/news/sync-all", async (req, res) => {
+// Sync multiple feeds in batch — every feed URL, including client-supplied ones, is checked
+// against the approved-source allowlist before being fetched.
+app.post("/api/news/sync-all", requireAdmin, async (req, res) => {
   try {
-    const feedUrls: { url: string; sourceName?: string }[] = req.body.feeds || [
-      { url: "https://www.thehindu.com/opinion/editorial/feeder/default.rss", sourceName: "The Hindu" },
-      { url: "https://archive.pib.gov.in/rss/rss.aspx", sourceName: "PIB" },
-      { url: "https://indianexpress.com/section/explained/feed/", sourceName: "The Indian Express" },
-    ];
+    const requestedFeeds: { url: string; sourceName?: string }[] | undefined = req.body.feeds;
+    const feedUrls: { url: string; sourceName?: string }[] = (requestedFeeds && requestedFeeds.length > 0)
+      ? requestedFeeds.filter((f) => f && typeof f.url === "string" && isApprovedFeedUrl(f.url))
+      : [
+          { url: "https://www.thehindu.com/opinion/editorial/feeder/default.rss", sourceName: "The Hindu" },
+          { url: "https://archive.pib.gov.in/rss/rss.aspx", sourceName: "PIB" },
+          { url: "https://indianexpress.com/section/explained/feed/", sourceName: "The Indian Express" },
+        ];
+
+    if (feedUrls.length === 0) {
+      return res.status(400).json({ success: false, error: "No approved feed URLs supplied." });
+    }
 
     const results = await Promise.all(
       feedUrls.map((f) => fetchAndParseRssFeed(f.url, f.sourceName))
@@ -1345,7 +1295,7 @@ app.post("/api/news/sync-all", async (req, res) => {
 });
 
 // 1.1 Python LoRA Model Training Execution API
-app.post("/api/bolt/train", async (req, res) => {
+app.post("/api/bolt/train", requireAdmin, heavyTaskLimiter, async (req, res) => {
   try {
     const {
       datasetId,
@@ -1396,8 +1346,8 @@ app.post("/api/bolt/train", async (req, res) => {
   }
 });
 
-// 1.1.1 Current Affairs Processing Pipeline Endpoints
-app.post("/api/news/pipeline/run", async (_req, res) => {
+// 1.1.1 Current Affairs Processing Pipeline Endpoints (expensive network+AI work — admin only)
+app.post("/api/news/pipeline/run", requireAdmin, heavyTaskLimiter, async (_req, res) => {
   try {
     const result = await executeNewsIngestionPipeline();
     res.json({
@@ -1413,7 +1363,7 @@ app.post("/api/news/pipeline/run", async (_req, res) => {
   }
 });
 
-app.get("/api/news/pipeline/status", (_req, res) => {
+app.get("/api/news/pipeline/status", requireAuth, (_req, res) => {
   try {
     const status = getPipelineStatus();
     res.json({
@@ -1425,7 +1375,7 @@ app.get("/api/news/pipeline/status", (_req, res) => {
   }
 });
 
-app.post("/api/news/pipeline/mcqs", (req, res) => {
+app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
   try {
     const count = parseInt(req.body.count || "5", 10);
     const articles = loadCurrentAffairsFromDisk();
@@ -1441,7 +1391,7 @@ app.post("/api/news/pipeline/mcqs", (req, res) => {
 });
 
 // 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
-app.get("/api/news/daily-current-affairs", async (_req, res) => {
+app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
   try {
     let articles = loadCurrentAffairsFromDisk();
     if (!articles || articles.length === 0) {
@@ -1461,7 +1411,7 @@ app.get("/api/news/daily-current-affairs", async (_req, res) => {
   }
 });
 
-app.post("/api/news/daily-current-affairs/sync", async (_req, res) => {
+app.post("/api/news/daily-current-affairs/sync", requireAdmin, heavyTaskLimiter, async (_req, res) => {
   try {
     const pipelineResult = await executeNewsIngestionPipeline();
     const status = getPipelineStatus();
@@ -1478,22 +1428,27 @@ app.post("/api/news/daily-current-affairs/sync", async (_req, res) => {
   }
 });
 
-// Server-side periodic background task for daily current affairs ingestion (every 30 minutes)
-const NEWS_BACKGROUND_INTERVAL_MS = 30 * 60 * 1000;
-setInterval(async () => {
-  try {
-    console.log("[CurrentAffairsPipeline] Background scheduled execution starting...");
-    const res = await executeNewsIngestionPipeline();
-    console.log(`[CurrentAffairsPipeline] Background scheduled execution finished. Newly ingested: ${res.newlyIngested}, total: ${res.articles.length}`);
-  } catch (e) {
-    console.warn("[CurrentAffairsPipeline] Background scheduled execution error:", e);
-  }
-}, NEWS_BACKGROUND_INTERVAL_MS);
+// NOTE: the previous naive `setInterval`-based background sync here (running every 30
+// minutes purely in-process, duplicating the separate 6-hour scheduler below) has been
+// removed. In-process timers are lost on every restart/redeploy/scale-out and can double-run
+// across multiple instances. Scheduling now flows exclusively through initCurrentAffairsScheduler(),
+// which enqueues into the durable jobQueue rather than invoking the pipeline directly (see below).
 
-// 1.2 Model & Daemon Status API
-app.get("/api/bolt/models/status", async (req, res) => {
+// 1.2 Model & Daemon Status API — restricted to authenticated users, and the local-model
+// endpoint probe is locked to loopback hosts only to prevent SSRF against arbitrary hosts.
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
+app.get("/api/bolt/models/status", requireAuth, async (req, res) => {
   let localOnline = false;
-  const endpoint = (req.query.endpoint as string) || "http://localhost:11434";
+  const requestedEndpoint = (req.query.endpoint as string) || "http://localhost:11434";
+  let endpoint = "http://localhost:11434";
+  try {
+    const parsed = new URL(requestedEndpoint);
+    if (LOOPBACK_HOSTNAMES.has(parsed.hostname)) {
+      endpoint = requestedEndpoint;
+    }
+  } catch {
+    // Fall back to default loopback endpoint on invalid input.
+  }
 
   try {
     const controller = new AbortController();
@@ -1517,39 +1472,39 @@ app.get("/api/bolt/models/status", async (req, res) => {
 });
 
 // 2. Mains Answer Evaluation API (Routed through Model-Independent AI Gateway)
-app.post("/api/bolt/evaluate", async (req, res) => {
+app.post("/api/bolt/evaluate", requireAuth, async (req, res) => {
   try {
     const {
       question,
       answerText,
       maxMarks = 15,
       subject = "Public Administration",
-      provider,
-      apiKey,
-      baseUrl,
-      modelId,
     } = req.body;
+    const safeOverrides = resolveSafeAiOverrides(req, req.body);
     const result = await BoltAIGateway.evaluateMains(
       {
         maxMarks: Number(maxMarks) || 15,
         questionText: question || "Mains Question",
         subject,
-        providerOverride: provider,
-        apiKeyOverride: apiKey,
-        baseUrlOverride: baseUrl,
-        modelOverride: modelId,
+        providerOverride: safeOverrides.providerOverride,
+        apiKeyOverride: undefined,
+        baseUrlOverride: safeOverrides.baseUrlOverride,
+        modelOverride: safeOverrides.modelOverride,
       },
       answerText || ""
     );
     res.json(result);
   } catch (error: any) {
-    console.error("Evaluation error:", error);
-    res.json(generateMainsEvaluationFallback(req.body.question, req.body.answerText, req.body.maxMarks || 15, req.body.subject));
+    console.error("Evaluation error (degraded fallback):", error);
+    aiFallbackCount++;
+    const fallback = generateMainsEvaluationFallback(req.body.question, req.body.answerText, req.body.maxMarks || 15, req.body.subject);
+    // Fallback is a degraded heuristic result, never presented as a genuine AI evaluation.
+    res.status(200).json({ ...fallback, success: false, isFallback: true, status: "AI_FALLBACK", degraded: true });
   }
 });
 
 // Dedicated AI Gateway Mains Evaluation Endpoint
-app.post("/api/ai/gateway/evaluate", async (req, res) => {
+app.post("/api/ai/gateway/evaluate", requireAuth, async (req, res) => {
   try {
     const { rubric, answerText } = req.body;
     const result = await BoltAIGateway.evaluateMains(rubric, answerText);
@@ -1560,18 +1515,15 @@ app.post("/api/ai/gateway/evaluate", async (req, res) => {
 });
 
 // 3. Model Answer Generator API (Multi-provider via BoltAIGateway)
-app.post("/api/bolt/model-answer", async (req, res) => {
+app.post("/api/bolt/model-answer", requireAuth, async (req, res) => {
   try {
     const {
       question,
       subject = "Public Administration",
       marks = 15,
       year = 2026,
-      provider,
-      apiKey,
-      baseUrl,
-      modelId,
     } = req.body;
+    const safeOverrides = resolveSafeAiOverrides(req, req.body);
 
     const prompt = `Generate an exceptional, topper-level UPSC Civil Services Mains Model Answer for:
 Subject: ${subject}
@@ -1593,10 +1545,10 @@ Format strictly as JSON matching this structure.`;
     const genRes = await BoltAIGateway.generate({
       prompt,
       responseFormat: "json",
-      providerOverride: provider,
-      apiKeyOverride: apiKey,
-      baseUrlOverride: baseUrl,
-      modelOverride: modelId,
+      providerOverride: safeOverrides.providerOverride,
+      apiKeyOverride: undefined,
+      baseUrlOverride: safeOverrides.baseUrlOverride,
+      modelOverride: safeOverrides.modelOverride,
     });
 
     if (genRes.parsedJson && Object.keys(genRes.parsedJson).length > 0) {
@@ -1608,10 +1560,14 @@ Format strictly as JSON matching this structure.`;
         return res.json(JSON.parse(match[0]));
       } catch {}
     }
-    res.json(generateModelAnswerFallback(question, subject, marks, year));
+    aiFallbackCount++;
+    const fallback = generateModelAnswerFallback(question, subject, marks, year);
+    return res.status(200).json({ ...fallback, success: false, isFallback: true, status: "AI_FALLBACK", degraded: true });
   } catch (error: any) {
-    console.error("Model answer error:", error);
-    res.json(generateModelAnswerFallback(req.body.question, req.body.subject, req.body.marks || 15, req.body.year || 2026));
+    console.error("Model answer error (degraded fallback):", error);
+    aiFallbackCount++;
+    const fallback = generateModelAnswerFallback(req.body.question, req.body.subject, req.body.marks || 15, req.body.year || 2026);
+    res.status(200).json({ ...fallback, success: false, isFallback: true, status: "AI_FALLBACK", degraded: true });
   }
 });
 
@@ -2035,32 +1991,76 @@ function generateModelAnswerFallback(question: string, subject: string, marks: n
   };
 }
 
+// Scheduling enqueues onto the durable, persisted jobQueue (system-owned, type
+// "current_affairs_sync") rather than invoking the pipeline directly. The actual
+// execution logic lives in the "current_affairs_sync" worker registered further
+// down this file.
+//
+// ITEM 5 FIX (scaffold, see server/jobQueue.ts header): the in-process setInterval
+// below is still per-replica, which by itself would double-enqueue under horizontal
+// scale-out — that was the original bug. It is now guarded by a Firestore
+// transactional lock (jobQueue.tryAcquireLock) so only the one replica that wins the
+// lock for a given ~6-hour window actually enqueues; the rest no-op silently. This
+// makes the in-process timer *safe* under scale-out, but the recommended production
+// path is still to drive this from a real external scheduler (Cloud Scheduler / cron
+// hitting POST /api/internal/scheduler/current-affairs-sync below) and disable the
+// setInterval entirely via DISABLE_INPROCESS_SCHEDULER — the lock is a safety net,
+// not a replacement for a real scheduler product.
 function initCurrentAffairsScheduler() {
-  console.log("[Scheduler] Booting automated UPSC Current Affairs & MCQ pipeline...");
-  // Initial sync after 3 seconds
-  setTimeout(async () => {
-    try {
-      const res = await executeNewsIngestionPipeline();
-      const generated = generateDailyCurrentAffairsMCQs(res.articles, 5);
-      console.log(`[Scheduler] Initial sync completed: ${res.newlyIngested} new articles, ${generated.length} validated MCQs generated.`);
-    } catch (e) {
-      failedJobsCount++;
-      console.warn("[Scheduler] Initial pipeline execution error:", e);
-    }
-  }, 3000);
+  console.log("[Scheduler] Booting durable UPSC Current Affairs & MCQ job scheduler...");
 
-  // Periodic refresh every 6 hours
-  setInterval(async () => {
+  const enqueueSyncJob = async (label: string) => {
     try {
-      const res = await executeNewsIngestionPipeline();
-      generateDailyCurrentAffairsMCQs(res.articles, 5);
-      console.log(`[Scheduler] 6-hour sync completed: ${res.newlyIngested} new articles.`);
+      const gotLock = await jobQueue.tryAcquireLock("current_affairs_sync", 6 * 60 * 60 * 1000 - 60_000);
+      if (!gotLock) {
+        console.log(`[Scheduler] Skipping "${label}" — another instance holds the lock for this window.`);
+        return;
+      }
+      const job = jobQueue.enqueue("current_affairs_sync", label, { ownerId: "system", triggeredBy: "scheduler" });
+      console.log(`[Scheduler] Enqueued durable job ${job?.id || "(unknown id)"} (${label}).`);
     } catch (e) {
       failedJobsCount++;
-      console.warn("[Scheduler] Recurring pipeline error:", e);
+      console.warn("[Scheduler] Failed to enqueue current_affairs_sync job:", e);
     }
-  }, 6 * 60 * 60 * 1000);
+  };
+
+  if (process.env.DISABLE_INPROCESS_SCHEDULER === "true") {
+    console.log("[Scheduler] In-process timer disabled (DISABLE_INPROCESS_SCHEDULER=true) — relying on external trigger only.");
+    return;
+  }
+
+  // Initial sync shortly after boot
+  setTimeout(() => enqueueSyncJob("Startup current affairs sync"), 3000);
+
+  // Periodic refresh every 6 hours — lock-guarded, see comment above.
+  setInterval(() => enqueueSyncJob("Scheduled 6-hour current affairs sync"), 6 * 60 * 60 * 1000);
 }
+
+// Production-recommended trigger path: point an external scheduler (Cloud
+// Scheduler, a cron-based CI job, etc.) at this endpoint instead of relying on
+// the in-process timer. Protected by a shared secret rather than end-user auth,
+// since the caller is infrastructure, not a logged-in user. Set
+// SCHEDULER_TRIGGER_SECRET in the environment; requests without a matching
+// X-Scheduler-Secret header are rejected. This endpoint is new — wire it up to
+// your actual scheduler and set the env var before relying on it.
+app.post("/api/internal/scheduler/current-affairs-sync", (req, res) => {
+  const expected = process.env.SCHEDULER_TRIGGER_SECRET;
+  if (!expected) {
+    return res.status(503).json({ success: false, error: "SCHEDULER_TRIGGER_SECRET is not configured." });
+  }
+  if (req.headers["x-scheduler-secret"] !== expected) {
+    return res.status(403).json({ success: false, error: "Invalid scheduler credential." });
+  }
+  try {
+    const job = jobQueue.enqueue("current_affairs_sync", "External scheduler trigger", {
+      ownerId: "system",
+      triggeredBy: "external-scheduler",
+    });
+    res.json({ success: true, job });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || "Failed to enqueue job." });
+  }
+});
 
 // ----------------------------------------------------
 // JOB QUEUE WORKERS REGISTRATION
@@ -2113,7 +2113,7 @@ jobQueue.registerWorker("embeddings_generation", async (job) => {
 // ----------------------------------------------------
 // UPSC PYQ INTELLIGENCE ENDPOINTS
 // ----------------------------------------------------
-app.get("/api/pyqs/search", (req, res) => {
+app.get("/api/pyqs/search", requireAuth, (req, res) => {
   try {
     const stage = req.query.stage as any;
     const paper = req.query.paper as any;
@@ -2143,7 +2143,7 @@ app.get("/api/pyqs/search", (req, res) => {
   }
 });
 
-app.get("/api/pyqs/analysis", (_req, res) => {
+app.get("/api/pyqs/analysis", requireAuth, (_req, res) => {
   try {
     const recurringThemes = getRecurringThemeAnalytics();
     res.json({
@@ -2156,7 +2156,7 @@ app.get("/api/pyqs/analysis", (_req, res) => {
   }
 });
 
-app.get("/api/pyqs/topic/:topicName", (req, res) => {
+app.get("/api/pyqs/topic/:topicName", requireAuth, (req, res) => {
   try {
     const topicName = decodeURIComponent(req.params.topicName);
     const intel = getTopicPyqIntelligence(topicName);
@@ -2170,7 +2170,7 @@ app.get("/api/pyqs/topic/:topicName", (req, res) => {
   }
 });
 
-app.get("/api/pyqs/:id", (req, res) => {
+app.get("/api/pyqs/:id", requireAuth, (req, res) => {
   try {
     const pyq = getPyqById(req.params.id);
     if (!pyq) {
@@ -2185,17 +2185,19 @@ app.get("/api/pyqs/:id", (req, res) => {
 // ----------------------------------------------------
 // ADVANCED RAG WITH CITATIONS & EVIDENCE GUARD
 // ----------------------------------------------------
-app.post("/api/rag/search-advanced", (req, res) => {
+app.post("/api/rag/search-advanced", requireAuth, (req, res) => {
   try {
     const { query, category, limit, minConfidenceThreshold } = req.body;
     if (!query) {
       return res.status(400).json({ success: false, error: "Query parameter is required." });
     }
 
+    const userId = req.user!.uid;
     const result = searchKnowledgeChunksAdvanced(query, {
       category,
       limit: limit || 4,
       minConfidenceThreshold: minConfidenceThreshold || 0.38,
+      userId,
     });
 
     res.json({ success: true, result });
@@ -2207,7 +2209,7 @@ app.post("/api/rag/search-advanced", (req, res) => {
 // ----------------------------------------------------
 // EXPANDED 64-TEST AI BENCHMARK ENDPOINT
 // ----------------------------------------------------
-app.post("/api/benchmark/run", async (_req, res) => {
+app.post("/api/benchmark/run", requireAdmin, heavyTaskLimiter, async (_req, res) => {
   try {
     const summary = await executeBoltBenchmarkSuite();
     res.json({ success: true, benchmark: summary });
@@ -2219,13 +2221,25 @@ app.post("/api/benchmark/run", async (_req, res) => {
 // ----------------------------------------------------
 // DURABLE JOB QUEUE ENDPOINTS
 // ----------------------------------------------------
+// Job types that operate on shared/system resources (benchmarks, DR tests, curriculum-wide
+// current affairs sync) rather than a single user's own data — only admins may enqueue or
+// view these regardless of who technically submitted the request.
+const ADMIN_ONLY_JOB_TYPES = new Set(["benchmark_run", "disaster_recovery_test", "current_affairs_sync"]);
+
+function jobOwnerId(job: any): string | undefined {
+  return job?.params?.ownerId;
+}
+
 app.get("/api/jobs", requireAuth, (req, res) => {
   try {
     const type = req.query.type as any;
     const status = req.query.status as any;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 25;
-    const jobs = jobQueue.listJobs({ type, status, limit });
-    res.json({ success: true, jobs });
+    const isAdmin = !!req.user!.isAdmin;
+    const jobs = jobQueue.listJobs({ type, status, limit: isAdmin ? limit : Math.max(limit, 100) });
+    // Cross-user isolation: non-admins only ever see jobs they own.
+    const scoped = isAdmin ? jobs : jobs.filter((j: any) => jobOwnerId(j) === req.user!.uid).slice(0, limit);
+    res.json({ success: true, jobs: scoped });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2237,7 +2251,13 @@ app.post("/api/jobs", requireAuth, (req, res) => {
     if (!type || !title) {
       return res.status(400).json({ success: false, error: "Type and title are required." });
     }
-    const job = jobQueue.enqueue(type, title, params || {});
+    if (ADMIN_ONLY_JOB_TYPES.has(type) && !req.user!.isAdmin) {
+      return res.status(403).json({ success: false, error: "This job type is restricted to administrators." });
+    }
+    // Every job is scoped to its creator (or explicitly to "system" for admin-triggered
+    // system-wide jobs), so ownership can always be enforced on read/retry.
+    const ownerId = req.user!.isAdmin && params?.ownerId === "system" ? "system" : req.user!.uid;
+    const job = jobQueue.enqueue(type, title, { ...(params || {}), ownerId });
     res.json({ success: true, job });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -2250,6 +2270,10 @@ app.get("/api/jobs/:id", requireAuth, (req, res) => {
     if (!job) {
       return res.status(404).json({ success: false, error: "Job not found." });
     }
+    const isOwner = jobOwnerId(job) === req.user!.uid;
+    if (!isOwner && !req.user!.isAdmin) {
+      return res.status(403).json({ success: false, error: "Access denied to this job." });
+    }
     res.json({ success: true, job });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -2258,6 +2282,14 @@ app.get("/api/jobs/:id", requireAuth, (req, res) => {
 
 app.post("/api/jobs/:id/retry", requireAuth, async (req, res) => {
   try {
+    const existing = jobQueue.getJob(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Job cannot be retried." });
+    }
+    const isOwner = jobOwnerId(existing) === req.user!.uid;
+    if (!isOwner && !req.user!.isAdmin) {
+      return res.status(403).json({ success: false, error: "Access denied to this job." });
+    }
     const job = await jobQueue.retryJob(req.params.id);
     if (!job) {
       return res.status(404).json({ success: false, error: "Job cannot be retried." });
@@ -2280,10 +2312,10 @@ app.get("/api/admin/backups", requireAdmin, adminRateLimiter, (_req, res) => {
   }
 });
 
-app.post("/api/admin/backup", requireAdmin, adminRateLimiter, (req, res) => {
+app.post("/api/admin/backup", requireAdmin, adminRateLimiter, async (req, res) => {
   try {
     const description = req.body.description || "Manual Admin Snapshot";
-    const backup = createFullBackup(description);
+    const backup = await createFullBackupAsync(description);
     res.json({ success: true, backup });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -2302,23 +2334,42 @@ app.post("/api/admin/restore-test", requireAdmin, adminRateLimiter, async (_req,
 // ----------------------------------------------------
 // USER DATA PRIVACY & GDPR CONTROLS
 // ----------------------------------------------------
-app.post("/api/user/export-data", requireAuth, (req, res) => {
+app.post("/api/user/export-data", requireAuth, async (req, res) => {
   try {
     // Derive effective user ID from verified token to prevent unauthorized data extraction
     const effectiveUserId = (req.body.userId && req.user!.isAdmin) ? req.body.userId : req.user!.uid;
-    const archive = exportAllUserData(effectiveUserId);
+    const archive = await exportAllUserDataAsync(effectiveUserId);
     res.json({ success: true, archive });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.post("/api/user/delete-account", requireAuth, (req, res) => {
+app.post("/api/user/delete-account", requireAuth, async (req, res) => {
   try {
     // Derive effective user ID from verified token to prevent unauthorized deletion
     const effectiveUserId = (req.body.userId && req.user!.isAdmin) ? req.body.userId : req.user!.uid;
-    const deleted = deleteUserAccount(effectiveUserId);
+    const deleted = await deleteUserAccountAsync(effectiveUserId);
     res.json({ success: true, deleted });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Admin role management via Firebase Custom Claims
+app.post("/api/admin/users/:uid/role", requireAdmin, adminRateLimiter, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const { isAdmin } = req.body;
+    if (typeof isAdmin !== "boolean") {
+      return res.status(400).json({ success: false, error: "isAdmin boolean required." });
+    }
+    const updated = await setAdminCustomClaim(uid, isAdmin);
+    if (updated) {
+      res.json({ success: true, message: `Updated admin role for ${uid} to ${isAdmin}.` });
+    } else {
+      res.status(500).json({ success: false, error: "Failed to update custom claims via Firebase Admin." });
+    }
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2327,18 +2378,19 @@ app.post("/api/user/delete-account", requireAuth, (req, res) => {
 // ----------------------------------------------------
 // STREAMING AI RESPONSES (SSE PROTOCOL)
 // ----------------------------------------------------
-app.post("/api/ai/stream", aiRateLimiter, async (req, res) => {
+app.post("/api/ai/stream", requireAuth, aiRateLimiter, async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
   try {
-    const { messages, activeAdapter, providerOverride } = req.body;
+    const { messages, activeAdapter } = req.body;
+    const safeOverrides = resolveSafeAiOverrides(req, req.body);
     await BoltAIGateway.stream(
       {
         messages: messages || [{ role: "user", content: "Hello BOLT" }],
         activeAdapter,
-        providerOverride,
+        providerOverride: safeOverrides.providerOverride,
       },
       (chunk) => {
         res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
