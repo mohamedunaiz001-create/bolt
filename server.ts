@@ -2450,7 +2450,9 @@ app.post("/api/ai/stream", requireAuth, aiRateLimiter, async (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      // Express owns the HTTP server, so Vite cannot receive the WebSocket
+      // upgrade required by its default HMR client in middleware mode.
+      server: { middlewareMode: true, hmr: false },
       appType: "spa",
     });
     app.use(vite.middlewares);
