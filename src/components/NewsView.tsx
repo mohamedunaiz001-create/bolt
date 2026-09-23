@@ -66,7 +66,7 @@ const DEFAULT_PRESET_FEEDS: SavedFeed[] = [
     id: "preset-pib",
     name: "PIB - Official Press Releases",
     source: "PIB",
-    url: "https://pib.gov.in/press-releases",
+    url: "https://archive.pib.gov.in/rss/rss.aspx",
     category: "Government Sources",
   },
   {
@@ -198,9 +198,22 @@ export const NewsView: React.FC<NewsViewProps> = ({
         }),
       });
 
-      const data = await response.json();
+    const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+    let data: any;
+    if (contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const body = await response.text();
+      data = {
+        success: false,
+        error: response.ok
+          ? "The feed service returned an unexpected non-JSON response. Please try again."
+          : `Feed service error (${response.status}). Please verify the RSS/Atom URL.`,
+      };
+      console.error("RSS endpoint returned non-JSON response:", body.slice(0, 200));
+    }
 
-      if (data.success && data.articles && data.articles.length > 0) {
+    if (data.success && data.articles && data.articles.length > 0) {
         // Merge with existing articles, avoiding duplicates
         const existingHeadlines = new Set(articles.map((a) => a.headline.toLowerCase().trim()));
         const newArticlesToAdd: NewsArticle[] = [];
@@ -270,7 +283,15 @@ export const NewsView: React.FC<NewsViewProps> = ({
         }),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : {
+            success: false,
+            error: response.ok
+              ? "The feed service returned an unexpected non-JSON response."
+              : `Feed service error (${response.status}). Please verify the configured feeds.`,
+          };
 
       if (data.success && data.articles) {
         const existingHeadlines = new Set(articles.map((a) => a.headline.toLowerCase().trim()));

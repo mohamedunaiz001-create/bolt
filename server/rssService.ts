@@ -31,7 +31,7 @@ export const POPULAR_UPSC_FEEDS: RssFeedPreset[] = [
     id: "pib-releases",
     name: "PIB - Government Press Releases",
     source: "PIB",
-    url: "https://pib.gov.in/press-releases",
+    url: "https://archive.pib.gov.in/rss/rss.aspx",
     category: "Government Schemes & Policy",
     description: "Authentic notifications from Union Ministries, Cabinet decisions & PM speeches.",
   },
@@ -849,9 +849,18 @@ export async function fetchAndParseRssFeed(
       throw new Error(`Upstream server returned HTTP ${response.status}`);
     }
 
+    const contentType = response.headers.get("content-type")?.toLowerCase() || "";
     const xmlText = await response.text();
-    if (!xmlText || xmlText.trim().length === 0) {
+    const trimmedXml = xmlText.trim();
+    if (!trimmedXml) {
       throw new Error("Empty feed response received");
+    }
+
+    // A valid feed must be XML/RSS/Atom, not an HTML landing page or block page.
+    const looksLikeXml = trimmedXml.startsWith("<?xml") || /^<(rss|feed)\b/i.test(trimmedXml);
+    const looksLikeHtml = /^<!doctype\s+html|^<html\b|<title>.*(access denied|just a moment|error)/i.test(trimmedXml);
+    if (looksLikeHtml || (!looksLikeXml && !contentType.includes("xml") && !contentType.includes("rss") && !contentType.includes("atom"))) {
+      throw new Error("The source returned HTML instead of an RSS/Atom feed. Use the source's XML feed URL.");
     }
 
     const parser = new XMLParser({
