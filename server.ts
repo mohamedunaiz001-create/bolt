@@ -12,6 +12,7 @@ import {
   generateDailyCurrentAffairsMCQs,
   getPipelineStatus,
   loadCurrentAffairsFromDisk,
+  loadCurrentAffairsFromFirestore,
 } from "./server/currentAffairsPipeline";
 import {
   registerUser,
@@ -917,7 +918,8 @@ app.post("/api/ai/training/jobs", requireAdmin, heavyTaskLimiter, (req, res) => 
   }
 });
 
-app.get("/api/ai/training/jobs/:id", requireAuth, (req, res) => {
+// Detail route for training jobs — internal model training state is restricted to admins
+app.get("/api/ai/training/jobs/:id", requireAdmin, (req, res) => {
   const job = ModelPlatformService.getTrainingJob(req.params.id);
   if (!job) return res.status(404).json({ success: false, message: "Job not found" });
   res.json({ success: true, job });
@@ -1416,7 +1418,8 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
 // 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
 app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
   try {
-    let articles = loadCurrentAffairsFromDisk();
+    const { articles: firestoreArticles } = await loadCurrentAffairsFromFirestore();
+    let articles = firestoreArticles;
     if (!articles || articles.length === 0) {
       const pipelineResult = await executeNewsIngestionPipeline();
       articles = pipelineResult.articles;
@@ -2031,6 +2034,9 @@ function generateModelAnswerFallback(question: string, subject: string, marks: n
 // not a replacement for a real scheduler product.
 function initCurrentAffairsScheduler() {
   console.log("[Scheduler] Booting durable UPSC Current Affairs & MCQ job scheduler...");
+  loadCurrentAffairsFromFirestore().catch((e) =>
+    console.warn("[CurrentAffairs] Boot sync notice:", e.message)
+  );
 
   const enqueueSyncJob = async (label: string) => {
     try {
@@ -2047,15 +2053,26 @@ function initCurrentAffairsScheduler() {
     }
   };
 
-  if (process.env.DISABLE_INPROCESS_SCHEDULER === "true") {
-    console.log("[Scheduler] In-process timer disabled (DISABLE_INPROCESS_SCHEDULER=true) — relying on external trigger only.");
+  // In Cloud Run / production environments, disable the in-process timer and rely on
+  // the external Cloud Scheduler endpoint (POST /api/internal/scheduler/current-affairs-sync)
+  // as the authoritative production scheduler.
+  const isCloudRun = Boolean(process.env.K_SERVICE || process.env.K_REVISION || process.env.CLOUD_RUN_JOB);
+  const isProduction = process.env.NODE_ENV === "production" || isCloudRun;
+  const disableInProcess =
+    process.env.DISABLE_INPROCESS_SCHEDULER === "true" ||
+    (isProduction && process.env.ENABLE_INPROCESS_SCHEDULER !== "true");
+
+  if (disableInProcess) {
+    console.log(
+      "[Scheduler] Production Cloud Run mode active: in-process timer disabled. External Cloud Scheduler endpoint (POST /api/internal/scheduler/current-affairs-sync) is the authoritative production scheduler."
+    );
     return;
   }
 
-  // Initial sync shortly after boot
+  // Initial sync shortly after boot (local development only)
   setTimeout(() => enqueueSyncJob("Startup current affairs sync"), 3000);
 
-  // Periodic refresh every 6 hours — lock-guarded, see comment above.
+  // Periodic refresh every 6 hours (local development only)
   setInterval(() => enqueueSyncJob("Scheduled 6-hour current affairs sync"), 6 * 60 * 60 * 1000);
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "Bolt",
+  "name": "Bolt - UPSC Civil Services Preparation",
   "description": "UPSC Civil Services platform powered by Python 3.10 engine, PDF/Docs study material processor with automated quiz generator, 1855-2026 PYQ historical archive with peripheral areas and current affairs, and NCERT Class 6-12 foundation curriculum.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
