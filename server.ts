@@ -1,4 +1,5 @@
 import express from "express";
+import { createServer as createHttpServer } from "http";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -2447,13 +2448,20 @@ app.post("/api/ai/stream", requireAuth, aiRateLimiter, async (req, res) => {
 // ----------------------------------------------------
 // VITE MIDDLEWARE SETUP
 // ----------------------------------------------------
-async function startServer() {
+  async function startServer() {
+  const httpServer = createHttpServer(app);
+
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+  const vite = await createViteServer({
+  server: {
+  middlewareMode: true,
+  // The preview proxy does not forward this custom server's HMR socket.
+  // Disable HMR so Vite does not inject a client that repeatedly reconnects.
+  hmr: false,
+  },
+  appType: "spa",
+  });
+  app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
@@ -2462,9 +2470,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Bolt UPSC Server running on http://0.0.0.0:${PORT}`);
-    initCurrentAffairsScheduler();
+  httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`Bolt UPSC Server running on http://0.0.0.0:${PORT}`);
+  initCurrentAffairsScheduler();
   });
 }
 

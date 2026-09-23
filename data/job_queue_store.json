@@ -1,9 +1,78 @@
 [
   {
+    "id": "job-1790146693423-yseqt",
+    "type": "current_affairs_sync",
+    "status": "completed",
+    "progressPct": 100,
+    "title": "Startup current affairs sync",
+    "dedupKey": "current_affairs_sync:sys:{\"ownerId\":\"system\",\"triggeredBy\":\"scheduler\"}",
+    "params": {
+      "ownerId": "system",
+      "triggeredBy": "scheduler"
+    },
+    "createdAt": "2026-09-23T06:58:13.423Z",
+    "retryCount": 0,
+    "maxRetries": 3,
+    "startedAt": "2026-09-23T06:58:13.474Z",
+    "lastHeartbeatAt": "2026-09-23T06:58:15.732Z",
+    "result": {
+      "newlyIngested": 0,
+      "mcqsGenerated": 0
+    },
+    "finishedAt": "2026-09-23T06:58:15.734Z",
+    "durationMs": 2260
+  },
+  {
+    "id": "job-1790146623978-wy2qe",
+    "type": "current_affairs_sync",
+    "status": "completed",
+    "progressPct": 100,
+    "title": "Startup current affairs sync",
+    "dedupKey": "current_affairs_sync:sys:{\"ownerId\":\"system\",\"triggeredBy\":\"scheduler\"}",
+    "params": {
+      "ownerId": "system",
+      "triggeredBy": "scheduler"
+    },
+    "createdAt": "2026-09-23T06:57:03.978Z",
+    "retryCount": 0,
+    "maxRetries": 3,
+    "startedAt": "2026-09-23T06:57:04.101Z",
+    "lastHeartbeatAt": "2026-09-23T06:57:06.752Z",
+    "result": {
+      "newlyIngested": 0,
+      "mcqsGenerated": 4
+    },
+    "finishedAt": "2026-09-23T06:57:06.756Z",
+    "durationMs": 2654
+  },
+  {
+    "id": "job-1790146536868-r3w6w",
+    "type": "current_affairs_sync",
+    "status": "completed",
+    "progressPct": 100,
+    "title": "Startup current affairs sync",
+    "dedupKey": "current_affairs_sync:sys:{\"ownerId\":\"system\",\"triggeredBy\":\"scheduler\"}",
+    "params": {
+      "ownerId": "system",
+      "triggeredBy": "scheduler"
+    },
+    "createdAt": "2026-09-23T06:55:36.868Z",
+    "retryCount": 0,
+    "maxRetries": 3,
+    "startedAt": "2026-09-23T06:55:37.007Z",
+    "lastHeartbeatAt": "2026-09-23T06:55:39.303Z",
+    "result": {
+      "newlyIngested": 0,
+      "mcqsGenerated": 5
+    },
+    "finishedAt": "2026-09-23T06:55:39.304Z",
+    "durationMs": 2296
+  },
+  {
     "id": "job-1790065515245-37inf",
     "type": "embeddings_generation",
-    "status": "queued",
-    "progressPct": 0,
+    "status": "completed",
+    "progressPct": 100,
     "title": "Acceptance Test Sample Job",
     "dedupKey": "embeddings_generation:sys:{\"test\":true}",
     "params": {
@@ -11,13 +80,20 @@
     },
     "createdAt": "2026-09-22T08:25:15.245Z",
     "retryCount": 0,
-    "maxRetries": 3
+    "maxRetries": 3,
+    "startedAt": "2026-09-23T06:55:39.354Z",
+    "lastHeartbeatAt": "2026-09-23T06:55:39.355Z",
+    "result": {
+      "status": "embeddings_reindexed"
+    },
+    "finishedAt": "2026-09-23T06:55:39.357Z",
+    "durationMs": 2
   },
   {
     "id": "job-1790065488986-w98ko",
     "type": "current_affairs_sync",
-    "status": "queued",
-    "progressPct": 0,
+    "status": "completed",
+    "progressPct": 100,
     "title": "User A Confidential Daily Sync",
     "ownerId": "aspirant_test_user_a",
     "dedupKey": "current_affairs_sync:aspirant_test_user_a:{\"testKey\":\"secret_data_a\"}",
@@ -25,8 +101,17 @@
       "testKey": "secret_data_a"
     },
     "createdAt": "2026-09-22T08:24:48.986Z",
-    "retryCount": 0,
-    "maxRetries": 3
+    "retryCount": 2,
+    "maxRetries": 3,
+    "startedAt": "2026-09-23T06:58:15.784Z",
+    "lastHeartbeatAt": "2026-09-23T06:58:16.616Z",
+    "nextRunAt": 1790146694239,
+    "result": {
+      "newlyIngested": 0,
+      "mcqsGenerated": 0
+    },
+    "finishedAt": "2026-09-23T06:58:16.617Z",
+    "durationMs": 832
   },
   {
     "id": "job-1790063390624-siej3",

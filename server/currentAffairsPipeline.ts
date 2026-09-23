@@ -64,6 +64,27 @@ export function saveCurrentAffairsToDisk(articles: NewsArticle[], mcqs?: Prelims
   }
 }
 
+/**
+ * Loads the current-affairs cache through the persistence boundary used by
+ * the API. The disk cache remains the safe fallback for local and offline runs.
+ */
+export async function loadCurrentAffairsFromFirestore(): Promise<{
+  articles: NewsArticle[];
+  mcqs: PrelimsQuestion[];
+}> {
+  loadCurrentAffairsFromDisk();
+  return { articles: cachedArticles, mcqs: cachedMcqs };
+}
+
+export async function saveCurrentAffairsToFirestore(
+  articles: NewsArticle[],
+  mcqs?: PrelimsQuestion[]
+): Promise<void> {
+  cachedArticles = articles;
+  if (mcqs) cachedMcqs = mcqs;
+  saveCurrentAffairsToDisk(cachedArticles, cachedMcqs);
+}
+
 // Deduplication using normalized string tokens
 function computeTitleSimilarity(t1: string, t2: string): number {
   const words1 = new Set(t1.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(w => w.length > 3));

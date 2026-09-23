@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * Standardized API rate limiters to prevent DoS and credential stuffing attacks
@@ -21,7 +21,7 @@ const getClientIp = (req: any): string => {
 const baseLimiterConfig = {
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getClientIp,
+  keyGenerator: (req: any) => ipKeyGenerator(getClientIp(req)),
   validate: {
     trustProxy: false,
     xForwardedForHeader: false,
