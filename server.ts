@@ -70,6 +70,7 @@ import {
   executePyqs,
   executeMaterialProcess,
 } from "./server/pythonBridge";
+import desktopAuthRouter from "./server/desktopAuth";
 
 dotenv.config();
 
@@ -400,6 +401,10 @@ app.post("/api/auth/login", authRateLimiter, (req, res) => {
     res.status(500).json({ success: false, message: err.message || "Failed to login." });
   }
 });
+
+// BOLT Desktop sign-in bridge (Electron app deep-link auth exchange).
+// Verifies its own Firebase ID token internally; rate-limited like other auth routes.
+app.use(authRateLimiter, desktopAuthRouter);
 
 app.post("/api/user/save-progress", requireAuth, async (req, res) => {
   try {
