@@ -1,4 +1,5 @@
 import express from "express";
+import { createServer as createHttpServer } from "http";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -2447,22 +2448,19 @@ app.post("/api/ai/stream", requireAuth, aiRateLimiter, async (req, res) => {
 // ----------------------------------------------------
 // VITE MIDDLEWARE SETUP
 // ----------------------------------------------------
-async function startServer() {
+  async function startServer() {
+  const httpServer = createHttpServer(app);
+
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      // Express owns the HTTP server, so Vite cannot receive the WebSocket
-      // upgrade required by its default HMR client in middleware mode.
-      server: {
-        middlewareMode: true,
-        // Express owns the HTTP server and does not forward upgrade events to
-        // Vite. Disable both HMR and file watching so Vite never injects a
-        // client that tries to connect to an unavailable WebSocket.
-        hmr: false,
-        watch: null,
-      },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+  const vite = await createViteServer({
+  server: {
+  middlewareMode: true,
+  // Share Express's HTTP server so Vite can accept HMR WebSocket upgrades.
+  hmr: { server: httpServer },
+  },
+  appType: "spa",
+  });
+  app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
@@ -2471,9 +2469,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Bolt UPSC Server running on http://0.0.0.0:${PORT}`);
-    initCurrentAffairsScheduler();
+  httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`Bolt UPSC Server running on http://0.0.0.0:${PORT}`);
+  initCurrentAffairsScheduler();
   });
 }
 
