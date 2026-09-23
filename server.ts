@@ -2481,4 +2481,8 @@ app.post("/api/ai/stream", requireAuth, aiRateLimiter, async (req, res) => {
   });
 }
 
-startServer();
+export default app;
+
+if (!process.env.VERCEL) {
+  startServer();
+}
