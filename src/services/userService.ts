@@ -67,8 +67,8 @@ export function getCleanSyllabus(): SyllabusTopic[] {
     mainsAverageScore: 0,
     attemptsCount: 0,
     status: "not_started" as const,
-    lastStudiedDate: undefined,
-    lastRevisedDate: undefined,
+    lastStudiedDate: "",
+    lastRevisedDate: "",
     subtopics: topic.subtopics.map((sub) => ({
       ...sub,
       status: "not_started" as const,
