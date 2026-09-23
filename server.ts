@@ -2455,8 +2455,9 @@ app.post("/api/ai/stream", requireAuth, aiRateLimiter, async (req, res) => {
   const vite = await createViteServer({
   server: {
   middlewareMode: true,
-  // Share Express's HTTP server so Vite can accept HMR WebSocket upgrades.
-  hmr: { server: httpServer },
+  // The preview proxy does not forward this custom server's HMR socket.
+  // Disable HMR so Vite does not inject a client that repeatedly reconnects.
+  hmr: false,
   },
   appType: "spa",
   });
