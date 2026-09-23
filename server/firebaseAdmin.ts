@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp, App, cert } from "firebase-admin/app";
+import { initializeApp, getApps, App, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import fs from "fs";
 import path from "path";
@@ -6,8 +6,8 @@ import path from "path";
 let isInitialized = false;
 
 /**
- * Initialize Firebase Admin SDK for cryptographic token verification & claims management.
- * Gracefully handles production credentials, local development, and emulator environments.
+ * Initialize Firebase Admin SDK for token verification and claims management.
+ * Credentials must come from environment variables or Google Application Default Credentials.
  */
 export function initFirebaseAdmin(): App | null {
   if (isInitialized || getApps().length > 0) {
@@ -16,16 +16,7 @@ export function initFirebaseAdmin(): App | null {
   }
 
   try {
-    let projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
-    if (!projectId) {
-      const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-      if (fs.existsSync(configPath)) {
-        try {
-          const cfg = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-          projectId = cfg.projectId;
-        } catch {}
-      }
-    }
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
 
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       try {
@@ -42,37 +33,45 @@ export function initFirebaseAdmin(): App | null {
       }
     }
 
-    // Initialize with application default credentials or project ID fallback
-    const app = initializeApp({
-      projectId: projectId || "gen-lang-client-0319965901",
-    });
-    isInitialized = true;
-    console.log("Firebase Admin initialized for project:", projectId || "gen-lang-client-0319965901");
-    return app;
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      const credentialsPath = path.resolve(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+      if (fs.existsSync(credentialsPath)) {
+        const sa = JSON.parse(fs.readFileSync(credentialsPath, "utf8"));
+        const app = initializeApp({
+          credential: cert(sa),
+          projectId: projectId || sa.project_id,
+        });
+        isInitialized = true;
+        console.log("Firebase Admin initialized from application credentials file.");
+        return app;
+      }
+    }
+
+    if (projectId) {
+      const app = initializeApp({ projectId });
+      isInitialized = true;
+      console.log("Firebase Admin initialized for project:", projectId);
+      return app;
+    }
+
+    console.warn(
+      "Firebase Admin credentials are not configured. Set FIREBASE_SERVICE_ACCOUNT, " +
+        "GOOGLE_APPLICATION_CREDENTIALS, or FIREBASE_PROJECT_ID."
+    );
+    return null;
   } catch (e: any) {
     console.warn("Firebase Admin initialization notice (operating in fallback mode):", e.message);
-    try {
-      if (getApps().length === 0) {
-        return initializeApp();
-      }
-      isInitialized = true;
-      return getApps()[0] || null;
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 
-/**
- * Set custom admin claims on a Firebase user account.
- */
+/** Set custom admin claims on a Firebase user account. */
 export async function setAdminCustomClaim(uid: string, isAdmin: boolean): Promise<boolean> {
   try {
-    initFirebaseAdmin();
-    if (getApps().length === 0) {
-      return true;
-    }
-    const auth = getAuth();
+    const app = initFirebaseAdmin();
+    if (!app) return false;
+
+    const auth = getAuth(app);
     await auth.setCustomUserClaims(uid, {
       admin: isAdmin,
       role: isAdmin ? "admin" : "student",
@@ -80,7 +79,6 @@ export async function setAdminCustomClaim(uid: string, isAdmin: boolean): Promis
     return true;
   } catch (err: any) {
     console.warn(`setAdminCustomClaim notice for user ${uid}:`, err.message);
-    // In local sandbox / mock environments, return true so calling API completes successfully
-    return true;
+    return false;
   }
 }
