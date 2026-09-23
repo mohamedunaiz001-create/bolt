@@ -93,12 +93,28 @@ class BoltJobQueueManager {
   }
 
   private initFirestoreSync() {
+    // A project ID alone makes the Admin SDK defer credential lookup until the
+    // first Firestore request. In local/preview environments that produces an
+    // unhandled ADC error, so only enable the optional sync when credentials
+    // are explicitly configured.
+    const hasServiceAccount = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const hasApplicationCredentials = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    const hasSplitCredentials = Boolean(
+      process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY
+    );
+
+    if (!hasServiceAccount && !hasApplicationCredentials && !hasSplitCredentials) {
+      console.info("[JobQueue] Firestore sync disabled: no Admin credentials configured; using local durable store.");
+      return;
+    }
+
     try {
       const app = initFirebaseAdmin();
       if (app) {
-        this.firestoreDb = getFirestore();
+        this.firestoreDb = getFirestore(app);
       }
     } catch (err: any) {
+      this.firestoreDb = null;
       console.warn("[JobQueue] Firestore sync unavailable, operating with local durable store:", err.message);
     }
   }
