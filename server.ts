@@ -2452,7 +2452,14 @@ async function startServer() {
     const vite = await createViteServer({
       // Express owns the HTTP server, so Vite cannot receive the WebSocket
       // upgrade required by its default HMR client in middleware mode.
-      server: { middlewareMode: true, hmr: false },
+      server: {
+        middlewareMode: true,
+        // Express owns the HTTP server and does not forward upgrade events to
+        // Vite. Disable both HMR and file watching so Vite never injects a
+        // client that tries to connect to an unavailable WebSocket.
+        hmr: false,
+        watch: null,
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
