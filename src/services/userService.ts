@@ -12,12 +12,14 @@ import {
   auth,
   googleProvider,
   signInWithPopup,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signOut,
   FirebaseUser,
 } from "../lib/firebase";
+import { getDesktopBridge } from "../lib/desktopBridge";
 import {
   saveFirebaseUserProfile,
   getFirebaseUserProfile,
@@ -384,6 +386,34 @@ export async function loginAccount(params: {
 }
 
 /**
+ * Completes Google sign-in inside BOLT Desktop by delegating to the system
+ * browser (Google blocks OAuth popups inside embedded/Electron webviews).
+ * See electron/main.ts + public/desktop-auth.html for the other half of
+ * this flow.
+ */
+async function signInWithGoogleViaDesktopBridge(
+  desktop: NonNullable<ReturnType<typeof getDesktopBridge>>
+): Promise<FirebaseUser> {
+  const customToken = await new Promise<string>((resolve, reject) => {
+    const unsubscribe = desktop.onAuthToken((token) => {
+      unsubscribe();
+      resolve(token);
+    });
+    desktop.startGoogleAuth().catch((err) => {
+      unsubscribe();
+      reject(err);
+    });
+    setTimeout(() => {
+      unsubscribe();
+      reject(new Error("Sign-in timed out. Please try again."));
+    }, 5 * 60 * 1000);
+  });
+
+  const cred = await signInWithCustomToken(auth, customToken);
+  return cred.user;
+}
+
+/**
  * Sign in using Google OAuth with Firebase
  */
 export async function signInWithGoogle(): Promise<{
@@ -393,8 +423,8 @@ export async function signInWithGoogle(): Promise<{
   progress?: UserFullProgressData;
 }> {
   try {
-    const cred = await signInWithPopup(auth, googleProvider);
-    const fbUser = cred.user;
+    const desktop = getDesktopBridge();
+    const fbUser = desktop ? await signInWithGoogleViaDesktopBridge(desktop) : (await signInWithPopup(auth, googleProvider)).user;
     const userId = fbUser.uid;
 
     let progress = await loadUserProgress(userId);

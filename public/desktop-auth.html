@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in to BOLT Desktop</title>
+  <meta name="robots" content="noindex" />
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #0b0f17; color: #e8ecf3;
+      font-family: "Plus Jakarta Sans", -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    .card {
+      max-width: 420px; width: 90%; padding: 32px; border-radius: 16px;
+      background: #121a2b; border: 1px solid #232f45; text-align: center;
+    }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    p { color: #9aa7bd; font-size: 14px; line-height: 1.5; }
+    button {
+      margin-top: 16px; padding: 12px 20px; border-radius: 10px; border: none;
+      background: #4c7dff; color: white; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .status { margin-top: 14px; font-size: 13px; }
+    .error { color: #ff6b6b; }
+    .success { color: #4ade80; }
+    a.fallback { display: none; margin-top: 14px; color: #4c7dff; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sign in to BOLT</h1>
+    <p>This opens in your browser to keep sign-in secure. Once you're signed in, you'll be sent back to the BOLT desktop app automatically.</p>
+    <button id="signInBtn">Continue with Google</button>
+    <div id="status" class="status"></div>
+    <a id="fallbackLink" class="fallback" href="#">Return to BOLT Desktop</a>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+    } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+    // Public Firebase Web SDK config (safe to embed; identical to the config
+    // already shipped in the main BOLT web/desktop client bundle).
+    const firebaseConfig = {
+      projectId: "gen-lang-client-0319965901",
+      appId: "1:233445863203:web:bd92d58a084d3fea532696",
+      apiKey: "AIzaSyBoTXMzBuAOXbsHKVTjDKIp8MGdARO4J9Q",
+      authDomain: "gen-lang-client-0319965901.firebaseapp.com",
+      storageBucket: "gen-lang-client-0319965901.firebasestorage.app",
+      messagingSenderId: "233445863203",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const params = new URLSearchParams(window.location.search);
+    const state = params.get("state") || "";
+
+    const statusEl = document.getElementById("status");
+    const btn = document.getElementById("signInBtn");
+    const fallback = document.getElementById("fallbackLink");
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.className = "status" + (kind ? " " + kind : "");
+    }
+
+    if (!state) {
+      setStatus("Missing sign-in request. Please restart sign-in from the BOLT desktop app.", "error");
+      btn.disabled = true;
+    }
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      setStatus("Opening Google sign-in…");
+      try {
+        const cred = await signInWithPopup(auth, provider);
+        const idToken = await cred.user.getIdToken();
+
+        setStatus("Finishing sign-in…");
+        const resp = await fetch("/api/desktop-auth/exchange", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + idToken,
+          },
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          throw new Error(data.message || "Sign-in bridge failed.");
+        }
+
+        const callbackUrl =
+          "bolt://auth-callback?state=" + encodeURIComponent(state) +
+          "&token=" + encodeURIComponent(data.token);
+
+        setStatus("Signed in! Returning to BOLT…", "success");
+        fallback.href = callbackUrl;
+        fallback.style.display = "inline-block";
+        window.location.href = callbackUrl;
+      } catch (err) {
+        console.error(err);
+        setStatus(err.message || "Sign-in failed. Please try again.", "error");
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

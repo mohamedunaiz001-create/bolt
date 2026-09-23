@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>BOLT — Something went wrong</title>
+<style>
+  body { margin:0; height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#0b0f17; color:#e8ecf3; font-family:-apple-system,Segoe UI,Roboto,sans-serif; }
+  .box { max-width:400px; text-align:center; padding:24px; }
+  h1 { font-size:19px; margin-bottom:10px; }
+  p { color:#9aa7bd; font-size:14px; line-height:1.5; }
+  .row { display:flex; gap:10px; justify-content:center; margin-top:18px; }
+  button { padding:10px 20px; border-radius:10px; border:1px solid #232f45;
+    background:#121a2b; color:#e8ecf3; font-weight:600; font-size:14px; cursor:pointer; }
+  button.primary { background:#4c7dff; border-color:#4c7dff; color:#fff; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>BOLT encountered an unexpected problem.</h1>
+    <p>No data was lost. You can retry, or fully restart BOLT if the problem continues.</p>
+    <div class="row">
+      <button onclick="window.location.reload()">Retry</button>
+      <button class="primary" id="restartBtn">Restart BOLT</button>
+    </div>
+  </div>
+  <script>
+    document.getElementById("restartBtn").addEventListener("click", () => {
+      window.location.href = "bolt-internal://restart";
+    });
+  </script>
+</body>
+</html>
