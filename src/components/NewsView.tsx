@@ -381,11 +381,17 @@ export const NewsView: React.FC<NewsViewProps> = ({
             message: `Background Task: Ingested ${fresh.length} fresh daily current affairs articles from reliable sources (${(data.sources || []).slice(0, 3).join(", ")})!`,
           });
         } else if (isManualTrigger) {
+          const infoMessage =
+            data.state === "unavailable"
+              ? "The current affairs service is temporarily unavailable. Showing cached news; it will refresh automatically."
+              : data.state === "empty"
+                ? "Today's current affairs are being refreshed on the server. Please check back shortly."
+                : data.stale
+                  ? "Showing cached news. The feed is temporarily stale and will refresh automatically."
+                  : data.message || "Daily current affairs are fully up to date.";
           setFeedNotification({
-            type: "info",
-            message: data.stale
-              ? "Showing cached news. The feed is temporarily stale and will refresh automatically."
-              : data.message || "Daily current affairs are fully up to date.",
+            type: data.state === "unavailable" ? "error" : "info",
+            message: infoMessage,
           });
         }
 

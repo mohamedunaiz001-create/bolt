@@ -1,33 +1,54 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import {
-  loadCurrentAffairsFromFirestore,
-} from "../../server/currentAffairsPipeline";
+import { loadCurrentAffairsFromFirestore } from "../../server/currentAffairsPipeline";
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+/**
+ * Read-only serverless endpoint the frontend polls for daily current affairs.
+ *
+ * Contract: this endpoint NEVER returns a 5xx. Reading the cache is a pure read
+ * that must not fail the UI even when Firestore is unreachable or empty. The
+ * heavy ingestion work happens out-of-band in the cron-driven /api/news/sync.
+ *
+ * The response `state` lets the UI show an accurate message instead of a
+ * generic error:
+ *   - "ok"          cache has articles
+ *   - "empty"       cache is reachable but has never been populated yet
+ *   - "unavailable" cache could not be read (transient); UI should retry
+ */
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
-    return res.status(405).json({
-      error: "Method not allowed",
-    });
+    return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
+  // Never allow a read failure to surface as a 5xx to the client.
   try {
-    const result: any = await loadCurrentAffairsFromFirestore();
-    const articles = Array.isArray(result) ? result : (result?.articles ?? []);
+    const result = await loadCurrentAffairsFromFirestore();
+    const articles = Array.isArray(result?.articles) ? result.articles : [];
+    const mcqs = Array.isArray(result?.mcqs) ? result.mcqs : [];
+    const state = articles.length > 0 ? "ok" : "empty";
 
     return res.status(200).json({
       success: true,
+      state,
       articles,
+      mcqs,
       count: articles.length,
+      updatedAt: result?.updatedAt ?? null,
+      message:
+        state === "ok"
+          ? undefined
+          : "Today's current affairs are being refreshed. Please check back shortly.",
     });
   } catch (error) {
-    console.error("Daily current affairs error:", error);
-
-    return res.status(500).json({
-      success: false,
-      error: "Failed to load daily current affairs",
+    console.error("[v0] daily-current-affairs read failed:", error);
+    // Degrade gracefully: 200 with an empty, retry-able payload.
+    return res.status(200).json({
+      success: true,
+      state: "unavailable",
+      articles: [],
+      mcqs: [],
+      count: 0,
+      updatedAt: null,
+      message: "The current affairs service is temporarily unavailable. Please try again in a moment.",
     });
   }
 }

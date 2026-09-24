@@ -37,6 +37,60 @@ export interface UpscPyqItem {
   };
   linkedCurrentAffairsTags: string[];
   practiceDrillPrompt: string;
+  // --- Integrity / verification layer (added) ---
+  verification: PyqVerification;
+  commandWord?: CommandWord;
+  wordLimit?: number;
+  syllabusMapping: SyllabusMapping;
+}
+
+/**
+ * Source quality tiers. These are NEVER mixed in the UI.
+ *  - VERIFIED_OFFICIAL_PYQ: verbatim question traceable to an official UPSC paper.
+ *  - VERIFIED_RELIABLE_ARCHIVE: sourced from a reputable archive with a citation.
+ *  - PRACTICE_QUESTION: BOLT-modeled / AI-assisted practice content. NOT a real PYQ.
+ */
+export type VerificationTier =
+  | "VERIFIED_OFFICIAL_PYQ"
+  | "VERIFIED_RELIABLE_ARCHIVE"
+  | "PRACTICE_QUESTION";
+
+export interface PyqVerification {
+  tier: VerificationTier;
+  /** true ONLY for the two verified tiers backed by a real source. */
+  verified: boolean;
+  /** Human-readable provenance, e.g. "UPSC CSE Mains 2019 GS-2 Paper". */
+  source: string;
+  /** Canonical URL to the official paper / archive, or null if none. */
+  sourceUrl: string | null;
+  /** Honest note explaining exactly what this item is. */
+  note: string;
+}
+
+export type CommandWord =
+  | "Discuss"
+  | "Examine"
+  | "Critically Examine"
+  | "Analyze"
+  | "Critically Analyze"
+  | "Evaluate"
+  | "Critically Evaluate"
+  | "Comment"
+  | "Elucidate"
+  | "Explain"
+  | "Describe"
+  | "Compare"
+  | "Differentiate"
+  | "Justify"
+  | "Assess"
+  | "Illustrate"
+  | "Substantiate";
+
+export interface SyllabusMapping {
+  paper: string;
+  subject: string;
+  topic: string;
+  subtopic: string;
 }
 
 export interface RecurringThemeAnalysis {
@@ -66,9 +120,18 @@ export interface PyqSearchFilter {
 }
 
 // ----------------------------------------------------
-// CURATED CANONICAL UPSC PYQ REPOSITORY
+// PYQ SEED DATA (pre-normalization)
 // ----------------------------------------------------
-export const UPSC_PYQ_REPOSITORY: UpscPyqItem[] = [
+// IMPORTANT INTEGRITY NOTE:
+// Every item below is a BOLT-modeled, UPSC-pattern practice question. None are
+// verbatim official UPSC previous-year questions. They are therefore normalized
+// (see normalizePyq) to the PRACTICE_QUESTION tier so the UI can NEVER present
+// them as genuine PYQs. Genuine PYQs must be added with a real source + sourceUrl
+// and an explicit VERIFIED_* tier in VERIFIED_PYQ_SEED below.
+type PyqSeed = Omit<UpscPyqItem, "verification" | "commandWord" | "wordLimit" | "syllabusMapping"> &
+  Partial<Pick<UpscPyqItem, "verification" | "commandWord" | "wordLimit" | "syllabusMapping">>;
+
+const PRACTICE_PYQ_SEED: PyqSeed[] = [
   // 1. PubAdmin Paper 1 - Thinkers (Barnard)
   {
     id: "pyq-mains-pa1-2024-1",
