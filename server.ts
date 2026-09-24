@@ -1430,8 +1430,10 @@ app.get("/api/news/daily-current-affairs", authenticateToken, async (_req, res) 
       const pipelineResult = await executeNewsIngestionPipeline();
       articles = pipelineResult.articles;
     }
+    console.log(`[CURRENT-AFFAIRS] articles loaded: ${articles.length}`);
     const status = getPipelineStatus();
-    res.json({
+    console.log("[CURRENT-AFFAIRS] response: 200");
+    res.status(200).json({
       success: true,
       count: articles.length,
       articles,
@@ -1439,6 +1441,7 @@ app.get("/api/news/daily-current-affairs", authenticateToken, async (_req, res) 
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
+    console.error("[CURRENT-AFFAIRS] server failure:", error?.message || error);
     res.status(500).json({ success: false, error: error?.message || "Failed to fetch current affairs." });
   }
 });
