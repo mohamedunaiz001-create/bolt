@@ -29,6 +29,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { NewsArticle } from "../types";
+import { getAuthHeader } from "../services/userService";
 
 interface NewsViewProps {
   articles: NewsArticle[];
@@ -191,7 +192,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
     try {
       const response = await fetch("/api/news/fetch-feed", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
         body: JSON.stringify({
           feedUrl: targetUrl,
           sourceName: targetSource,
@@ -277,7 +278,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
     try {
       const response = await fetch("/api/news/sync-all", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeader()) },
         body: JSON.stringify({
           feeds: savedFeeds.map((f) => ({ url: f.url, sourceName: f.source })),
         }),
@@ -428,7 +429,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
       // articles when its Firestore cache is empty; admin-only ingestion stays server-side.
       const response = await fetch("/api/news/daily-current-affairs", {
         method: "GET",
-        headers: { Accept: "application/json" },
+        headers: { Accept: "application/json", ...(await getAuthHeader()) },
       });
       const contentType = response.headers.get("content-type")?.toLowerCase() || "";
       const data = contentType.includes("application/json")
