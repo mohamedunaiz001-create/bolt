@@ -76,24 +76,32 @@ const CURRENT_AFFAIRS_DOCUMENT = "latest";
 export async function loadCurrentAffairsFromFirestore(): Promise<{
   articles: NewsArticle[];
   mcqs: PrelimsQuestion[];
+  updatedAt: string | null;
 }> {
   try {
-    initFirebaseAdmin();
-    const snapshot = await getFirestore()
+    console.log("[CURRENT-AFFAIRS] reading Firestore current_affairs/latest");
+    const app = initFirebaseAdmin();
+    if (!app) throw new Error("Firebase Admin is not initialized.");
+    const snapshot = await getFirestore(app)
       .collection(CURRENT_AFFAIRS_COLLECTION)
       .doc(CURRENT_AFFAIRS_DOCUMENT)
       .get();
     const data = snapshot.data();
     if (data && Array.isArray(data.articles)) {
       cachedArticles = data.articles as NewsArticle[];
-      cachedMcqs = Array.isArray(data.mcqs) ? data.mcqs as PrelimsQuestion[] : cachedMcqs;
-      return { articles: cachedArticles, mcqs: cachedMcqs };
+      cachedMcqs = Array.isArray(data.mcqs) ? data.mcqs as PrelimsQuestion[] : [];
+      return { articles: cachedArticles, mcqs: cachedMcqs, updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null };
     }
+    console.log("[CURRENT-AFFAIRS] Firestore document is empty or missing");
+    return { articles: [], mcqs: [], updatedAt: null };
   } catch (error: any) {
-    console.warn("Firestore current affairs read unavailable; using local cache:", error?.message || error);
+    console.error("[CURRENT-AFFAIRS] Firestore read failed:", error?.message || error);
+    if (process.env.NODE_ENV !== "production") {
+      loadCurrentAffairsFromDisk();
+      return { articles: cachedArticles, mcqs: cachedMcqs, updatedAt: null };
+    }
+    throw error;
   }
-  loadCurrentAffairsFromDisk();
-  return { articles: cachedArticles, mcqs: cachedMcqs };
 }
 
 export async function saveCurrentAffairsToFirestore(
@@ -103,8 +111,10 @@ export async function saveCurrentAffairsToFirestore(
   cachedArticles = articles;
   if (mcqs) cachedMcqs = mcqs;
   try {
-    initFirebaseAdmin();
-    await getFirestore()
+    const app = initFirebaseAdmin();
+    if (!app) throw new Error("Firebase Admin is not initialized.");
+    console.log("[CURRENT-AFFAIRS] writing Firestore current_affairs/latest");
+    await getFirestore(app)
       .collection(CURRENT_AFFAIRS_COLLECTION)
       .doc(CURRENT_AFFAIRS_DOCUMENT)
       .set({
@@ -113,8 +123,11 @@ export async function saveCurrentAffairsToFirestore(
         updatedAt: new Date().toISOString(),
       }, { merge: true });
   } catch (error: any) {
-    console.warn("Firestore current affairs write unavailable; saving local cache:", error?.message || error);
-    saveCurrentAffairsToDisk(cachedArticles, cachedMcqs);
+    console.error("[CURRENT-AFFAIRS] Firestore write failed:", error?.message || error);
+    if (process.env.NODE_ENV !== "production") {
+      saveCurrentAffairsToDisk(cachedArticles, cachedMcqs);
+    }
+    throw error;
   }
 }
 
