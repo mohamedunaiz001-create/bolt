@@ -808,206 +808,126 @@ function getFallbackFeedData(source: NewsArticle["source"], category?: string): 
   ];
 }
 
-// Main RSS/Atom fetcher & parser
-export async function fetchAndParseRssFeed(
-  feedUrl: string,
-  explicitSource?: string
-): Promise<{ success: boolean; articles: NewsArticle[]; sourceDetected: string; feedTitle: string; error?: string }> {
-  const source = detectSourceFromUrl(feedUrl, explicitSource);
+// Main RSS/Atom fetcher & parser. Publisher feeds are attempted first; Google News
+// is a source-specific fallback because several publishers block serverless fetches.
+const RSS_HEADERS = {
+  "User-Agent": "BOLT/1.0 (UPSC news reader; +https://bolt-maddy.vercel.app)",
+  Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
+};
 
+const GOOGLE_NEWS_DOMAINS: Partial<Record<NewsArticle["source"], string>> = {
+  "The Hindu": "thehindu.com",
+  "The Indian Express": "indianexpress.com",
+  PIB: "pib.gov.in",
+  LiveLaw: "livelaw.in",
+  "PRS Legislative": "prsindia.org",
+  "Down To Earth": "downtoearth.org.in",
+  "Business Standard": "business-standard.com",
+  ORF: "orfonline.org",
+};
+
+function googleNewsUrlFor(source: NewsArticle["source"]): string | null {
+  const domain = GOOGLE_NEWS_DOMAINS[source];
+  if (!domain) return null;
+  return `https://news.google.com/rss/search?q=site%3A${domain}%20when%3A1d&hl=en-IN&gl=IN&ceid=IN%3Aen`;
+}
+
+function textValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "#text" in value) return String((value as { "#text": unknown })["#text"]);
+  return "";
+}
+
+function normalizedKey(value: string): string {
+  return value.toLowerCase().replace(/https?:\/\//, "").replace(/[?#].*$/, "").replace(/[^a-z0-9]/g, "");
+}
+
+async function fetchXml(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-    const response = await fetch(feedUrl, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (compatible; UPSC-Bolt-RSS/1.0)",
-        Accept: "application/rss+xml, application/xml, application/atom+xml, text/xml, */*",
-      },
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`Upstream server returned HTTP ${response.status}`);
-    }
-
+    const response = await fetch(url, { signal: controller.signal, headers: RSS_HEADERS, redirect: "follow" });
+    if (!response.ok) throw new Error(`Upstream server returned HTTP ${response.status}`);
     const contentType = response.headers.get("content-type")?.toLowerCase() || "";
-    const xmlText = await response.text();
-    const trimmedXml = xmlText.trim();
-    if (!trimmedXml) {
-      throw new Error("Empty feed response received");
+    const text = (await response.text()).trim();
+    const looksLikeXml = /^\s*(?:<\?xml[\s\S]*?>\s*)?<(rss|feed)\b/i.test(text);
+    const looksLikeHtml = /^\s*(?:<!doctype\s+html|<html\b)/i.test(text);
+    if (!text) throw new Error("Empty feed response received");
+    if (looksLikeHtml || (!looksLikeXml && !/xml|rss|atom/.test(contentType))) {
+      throw new Error("The source returned HTML instead of an RSS/Atom feed.");
     }
-
-    // A valid feed must be XML/RSS/Atom, not an HTML landing page or block page.
-    const looksLikeXml = trimmedXml.startsWith("<?xml") || /^<(rss|feed)\b/i.test(trimmedXml);
-    const looksLikeHtml = /^<!doctype\s+html|^<html\b|<title>.*(access denied|just a moment|error)/i.test(trimmedXml);
-    if (looksLikeHtml || (!looksLikeXml && !contentType.includes("xml") && !contentType.includes("rss") && !contentType.includes("atom"))) {
-      throw new Error("The source returned HTML instead of an RSS/Atom feed. Use the source's XML feed URL.");
-    }
-
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: "@_",
-      textNodeName: "#text",
-      trimValues: true,
-      parseAttributeValue: false,
-    });
-
-    const parsedXml = parser.parse(xmlText);
-    const articles: NewsArticle[] = [];
-    let feedTitle = explicitSource || source;
-
-    // Handle RSS 2.0 (<rss><channel><item>)
-    if (parsedXml.rss && parsedXml.rss.channel) {
-      const channel = parsedXml.rss.channel;
-      if (channel.title) {
-        feedTitle = typeof channel.title === "string" ? channel.title : channel.title["#text"] || feedTitle;
-      }
-
-      const rawItems = Array.isArray(channel.item) ? channel.item : channel.item ? [channel.item] : [];
-
-      for (const item of rawItems.slice(0, 15)) {
-        const headline = stripHtml(typeof item.title === "string" ? item.title : item.title?.["#text"] || "Untitled");
-        const rawDesc = item.description || item["content:encoded"] || item.summary || "";
-        const summary = stripHtml(typeof rawDesc === "string" ? rawDesc : rawDesc?.["#text"] || "");
-        const link = typeof item.link === "string" ? item.link : item.link?.["#text"] || feedUrl;
-        const pubDateRaw = item.pubDate || item.date || item["dc:date"];
-        
-        let dateStr = new Date().toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
-
-        if (pubDateRaw) {
-          try {
-            const parsedD = new Date(pubDateRaw);
-            if (!isNaN(parsedD.getTime())) {
-              dateStr = parsedD.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              });
-            }
-          } catch (e) {}
-        }
-
-        if (headline.length > 5) {
-          const { gsTags, prelimsTag } = generateUpscTagging(headline, summary);
-          const { prelimsFact, mainsRelevance, possibleMainsQuestion, keyHighlights } =
-            generateRelevancePointers(headline, summary, source);
-
-          articles.push({
-            id: `feed-${Math.random().toString(36).substring(2, 9)}-${Date.now()}`,
-            date: dateStr,
-            source,
-            headline,
-            page: "Live RSS Feed",
-            gsTags,
-            prelimsTag,
-            summary: summary.slice(0, 280) || `${headline}. Parsed directly from ${source} real-time feed.`,
-            keyHighlights,
-            detailedInsights: [
-              summary || headline,
-              `Direct Link: ${link}`,
-              `Curated for UPSC Civil Services Examination preparation from ${source} official feed.`,
-            ],
-            keyConceptsInvolved: gsTags.map((t) => t.replace(/GS \d \((.*?)\)/, "$1")),
-            upscRelevance: {
-              prelimsFact,
-              mainsRelevance,
-              possibleMainsQuestion,
-            },
-          });
-        }
-      }
-    }
-    // Handle Atom Feed (<feed><entry>)
-    else if (parsedXml.feed && parsedXml.feed.entry) {
-      if (parsedXml.feed.title) {
-        feedTitle = typeof parsedXml.feed.title === "string" ? parsedXml.feed.title : parsedXml.feed.title?.["#text"] || feedTitle;
-      }
-      const rawEntries = Array.isArray(parsedXml.feed.entry) ? parsedXml.feed.entry : [parsedXml.feed.entry];
-
-      for (const entry of rawEntries.slice(0, 15)) {
-        const headline = stripHtml(typeof entry.title === "string" ? entry.title : entry.title?.["#text"] || "Untitled");
-        const rawContent = entry.summary || entry.content || "";
-        const summary = stripHtml(typeof rawContent === "string" ? rawContent : rawContent?.["#text"] || "");
-        const link = entry.link?.["@_href"] || (typeof entry.link === "string" ? entry.link : feedUrl);
-        const pubDateRaw = entry.published || entry.updated;
-
-        let dateStr = new Date().toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
-
-        if (pubDateRaw) {
-          try {
-            const parsedD = new Date(pubDateRaw);
-            if (!isNaN(parsedD.getTime())) {
-              dateStr = parsedD.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              });
-            }
-          } catch (e) {}
-        }
-
-        if (headline.length > 5) {
-          const { gsTags, prelimsTag } = generateUpscTagging(headline, summary);
-          const { prelimsFact, mainsRelevance, possibleMainsQuestion, keyHighlights } =
-            generateRelevancePointers(headline, summary, source);
-
-          articles.push({
-            id: `feed-atom-${Math.random().toString(36).substring(2, 9)}-${Date.now()}`,
-            date: dateStr,
-            source,
-            headline,
-            page: "Live Atom Feed",
-            gsTags,
-            prelimsTag,
-            summary: summary.slice(0, 280) || `${headline}. Parsed directly from ${source} real-time feed.`,
-            keyHighlights,
-            detailedInsights: [
-              summary || headline,
-              `Source Link: ${link}`,
-              `Curated for UPSC Civil Services Examination preparation from ${source} official feed.`,
-            ],
-            keyConceptsInvolved: gsTags.map((t) => t.replace(/GS \d \((.*?)\)/, "$1")),
-            upscRelevance: {
-              prelimsFact,
-              mainsRelevance,
-              possibleMainsQuestion,
-            },
-          });
-        }
-      }
-    }
-
-    if (articles.length === 0) {
-      throw new Error("No readable items found in feed XML.");
-    }
-
-    return {
-      success: true,
-      articles,
-      sourceDetected: source,
-      feedTitle,
-    };
+    return text;
   } catch (error: any) {
-    const message = error?.name === "AbortError"
-      ? "The feed request timed out."
-      : error?.message || "Unable to read the RSS/Atom feed.";
-    console.warn(`[RSS Parser] ${source} failed: ${message}`);
-    return {
-      success: false,
-      articles: [],
-      sourceDetected: source,
-      feedTitle: explicitSource || source,
-      error: message,
-    };
+    if (error?.name === "AbortError") throw new Error("The feed request timed out.");
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
+
+function parseFeedXml(xmlText: string, feedUrl: string, source: NewsArticle["source"]): { articles: NewsArticle[]; feedTitle: string } {
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", trimValues: true, parseAttributeValue: false });
+  const parsedXml = parser.parse(xmlText);
+  const articles: NewsArticle[] = [];
+  let feedTitle: string = source;
+  const items = parsedXml.rss?.channel?.item ? (Array.isArray(parsedXml.rss.channel.item) ? parsedXml.rss.channel.item : [parsedXml.rss.channel.item]) : [];
+  const entries = parsedXml.feed?.entry ? (Array.isArray(parsedXml.feed.entry) ? parsedXml.feed.entry : [parsedXml.feed.entry]) : [];
+  if (parsedXml.rss?.channel?.title) feedTitle = textValue(parsedXml.rss.channel.title) || String(source);
+  if (parsedXml.feed?.title) feedTitle = textValue(parsedXml.feed.title) || String(source);
+
+  for (const item of [...items, ...entries].slice(0, 15)) {
+    const headline = stripHtml(textValue(item.title) || "Untitled");
+    const rawDescription = item.description || item["content:encoded"] || item.summary || item.content || "";
+    const summary = stripHtml(textValue(rawDescription));
+    const link = textValue(item.link) || item.link?.["@_href"] || textValue(item.guid) || feedUrl;
+    const dateValue = item.pubDate || item.published || item.updated || item.date || item["dc:date"];
+    const parsedDate = new Date(textValue(dateValue));
+    const date = !Number.isNaN(parsedDate.getTime()) ? parsedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    if (headline.length <= 5) continue;
+    const { gsTags, prelimsTag } = generateUpscTagging(headline, summary);
+    const { prelimsFact, mainsRelevance, possibleMainsQuestion, keyHighlights } = generateRelevancePointers(headline, summary, source);
+    articles.push({
+      id: `feed-${Math.random().toString(36).substring(2, 9)}-${Date.now()}`,
+      date, source, headline, page: "Live RSS Feed", gsTags, prelimsTag,
+      summary: summary.slice(0, 280) || `${headline}. Parsed directly from ${source} real-time feed.`,
+      keyHighlights,
+      detailedInsights: [summary || headline, `Source Link: ${link}`, `Curated for UPSC Civil Services Examination preparation from ${source} feed.`],
+      keyConceptsInvolved: gsTags.map((tag) => tag.replace(/GS \d \((.*?)\)/, "$1")),
+      upscRelevance: { prelimsFact, mainsRelevance, possibleMainsQuestion },
+    });
+  }
+  return { articles, feedTitle };
+}
+
+export async function fetchAndParseRssFeed(
+  feedUrl: string,
+  explicitSource?: string,
+): Promise<{ success: boolean; articles: NewsArticle[]; sourceDetected: string; feedTitle: string; error?: string }> {
+  const source = detectSourceFromUrl(feedUrl, explicitSource);
+  console.log(`[RSS] Trying publisher: ${source}`);
+  try {
+    const parsed = parseFeedXml(await fetchXml(feedUrl), feedUrl, source);
+    if (parsed.articles.length > 0) return { success: true, ...parsed, sourceDetected: source };
+    throw new Error("No readable items found in feed XML.");
+  } catch (publisherError: any) {
+    console.warn(`[RSS] Publisher failed: ${source} — ${publisherError?.message || publisherError}`);
+  }
+
+  const fallbackUrl = googleNewsUrlFor(source);
+  if (fallbackUrl) {
+    console.log(`[RSS] Trying Google News fallback: ${source}`);
+    try {
+      const parsed = parseFeedXml(await fetchXml(fallbackUrl), fallbackUrl, source);
+      if (parsed.articles.length > 0) {
+        console.log(`[RSS] Google News fallback succeeded: ${source} (${parsed.articles.length} articles)`);
+        return { success: true, ...parsed, sourceDetected: source };
+      }
+    } catch (fallbackError: any) {
+      console.warn(`[RSS] Google News fallback failed: ${source} — ${fallbackError?.message || fallbackError}`);
+    }
+  }
+
+  console.warn(`[RSS] Source completely failed: ${source}`);
+  return { success: false, articles: [], sourceDetected: source, feedTitle: explicitSource || source, error: `Unable to read publisher or Google News feed for ${source}.` };
+}
+

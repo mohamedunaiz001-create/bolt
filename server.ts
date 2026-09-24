@@ -7,7 +7,7 @@ import { execSync, execFileSync } from "child_process";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
-import { fetchAndParseRssFeed, POPULAR_UPSC_FEEDS } from "./server/rssService";
+import { detectSourceFromUrl, fetchAndParseRssFeed, POPULAR_UPSC_FEEDS } from "./server/rssService";
 import {
   executeNewsIngestionPipeline,
   generateDailyCurrentAffairsMCQs,
@@ -1310,11 +1310,27 @@ app.post("/api/news/sync-all", requireAdmin, async (req, res) => {
       }
     }
 
+    const failedSources = results
+      .filter((result) => !result?.success || !result.articles?.length)
+      .map((result) => result.sourceDetected);
+    const attemptedSources = feedUrls.map((feed) => feed.sourceName || detectSourceFromUrl(feed.url, feed.sourceName));
+
+    if (mergedArticles.length === 0) {
+      return res.status(502).json({
+        success: false,
+        error: "All configured news sources failed to return usable RSS/Atom articles.",
+        failedSources,
+        attemptedSources,
+      });
+    }
+
     res.json({
       success: true,
       count: mergedArticles.length,
       articles: mergedArticles,
-      sourcesSynced: results.map((r) => r.sourceDetected),
+      sourcesSynced: results.filter((result) => result?.success).map((result) => result.sourceDetected),
+      failedSources,
+      attemptedSources,
     });
   } catch (error: any) {
     console.error("Sync all feeds error:", error);
