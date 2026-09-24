@@ -27,9 +27,10 @@ export function initFirebaseAdmin(): App | null {
       }
     }
 
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIRESTORE;
+    if (serviceAccountJson) {
       try {
-        const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        const sa = JSON.parse(serviceAccountJson);
         const app = initializeApp({
           credential: cert(sa),
           projectId: projectId || sa.project_id,
