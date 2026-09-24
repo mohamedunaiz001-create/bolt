@@ -4,8 +4,8 @@
   "outputDirectory": "dist",
   "framework": null,
   "functions": {
-    "api/**/*.ts": {
-      "runtime": "nodejs20.x"
+    "api/[...path].ts": {
+      "maxDuration": 60
     }
   }
 }
