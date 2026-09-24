@@ -1,4 +1,4 @@
-import app from "../server";
+import { app } from "../server";
 
 /**
  * Vercel can invoke catch-all functions with the `/api` prefix removed from
