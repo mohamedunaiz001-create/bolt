@@ -1422,7 +1422,7 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
 });
 
 // 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
-app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
+app.get("/api/news/daily-current-affairs", authenticateToken, async (_req, res) => {
   try {
     const { articles: firestoreArticles } = await loadCurrentAffairsFromFirestore();
     let articles = firestoreArticles;
