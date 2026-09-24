@@ -383,7 +383,9 @@ export const NewsView: React.FC<NewsViewProps> = ({
         } else if (isManualTrigger) {
           setFeedNotification({
             type: "info",
-            message: "Daily current affairs are fully up to date. All reliable sources checked.",
+            message: data.stale
+              ? "Showing cached news. The feed is temporarily stale and will refresh automatically."
+              : data.message || "Daily current affairs are fully up to date.",
           });
         }
 

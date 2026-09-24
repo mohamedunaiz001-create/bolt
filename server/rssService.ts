@@ -844,7 +844,9 @@ function normalizedKey(value: string): string {
 
 async function fetchXml(url: string): Promise<string> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const configuredTimeout = Number.parseInt(process.env.RSS_FETCH_TIMEOUT_MS || "15000", 10);
+  const timeoutMs = Number.isFinite(configuredTimeout) && configuredTimeout >= 15000 ? configuredTimeout : 15000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { signal: controller.signal, headers: RSS_HEADERS, redirect: "follow" });
     if (!response.ok) throw new Error(`Upstream server returned HTTP ${response.status}`);
