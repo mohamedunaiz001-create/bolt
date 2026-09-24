@@ -27,6 +27,7 @@
     "lint": "tsc --noEmit",
     "test:security": "tsx scripts/verify-security-isolation.ts",
     "test:acceptance": "tsx scripts/run-acceptance-tests.ts",
+    "test:news": "tsx scripts/test-news-pipeline.ts",
     "benchmark": "tsx scripts/run-bolt-benchmark.ts"
   },
   "dependencies": {

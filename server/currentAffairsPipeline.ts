@@ -161,62 +161,129 @@ export function deduplicateArticles(newArticles: NewsArticle[], existingArticles
   return merged.slice(0, 100); // Retain top 100 recent articles
 }
 
-/**
- * Runs the full end-to-end RSS ingestion pipeline across active news sources.
- */
-export async function executeNewsIngestionPipeline(): Promise<{
+export interface SourceHealth {
+  source: string;
+  url: string;
+  status: "ok" | "failed";
+  articleCount: number;
+  errorKind?: string;
+  httpStatus?: number | null;
+  durationMs?: number;
+  error?: string;
+}
+
+export interface IngestionResult {
   articles: NewsArticle[];
   newlyIngested: number;
   sources: string[];
   successfulSources: string[];
   failedSources: Array<{ source: string; error: string }>;
+  sourceHealth: SourceHealth[];
   updatedAt: string;
   cacheRetained: boolean;
-}> {
+  /**
+   * True only when this run persisted fresh articles to the cache. When every
+   * source fails we deliberately DO NOT write, so the previous cache survives.
+   */
+  cacheWritten: boolean;
+}
+
+export interface IngestionDeps {
+  feeds: Array<{ id?: string; name: string; source: string; url: string }>;
+  fetchFeed: (url: string, source: string) => Promise<{
+    success: boolean;
+    articles: NewsArticle[];
+    error?: string;
+    errorKind?: string;
+    httpStatus?: number | null;
+    durationMs?: number;
+  }>;
+  loadCache: () => Promise<{ articles: NewsArticle[]; mcqs: PrelimsQuestion[]; updatedAt: string | null }>;
+  saveCache: (articles: NewsArticle[]) => Promise<void>;
+}
+
+/**
+ * Pure, dependency-injected ingestion core. Every source is isolated with
+ * Promise.allSettled so a single failing provider (HTTP 500, timeout, malformed
+ * XML, empty feed) can NEVER abort ingestion of the others.
+ *
+ * Cache-preservation guarantees:
+ *  - If any source yields articles, merge + dedupe with the previous cache and
+ *    persist. Existing articles are never dropped.
+ *  - If ALL sources fail, we return the previous cache untouched and DO NOT
+ *    write — the Firestore cache is never overwritten with [].
+ */
+export async function runNewsIngestion(deps: IngestionDeps): Promise<IngestionResult> {
   const results = await Promise.allSettled(
-    POPULAR_UPSC_FEEDS.map(async (feed) => ({
-      feed,
-      result: await fetchAndParseRssFeed(feed.url, feed.source),
-    })),
+    deps.feeds.map(async (feed) => ({ feed, result: await deps.fetchFeed(feed.url, feed.source) })),
   );
+
   const successfulSources: string[] = [];
   const failedSources: Array<{ source: string; error: string }> = [];
+  const sourceHealth: SourceHealth[] = [];
   const collected: NewsArticle[] = [];
 
   results.forEach((settled, index) => {
-    const feed = POPULAR_UPSC_FEEDS[index];
+    const feed = deps.feeds[index];
     if (settled.status === "rejected") {
-      failedSources.push({ source: feed.name, error: settled.reason?.message || "Feed request failed." });
+      // fetchFeed is expected to be non-throwing, but stay defensive.
+      const error = settled.reason?.message || "Feed request failed.";
+      failedSources.push({ source: feed.name, error });
+      sourceHealth.push({ source: feed.name, url: feed.url, status: "failed", articleCount: 0, errorKind: "network", error });
       return;
     }
     const { result } = settled.value;
     if (result.success && result.articles.length > 0) {
       successfulSources.push(feed.name);
       collected.push(...result.articles);
+      sourceHealth.push({ source: feed.name, url: feed.url, status: "ok", articleCount: result.articles.length, durationMs: result.durationMs });
     } else {
-      failedSources.push({ source: feed.name, error: result.error || "No readable articles found." });
+      const error = result.error || "No readable articles found.";
+      failedSources.push({ source: feed.name, error });
+      sourceHealth.push({ source: feed.name, url: feed.url, status: "failed", articleCount: 0, errorKind: result.errorKind, httpStatus: result.httpStatus ?? null, durationMs: result.durationMs, error });
     }
   });
 
-  await loadCurrentAffairsFromFirestore();
-  const previousArticles = [...cachedArticles];
-  const merged = collected.length > 0 ? deduplicateArticles(collected, previousArticles) : previousArticles;
-  const cacheRetained = collected.length === 0 && previousArticles.length > 0;
-  if (collected.length > 0) {
-    await saveCurrentAffairsToFirestore(merged);
-    cachedArticles = merged;
+  const snapshot = await deps.loadCache();
+  const previousArticles = [...snapshot.articles];
+  const hasFresh = collected.length > 0;
+  const merged = hasFresh ? deduplicateArticles(collected, previousArticles) : previousArticles;
+  const cacheRetained = !hasFresh && previousArticles.length > 0;
+
+  let cacheWritten = false;
+  if (hasFresh) {
+    await deps.saveCache(merged);
+    cacheWritten = true;
   }
-  const updatedAt = new Date().toISOString();
 
   return {
-    articles: cachedArticles,
+    articles: merged,
     newlyIngested: Math.max(0, merged.length - previousArticles.length),
     sources: successfulSources,
     successfulSources,
     failedSources,
-    updatedAt,
+    sourceHealth,
+    updatedAt: new Date().toISOString(),
     cacheRetained,
+    cacheWritten,
   };
+}
+
+/**
+ * Runs the full end-to-end RSS ingestion pipeline across active news sources,
+ * wiring the injectable core to the real RSS fetcher and Firestore cache.
+ */
+export async function executeNewsIngestionPipeline(): Promise<IngestionResult> {
+  const result = await runNewsIngestion({
+    feeds: POPULAR_UPSC_FEEDS,
+    fetchFeed: (url, source) => fetchAndParseRssFeed(url, source),
+    loadCache: () => loadCurrentAffairsFromFirestore(),
+    saveCache: async (articles) => {
+      await saveCurrentAffairsToFirestore(articles);
+      cachedArticles = articles;
+    },
+  });
+  return result;
 }
 
 export interface McqValidationResult {

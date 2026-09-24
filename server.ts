@@ -1440,20 +1440,38 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
 // 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
   app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
   res.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
+  // This read must never surface as a 5xx — degrade to an empty, retry-able payload.
+  try {
   const snapshot = await loadCurrentAffairsFromFirestore();
   const sources = [...new Set(snapshot.articles.map((article) => article.source).filter(Boolean))];
   const updatedAtMs = snapshot.updatedAt ? Date.parse(snapshot.updatedAt) : NaN;
   const stale = !Number.isFinite(updatedAtMs) || Date.now() - updatedAtMs > 24 * 60 * 60 * 1000;
+  const state = snapshot.articles.length > 0 ? "ok" : "empty";
   res.status(200).json({
     success: true,
+    state,
     articles: snapshot.articles,
     mcqs: snapshot.mcqs,
     sources,
     updatedAt: snapshot.updatedAt,
     lastUpdated: snapshot.updatedAt,
     stale,
-    ...(snapshot.articles.length === 0 ? { message: "News feed is being refreshed. Please try again shortly." } : {}),
+    ...(state === "empty" ? { message: "News feed is being refreshed. Please try again shortly." } : {}),
   });
+  } catch (error: any) {
+  console.error("[v0] daily-current-affairs read failed:", error?.message || error);
+  res.status(200).json({
+    success: true,
+    state: "unavailable",
+    articles: [],
+    mcqs: [],
+    sources: [],
+    updatedAt: null,
+    lastUpdated: null,
+    stale: true,
+    message: "The current affairs service is temporarily unavailable. Please try again in a moment.",
+  });
+  }
 });
 
   app.get("/api/news/sync", async (req, res) => {
@@ -1470,13 +1488,23 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
   totalArticles: pipelineResult.articles.length,
   successfulSources: pipelineResult.successfulSources,
   failedSources: pipelineResult.failedSources,
+  sourceHealth: pipelineResult.sourceHealth,
   sources: pipelineResult.sources,
   cacheRetained: pipelineResult.cacheRetained,
+  cacheWritten: pipelineResult.cacheWritten,
   updatedAt: pipelineResult.updatedAt,
   timestamp: pipelineResult.updatedAt,
   });
   } catch (error: any) {
-  return res.status(500).json({ success: false, error: "News synchronization failed." });
+  // Even a catastrophic failure must not overwrite the cache; report 200 so
+  // the Vercel cron does not treat a transient upstream outage as a hard failure.
+  console.error("[v0] news sync failed:", error?.message || error);
+  return res.status(200).json({
+  success: false,
+  error: "News synchronization encountered an error; existing cache preserved.",
+  cacheRetained: true,
+  cacheWritten: false,
+  });
   }
   });
 

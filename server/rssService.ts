@@ -842,42 +842,109 @@ function normalizedKey(value: string): string {
   return value.toLowerCase().replace(/https?:\/\//, "").replace(/[?#].*$/, "").replace(/[^a-z0-9]/g, "");
 }
 
-async function fetchXml(url: string): Promise<string> {
+/**
+ * Typed error so callers (and tests) can distinguish the failure mode of a
+ * single feed without string matching. The frontend never sees these — they
+ * are logged as per-source health so one bad provider cannot break ingestion.
+ */
+export type RssFailureKind =
+  | "timeout"
+  | "http_error"
+  | "empty_response"
+  | "not_xml"
+  | "invalid_xml"
+  | "empty_feed"
+  | "network";
+
+export class RssFetchError extends Error {
+  kind: RssFailureKind;
+  httpStatus: number | null;
+  constructor(kind: RssFailureKind, message: string, httpStatus: number | null = null) {
+    super(message);
+    this.name = "RssFetchError";
+    this.kind = kind;
+    this.httpStatus = httpStatus;
+  }
+}
+
+/**
+ * Resolve the configurable per-feed timeout. Defaults to 15s and is clamped to
+ * a sane 5s–60s window so a mis-set env var can never make ingestion hang past
+ * the serverless function limit or fail instantly.
+ */
+export function resolveRssTimeoutMs(): number {
+  const configured = Number.parseInt(process.env.RSS_FETCH_TIMEOUT_MS || "15000", 10);
+  if (!Number.isFinite(configured)) return 15000;
+  return Math.min(60000, Math.max(5000, configured));
+}
+
+/**
+ * Decide whether a fetched body is a usable XML feed. We deliberately do NOT
+ * require a specific Content-Type header because many Indian news providers
+ * (PIB, LiveLaw, ET) serve valid RSS/Atom as text/html or text/plain. We sniff
+ * the body first and only fall back to Content-Type as a tie-breaker.
+ */
+export function looksLikeXmlFeed(body: string, contentType = ""): boolean {
+  const head = body.slice(0, 2000).toLowerCase();
+  // BOM / leading whitespace tolerant markers for RSS 2.0, Atom and RSS 1.0 (RDF).
+  const hasFeedRoot = /<(\?xml|rss|feed|rdf:rdf)\b/.test(head) || /<(item|entry)\b/.test(head);
+  const looksLikeHtmlPage = /<!doctype\s+html|<html[\s>]/.test(head) && !hasFeedRoot;
+  if (looksLikeHtmlPage) return false;
+  if (hasFeedRoot) return true;
+  return /xml|rss|atom|rdf/.test(contentType.toLowerCase());
+}
+
+export async function fetchXml(url: string, timeoutMs = resolveRssTimeoutMs()): Promise<string> {
   const controller = new AbortController();
-  const configuredTimeout = Number.parseInt(process.env.RSS_FETCH_TIMEOUT_MS || "15000", 10);
-  const timeoutMs = Number.isFinite(configuredTimeout) && configuredTimeout >= 15000 ? configuredTimeout : 15000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { signal: controller.signal, headers: RSS_HEADERS, redirect: "follow" });
-    if (!response.ok) throw new Error(`Upstream server returned HTTP ${response.status}`);
-    const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+    if (!response.ok) {
+      throw new RssFetchError("http_error", `Upstream server returned HTTP ${response.status}`, response.status);
+    }
+    const contentType = response.headers.get("content-type") || "";
     const text = (await response.text()).trim();
-    const looksLikeXml = /^\s*(?:<\?xml[\s\S]*?>\s*)?<(rss|feed)\b/i.test(text);
-    const looksLikeHtml = /^\s*(?:<!doctype\s+html|<html\b)/i.test(text);
-    if (!text) throw new Error("Empty feed response received");
-    if (looksLikeHtml || (!looksLikeXml && !/xml|rss|atom/.test(contentType))) {
-      throw new Error("The source returned HTML instead of an RSS/Atom feed.");
+    if (!text) throw new RssFetchError("empty_response", "Empty feed response received");
+    if (!looksLikeXmlFeed(text, contentType)) {
+      throw new RssFetchError("not_xml", "The source returned HTML instead of an RSS/Atom feed.");
     }
     return text;
   } catch (error: any) {
-    if (error?.name === "AbortError") throw new Error("The feed request timed out.");
-    throw error;
+    if (error instanceof RssFetchError) throw error;
+    if (error?.name === "AbortError") throw new RssFetchError("timeout", `The feed request timed out after ${timeoutMs}ms.`);
+    throw new RssFetchError("network", error?.message || "Network request failed.");
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-function parseFeedXml(xmlText: string, feedUrl: string, source: NewsArticle["source"]): { articles: NewsArticle[]; feedTitle: string } {
+export function parseFeedContent(xmlText: string, feedUrl: string, source: NewsArticle["source"]): { articles: NewsArticle[]; feedTitle: string } {
   const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", trimValues: true, parseAttributeValue: false });
-  const parsedXml = parser.parse(xmlText);
+  let parsedXml: any;
+  try {
+    parsedXml = parser.parse(xmlText);
+  } catch (e: any) {
+    throw new RssFetchError("invalid_xml", `Malformed XML could not be parsed: ${e?.message || e}`);
+  }
+  if (!parsedXml || typeof parsedXml !== "object") {
+    throw new RssFetchError("invalid_xml", "Parsed XML produced no usable document.");
+  }
   const articles: NewsArticle[] = [];
   let feedTitle: string = source;
-  const items = parsedXml.rss?.channel?.item ? (Array.isArray(parsedXml.rss.channel.item) ? parsedXml.rss.channel.item : [parsedXml.rss.channel.item]) : [];
-  const entries = parsedXml.feed?.entry ? (Array.isArray(parsedXml.feed.entry) ? parsedXml.feed.entry : [parsedXml.feed.entry]) : [];
-  if (parsedXml.rss?.channel?.title) feedTitle = textValue(parsedXml.rss.channel.title) || String(source);
-  if (parsedXml.feed?.title) feedTitle = textValue(parsedXml.feed.title) || String(source);
+  // RSS 2.0: rss > channel > item
+  const rssChannel = parsedXml.rss?.channel;
+  const rssItems = rssChannel?.item ? (Array.isArray(rssChannel.item) ? rssChannel.item : [rssChannel.item]) : [];
+  // Atom: feed > entry
+  const atomEntries = parsedXml.feed?.entry ? (Array.isArray(parsedXml.feed.entry) ? parsedXml.feed.entry : [parsedXml.feed.entry]) : [];
+  // RSS 1.0 (RDF): rdf:RDF > item
+  const rdfRoot = parsedXml["rdf:RDF"] || parsedXml.RDF;
+  const rdfItems = rdfRoot?.item ? (Array.isArray(rdfRoot.item) ? rdfRoot.item : [rdfRoot.item]) : [];
 
-  for (const item of [...items, ...entries].slice(0, 15)) {
+  if (rssChannel?.title) feedTitle = textValue(rssChannel.title) || String(source);
+  if (parsedXml.feed?.title) feedTitle = textValue(parsedXml.feed.title) || String(source);
+  if (rdfRoot?.channel?.title) feedTitle = textValue(rdfRoot.channel.title) || String(source);
+
+  for (const item of [...rssItems, ...atomEntries, ...rdfItems].slice(0, 15)) {
     const headline = stripHtml(textValue(item.title) || "Untitled");
     const rawDescription = item.description || item["content:encoded"] || item.summary || item.content || "";
     const summary = stripHtml(textValue(rawDescription));
@@ -901,35 +968,78 @@ function parseFeedXml(xmlText: string, feedUrl: string, source: NewsArticle["sou
   return { articles, feedTitle };
 }
 
+export interface RssFeedResult {
+  success: boolean;
+  articles: NewsArticle[];
+  sourceDetected: string;
+  feedTitle: string;
+  error?: string;
+  errorKind?: RssFailureKind;
+  httpStatus?: number | null;
+  durationMs: number;
+}
+
+/**
+ * Attempt one URL: fetch -> validate -> parse. Empty feeds are treated as a
+ * distinct `empty_feed` failure so callers can log health accurately without
+ * fabricating articles.
+ */
+async function attemptFeed(url: string, source: NewsArticle["source"], timeoutMs: number) {
+  const parsed = parseFeedContent(await fetchXml(url, timeoutMs), url, source);
+  if (parsed.articles.length === 0) {
+    throw new RssFetchError("empty_feed", "Feed contained no readable items.");
+  }
+  return parsed;
+}
+
+/**
+ * Fetch and parse a single RSS/Atom/RDF feed. Never throws — always resolves to
+ * a structured result so the ingestion pipeline can isolate this source with
+ * Promise.allSettled and record per-source health. A publisher failure falls
+ * back to a source-scoped Google News query because several publishers block
+ * serverless fetches.
+ */
 export async function fetchAndParseRssFeed(
   feedUrl: string,
   explicitSource?: string,
-): Promise<{ success: boolean; articles: NewsArticle[]; sourceDetected: string; feedTitle: string; error?: string }> {
+): Promise<RssFeedResult> {
   const source = detectSourceFromUrl(feedUrl, explicitSource);
-  console.log(`[RSS] Trying publisher: ${source}`);
+  const timeoutMs = resolveRssTimeoutMs();
+  const startedAt = Date.now();
+  let lastError: RssFetchError | null = null;
+
+  console.log(`[RSS] Trying publisher: ${source} (timeout ${timeoutMs}ms)`);
   try {
-    const parsed = parseFeedXml(await fetchXml(feedUrl), feedUrl, source);
-    if (parsed.articles.length > 0) return { success: true, ...parsed, sourceDetected: source };
-    throw new Error("No readable items found in feed XML.");
+    const parsed = await attemptFeed(feedUrl, source, timeoutMs);
+    return { success: true, ...parsed, sourceDetected: source, durationMs: Date.now() - startedAt };
   } catch (publisherError: any) {
-    console.warn(`[RSS] Publisher failed: ${source} — ${publisherError?.message || publisherError}`);
+    lastError = publisherError instanceof RssFetchError ? publisherError : new RssFetchError("network", String(publisherError?.message || publisherError));
+    console.warn(`[RSS] Publisher failed: ${source} — [${lastError.kind}] ${lastError.message}`);
   }
 
   const fallbackUrl = googleNewsUrlFor(source);
   if (fallbackUrl) {
     console.log(`[RSS] Trying Google News fallback: ${source}`);
     try {
-      const parsed = parseFeedXml(await fetchXml(fallbackUrl), fallbackUrl, source);
-      if (parsed.articles.length > 0) {
-        console.log(`[RSS] Google News fallback succeeded: ${source} (${parsed.articles.length} articles)`);
-        return { success: true, ...parsed, sourceDetected: source };
-      }
+      const parsed = await attemptFeed(fallbackUrl, source, timeoutMs);
+      console.log(`[RSS] Google News fallback succeeded: ${source} (${parsed.articles.length} articles)`);
+      return { success: true, ...parsed, sourceDetected: source, durationMs: Date.now() - startedAt };
     } catch (fallbackError: any) {
-      console.warn(`[RSS] Google News fallback failed: ${source} — ${fallbackError?.message || fallbackError}`);
+      lastError = fallbackError instanceof RssFetchError ? fallbackError : new RssFetchError("network", String(fallbackError?.message || fallbackError));
+      console.warn(`[RSS] Google News fallback failed: ${source} — [${lastError.kind}] ${lastError.message}`);
     }
   }
 
-  console.warn(`[RSS] Source completely failed: ${source}`);
-  return { success: false, articles: [], sourceDetected: source, feedTitle: explicitSource || source, error: `Unable to read publisher or Google News feed for ${source}.` };
+  console.warn(`[RSS] Source completely failed: ${source} — [${lastError?.kind}]`);
+  return {
+    success: false,
+    articles: [],
+    sourceDetected: source,
+    feedTitle: explicitSource || source,
+    error: lastError?.message || `Unable to read publisher or Google News feed for ${source}.`,
+    errorKind: lastError?.kind || "network",
+    httpStatus: lastError?.httpStatus ?? null,
+    durationMs: Date.now() - startedAt,
+  };
 }
 
