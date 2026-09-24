@@ -424,12 +424,16 @@ export const NewsView: React.FC<NewsViewProps> = ({
     const triggerTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
     try {
-      // Fetch fresh daily current affairs from the backend ingestion API
-      const response = await fetch("/api/news/daily-current-affairs/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      // Load the authenticated current-affairs snapshot. The server fetches fresh
+      // articles when its Firestore cache is empty; admin-only ingestion stays server-side.
+      const response = await fetch("/api/news/daily-current-affairs", {
+        method: "GET",
+        headers: { Accept: "application/json" },
       });
-      const data = await response.json();
+      const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : { success: false, error: `News service returned an unexpected response (${response.status}).` };
 
       if (data.success && Array.isArray(data.articles)) {
         const existingHeadlines = new Set(articles.map((a) => a.headline.toLowerCase().trim()));
@@ -803,7 +807,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
                 <span>Background Scheduled Trigger Engine Status</span>
               </h4>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Automated daemon fetches daily feeds via <code className="text-blue-400">/api/news/daily-current-affairs/sync</code>, deduplicates items, and dispatches updates to application state.
+                Authenticated news refresh loads current affairs via <code className="text-blue-400">/api/news/daily-current-affairs</code>; server-side ingestion remains protected and scheduled.
               </p>
             </div>
             <div className="flex items-center gap-2">
