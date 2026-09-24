@@ -178,8 +178,11 @@ export const NewsView: React.FC<NewsViewProps> = ({
   }, [articles]);
 
   // Handle adding and fetching a new RSS/Atom feed URL
-  const handleAddAndFetchFeed = async (urlToFetch?: string, explicitSource?: SavedFeed["source"]) => {
-    const targetUrl = (urlToFetch || feedUrlInput).trim();
+  const handleAddAndFetchFeed = async (_urlToFetch?: string, _explicitSource?: SavedFeed["source"]) => {
+    await executeScheduledNewsSync(true);
+    return;
+    /* Legacy feed management is intentionally disabled; production news is Firestore-backed. */
+    const targetUrl = (feedUrlInput).trim();
     if (!targetUrl) {
       setFeedNotification({ type: "error", message: "Please enter a valid RSS or Atom feed URL." });
       return;
@@ -272,6 +275,9 @@ export const NewsView: React.FC<NewsViewProps> = ({
 
   // Sync All Configured Feeds in Batch
   const handleSyncAllFeeds = async () => {
+    await executeScheduledNewsSync(true);
+    return;
+    /* Legacy batch feed management is intentionally disabled; production sync runs server-side. */
     setIsSyncingAll(true);
     setFeedNotification(null);
 

@@ -1422,10 +1422,11 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
 });
 
 // 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
-app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
+  app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
+  res.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
   try {
-    console.log("[CURRENT-AFFAIRS] GET /api/news/daily-current-affairs");
-    const snapshot = await loadCurrentAffairsFromFirestore();
+  console.log("[CURRENT-AFFAIRS] GET /api/news/daily-current-affairs");
+  const snapshot = await loadCurrentAffairsFromFirestore();
     const sources = [...new Set(snapshot.articles.map((article) => article.source).filter(Boolean))];
     console.log(`[CURRENT-AFFAIRS] response: 200 (${snapshot.articles.length} articles)`);
     res.status(200).json({
@@ -1448,7 +1449,27 @@ app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
   }
 });
 
-app.post("/api/news/daily-current-affairs/sync", requireAdmin, heavyTaskLimiter, async (_req, res) => {
+  app.get("/api/news/sync", async (req, res) => {
+  const expectedSecret = process.env.CRON_SECRET;
+  const authorization = req.get("authorization");
+  if (!expectedSecret || authorization !== `Bearer ${expectedSecret}`) {
+  return res.status(401).json({ success: false, error: "Unauthorized cron request." });
+  }
+  try {
+  const pipelineResult = await executeNewsIngestionPipeline();
+  return res.status(200).json({
+  success: true,
+  newlyIngested: pipelineResult.newlyIngested,
+  sources: pipelineResult.sources,
+  count: pipelineResult.articles.length,
+  timestamp: new Date().toISOString(),
+  });
+  } catch (error: any) {
+  return res.status(500).json({ success: false, error: "News synchronization failed." });
+  }
+  });
+
+  app.post("/api/news/daily-current-affairs/sync", requireAdmin, heavyTaskLimiter, async (_req, res) => {
   try {
     const pipelineResult = await executeNewsIngestionPipeline();
     const status = getPipelineStatus();
