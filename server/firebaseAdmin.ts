@@ -42,12 +42,22 @@ export function initFirebaseAdmin(): App | null {
       }
     }
 
-    // Initialize with application default credentials or project ID fallback
-    const app = initializeApp({
-      projectId: projectId || "bolt-87397",
-    });
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+    if (projectId && clientEmail && privateKey) {
+      const app = initializeApp({
+        credential: cert({ projectId, clientEmail, privateKey }),
+        projectId,
+      });
+      isInitialized = true;
+      console.log("Firebase Admin initialized with Firebase credential environment variables.");
+      return app;
+    }
+
+    // Application default credentials remain useful for local development and emulators.
+    const app = initializeApp({ projectId: projectId || "bolt-87397" });
     isInitialized = true;
-    console.log("Firebase Admin initialized for project:",projectId || "bolt-87397");
+    console.log("Firebase Admin initialized with application default credentials for project:", projectId || "bolt-87397");
     return app;
   } catch (e: any) {
     console.warn("Firebase Admin initialization notice (operating in fallback mode):", e.message);

@@ -1422,27 +1422,29 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
 });
 
 // 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
-app.get("/api/news/daily-current-affairs", authenticateToken, async (_req, res) => {
+app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
   try {
-    const { articles: firestoreArticles } = await loadCurrentAffairsFromFirestore();
-    let articles = firestoreArticles;
-    if (!articles || articles.length === 0) {
-      const pipelineResult = await executeNewsIngestionPipeline();
-      articles = pipelineResult.articles;
-    }
-    console.log(`[CURRENT-AFFAIRS] articles loaded: ${articles.length}`);
-    const status = getPipelineStatus();
-    console.log("[CURRENT-AFFAIRS] response: 200");
+    console.log("[CURRENT-AFFAIRS] GET /api/news/daily-current-affairs");
+    const snapshot = await loadCurrentAffairsFromFirestore();
+    const sources = [...new Set(snapshot.articles.map((article) => article.source).filter(Boolean))];
+    console.log(`[CURRENT-AFFAIRS] response: 200 (${snapshot.articles.length} articles)`);
     res.status(200).json({
       success: true,
-      count: articles.length,
-      articles,
-      status,
-      timestamp: new Date().toISOString(),
+      articles: snapshot.articles,
+      mcqs: snapshot.mcqs,
+      lastUpdated: snapshot.updatedAt,
+      sources,
     });
   } catch (error: any) {
-    console.error("[CURRENT-AFFAIRS] server failure:", error?.message || error);
-    res.status(500).json({ success: false, error: error?.message || "Failed to fetch current affairs." });
+    console.error("[CURRENT-AFFAIRS] GET failed:", error?.message || error);
+    res.status(500).json({
+      success: false,
+      articles: [],
+      mcqs: [],
+      lastUpdated: null,
+      sources: [],
+      error: "Current affairs are temporarily unavailable. Please try again later.",
+    });
   }
 });
 
