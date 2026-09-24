@@ -98,9 +98,8 @@ export async function loadCurrentAffairsFromFirestore(): Promise<{
     console.error("[CURRENT-AFFAIRS] Firestore read failed:", error?.message || error);
     if (process.env.NODE_ENV !== "production") {
       loadCurrentAffairsFromDisk();
-      return { articles: cachedArticles, mcqs: cachedMcqs, updatedAt: null };
     }
-    throw error;
+    return { articles: cachedArticles, mcqs: cachedMcqs, updatedAt: null };
   }
 }
 
@@ -169,32 +168,54 @@ export async function executeNewsIngestionPipeline(): Promise<{
   articles: NewsArticle[];
   newlyIngested: number;
   sources: string[];
+  successfulSources: string[];
+  failedSources: Array<{ source: string; error: string }>;
+  updatedAt: string;
+  cacheRetained: boolean;
 }> {
-  const sources: string[] = [];
-  let collected: NewsArticle[] = [];
+  const results = await Promise.allSettled(
+    POPULAR_UPSC_FEEDS.map(async (feed) => ({
+      feed,
+      result: await fetchAndParseRssFeed(feed.url, feed.source),
+    })),
+  );
+  const successfulSources: string[] = [];
+  const failedSources: Array<{ source: string; error: string }> = [];
+  const collected: NewsArticle[] = [];
 
-  for (const feed of POPULAR_UPSC_FEEDS) {
-    try {
-      const result = await fetchAndParseRssFeed(feed.url, feed.source);
-      if (result.articles && result.articles.length > 0) {
-        collected = [...collected, ...result.articles];
-        sources.push(feed.name);
-      }
-    } catch (e) {
-      console.warn(`Feed fetch failed for ${feed.name}:`, e);
+  results.forEach((settled, index) => {
+    const feed = POPULAR_UPSC_FEEDS[index];
+    if (settled.status === "rejected") {
+      failedSources.push({ source: feed.name, error: settled.reason?.message || "Feed request failed." });
+      return;
     }
-  }
+    const { result } = settled.value;
+    if (result.success && result.articles.length > 0) {
+      successfulSources.push(feed.name);
+      collected.push(...result.articles);
+    } else {
+      failedSources.push({ source: feed.name, error: result.error || "No readable articles found." });
+    }
+  });
 
   await loadCurrentAffairsFromFirestore();
-  const beforeCount = cachedArticles.length;
-  const merged = deduplicateArticles(collected, cachedArticles);
-  cachedArticles = merged;
-  await saveCurrentAffairsToFirestore(cachedArticles);
+  const previousArticles = [...cachedArticles];
+  const merged = collected.length > 0 ? deduplicateArticles(collected, previousArticles) : previousArticles;
+  const cacheRetained = collected.length === 0 && previousArticles.length > 0;
+  if (collected.length > 0) {
+    await saveCurrentAffairsToFirestore(merged);
+    cachedArticles = merged;
+  }
+  const updatedAt = new Date().toISOString();
 
   return {
     articles: cachedArticles,
-    newlyIngested: Math.max(0, cachedArticles.length - beforeCount),
-    sources,
+    newlyIngested: Math.max(0, merged.length - previousArticles.length),
+    sources: successfulSources,
+    successfulSources,
+    failedSources,
+    updatedAt,
+    cacheRetained,
   };
 }
 

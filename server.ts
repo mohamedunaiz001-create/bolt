@@ -1440,29 +1440,20 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
 // 1.1.2 Daily Current Affairs Scheduled Trigger & Auto-Sync API
   app.get("/api/news/daily-current-affairs", requireAuth, async (_req, res) => {
   res.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
-  try {
-  console.log("[CURRENT-AFFAIRS] GET /api/news/daily-current-affairs");
   const snapshot = await loadCurrentAffairsFromFirestore();
-    const sources = [...new Set(snapshot.articles.map((article) => article.source).filter(Boolean))];
-    console.log(`[CURRENT-AFFAIRS] response: 200 (${snapshot.articles.length} articles)`);
-    res.status(200).json({
-      success: true,
-      articles: snapshot.articles,
-      mcqs: snapshot.mcqs,
-      lastUpdated: snapshot.updatedAt,
-      sources,
-    });
-  } catch (error: any) {
-    console.error("[CURRENT-AFFAIRS] GET failed:", error?.message || error);
-    res.status(500).json({
-      success: false,
-      articles: [],
-      mcqs: [],
-      lastUpdated: null,
-      sources: [],
-      error: "Current affairs are temporarily unavailable. Please try again later.",
-    });
-  }
+  const sources = [...new Set(snapshot.articles.map((article) => article.source).filter(Boolean))];
+  const updatedAtMs = snapshot.updatedAt ? Date.parse(snapshot.updatedAt) : NaN;
+  const stale = !Number.isFinite(updatedAtMs) || Date.now() - updatedAtMs > 24 * 60 * 60 * 1000;
+  res.status(200).json({
+    success: true,
+    articles: snapshot.articles,
+    mcqs: snapshot.mcqs,
+    sources,
+    updatedAt: snapshot.updatedAt,
+    lastUpdated: snapshot.updatedAt,
+    stale,
+    ...(snapshot.articles.length === 0 ? { message: "News feed is being refreshed. Please try again shortly." } : {}),
+  });
 });
 
   app.get("/api/news/sync", async (req, res) => {
@@ -1476,14 +1467,40 @@ app.post("/api/news/pipeline/mcqs", requireAuth, aiRateLimiter, (req, res) => {
   return res.status(200).json({
   success: true,
   newlyIngested: pipelineResult.newlyIngested,
+  totalArticles: pipelineResult.articles.length,
+  successfulSources: pipelineResult.successfulSources,
+  failedSources: pipelineResult.failedSources,
   sources: pipelineResult.sources,
-  count: pipelineResult.articles.length,
-  timestamp: new Date().toISOString(),
+  cacheRetained: pipelineResult.cacheRetained,
+  updatedAt: pipelineResult.updatedAt,
+  timestamp: pipelineResult.updatedAt,
   });
   } catch (error: any) {
   return res.status(500).json({ success: false, error: "News synchronization failed." });
   }
   });
+
+  app.get("/api/news/feed-health", async (req, res) => {
+  const expectedSecret = process.env.CRON_SECRET;
+  if (!expectedSecret || req.get("authorization") !== `Bearer ${expectedSecret}`) {
+    return res.status(401).json({ success: false, error: "Unauthorized diagnostic request." });
+  }
+  const checks = await Promise.all(POPULAR_UPSC_FEEDS.map(async (feed) => {
+    const startedAt = Date.now();
+    const result = await fetchAndParseRssFeed(feed.url, feed.source);
+    return {
+      id: feed.id,
+      source: feed.name,
+      url: feed.url,
+      status: result.success ? "ok" : "failed",
+      httpStatus: null,
+      articleCount: result.articles.length,
+      durationMs: Date.now() - startedAt,
+      error: result.error || null,
+    };
+  }));
+  return res.json({ success: true, feeds: checks });
+});
 
   app.post("/api/news/daily-current-affairs/sync", requireAdmin, heavyTaskLimiter, async (_req, res) => {
   try {
