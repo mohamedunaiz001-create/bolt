@@ -815,23 +815,6 @@ export async function fetchAndParseRssFeed(
 ): Promise<{ success: boolean; articles: NewsArticle[]; sourceDetected: string; feedTitle: string; error?: string }> {
   const source = detectSourceFromUrl(feedUrl, explicitSource);
 
-  // PIB and Indian Express use strict bot/session protections or obsolete endpoints for automated crawlers.
-  // Directly serve verified authentic curated feeds for these sources without triggering network rejections.
-  if (
-    feedUrl.includes("pib.gov.in") ||
-    feedUrl.includes("archive.pib.gov.in") ||
-    feedUrl.includes("indianexpress.com")
-  ) {
-    console.log(`[RSS Parser] Loading verified authentic UPSC intelligence for ${source}.`);
-    const fallbackArticles = getFallbackFeedData(source);
-    return {
-      success: true,
-      articles: fallbackArticles,
-      sourceDetected: source,
-      feedTitle: explicitSource || source,
-    };
-  }
-
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -1015,13 +998,16 @@ export async function fetchAndParseRssFeed(
       feedTitle,
     };
   } catch (error: any) {
-    console.log(`[RSS Parser] Using verified curated articles for ${source} (${feedUrl}).`);
-    const fallbackArticles = getFallbackFeedData(source);
+    const message = error?.name === "AbortError"
+      ? "The feed request timed out."
+      : error?.message || "Unable to read the RSS/Atom feed.";
+    console.warn(`[RSS Parser] ${source} failed: ${message}`);
     return {
-      success: true,
-      articles: fallbackArticles,
+      success: false,
+      articles: [],
       sourceDetected: source,
       feedTitle: explicitSource || source,
+      error: message,
     };
   }
 }

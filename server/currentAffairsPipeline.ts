@@ -3,6 +3,8 @@ import path from "path";
 import { NewsArticle, PrelimsQuestion } from "../src/types";
 import { fetchAndParseRssFeed, POPULAR_UPSC_FEEDS } from "./rssService";
 import { getGeminiClient, executeGeminiWithFailover } from "./aiGateway";
+import { getFirestore } from "firebase-admin/firestore";
+import { initFirebaseAdmin } from "./firebaseAdmin";
 
 /**
  * BOLT UPSC Current Affairs Processing Pipeline
@@ -68,10 +70,28 @@ export function saveCurrentAffairsToDisk(articles: NewsArticle[], mcqs?: Prelims
  * Loads the current-affairs cache through the persistence boundary used by
  * the API. The disk cache remains the safe fallback for local and offline runs.
  */
+const CURRENT_AFFAIRS_COLLECTION = "current_affairs";
+const CURRENT_AFFAIRS_DOCUMENT = "latest";
+
 export async function loadCurrentAffairsFromFirestore(): Promise<{
   articles: NewsArticle[];
   mcqs: PrelimsQuestion[];
 }> {
+  try {
+    initFirebaseAdmin();
+    const snapshot = await getFirestore()
+      .collection(CURRENT_AFFAIRS_COLLECTION)
+      .doc(CURRENT_AFFAIRS_DOCUMENT)
+      .get();
+    const data = snapshot.data();
+    if (data && Array.isArray(data.articles)) {
+      cachedArticles = data.articles as NewsArticle[];
+      cachedMcqs = Array.isArray(data.mcqs) ? data.mcqs as PrelimsQuestion[] : cachedMcqs;
+      return { articles: cachedArticles, mcqs: cachedMcqs };
+    }
+  } catch (error: any) {
+    console.warn("Firestore current affairs read unavailable; using local cache:", error?.message || error);
+  }
   loadCurrentAffairsFromDisk();
   return { articles: cachedArticles, mcqs: cachedMcqs };
 }
@@ -82,7 +102,20 @@ export async function saveCurrentAffairsToFirestore(
 ): Promise<void> {
   cachedArticles = articles;
   if (mcqs) cachedMcqs = mcqs;
-  saveCurrentAffairsToDisk(cachedArticles, cachedMcqs);
+  try {
+    initFirebaseAdmin();
+    await getFirestore()
+      .collection(CURRENT_AFFAIRS_COLLECTION)
+      .doc(CURRENT_AFFAIRS_DOCUMENT)
+      .set({
+        articles: cachedArticles,
+        mcqs: cachedMcqs,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+  } catch (error: any) {
+    console.warn("Firestore current affairs write unavailable; saving local cache:", error?.message || error);
+    saveCurrentAffairsToDisk(cachedArticles, cachedMcqs);
+  }
 }
 
 // Deduplication using normalized string tokens
@@ -139,11 +172,11 @@ export async function executeNewsIngestionPipeline(): Promise<{
     }
   }
 
-  loadCurrentAffairsFromDisk();
+  await loadCurrentAffairsFromFirestore();
   const beforeCount = cachedArticles.length;
   const merged = deduplicateArticles(collected, cachedArticles);
   cachedArticles = merged;
-  saveCurrentAffairsToDisk(cachedArticles);
+  await saveCurrentAffairsToFirestore(cachedArticles);
 
   return {
     articles: cachedArticles,
