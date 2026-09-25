@@ -78,11 +78,37 @@ export function createFullBackup(description: string = "Manual Scheduled Snapsho
   const targetDir = path.join(BACKUP_DIR, backupId);
   fs.mkdirSync(targetDir, { recursive: true });
 
+  // Ensure state files exist for durable backup
+  const userStorePath = path.join(process.cwd(), "data", "user_store.json");
+  if (!fs.existsSync(userStorePath)) {
+    try {
+      const dataDir = path.dirname(userStorePath);
+      if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(userStorePath, JSON.stringify({ accounts: [], userProgress: {} }, null, 2), "utf-8");
+    } catch {}
+  }
+
+  const currentAffairsPath = path.join(process.cwd(), "models", "current_affairs_store.json");
+  if (!fs.existsSync(currentAffairsPath)) {
+    try {
+      const modelsDir = path.dirname(currentAffairsPath);
+      if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true });
+      fs.writeFileSync(currentAffairsPath, JSON.stringify({ timestamp: new Date().toISOString(), articles: [], mcqs: [] }, null, 2), "utf-8");
+    } catch {}
+  }
+
+  const knowledgeGraphPath = path.join(process.cwd(), "data", "knowledge_graph_store.json");
+  if (!fs.existsSync(knowledgeGraphPath)) {
+    try {
+      fs.writeFileSync(knowledgeGraphPath, JSON.stringify({ nodes: [], edges: [], clusters: [] }, null, 2), "utf-8");
+    } catch {}
+  }
+
   const filesToCopy = [
     { src: path.join(process.cwd(), "server", "knowledge_store.json"), dest: "knowledge_store.json" },
-    { src: path.join(process.cwd(), "data", "user_store.json"), dest: "user_store.json" },
-    { src: path.join(process.cwd(), "models", "current_affairs_store.json"), dest: "current_affairs_store.json" },
-    { src: path.join(process.cwd(), "data", "knowledge_graph_store.json"), dest: "knowledge_graph_store.json" },
+    { src: userStorePath, dest: "user_store.json" },
+    { src: currentAffairsPath, dest: "current_affairs_store.json" },
+    { src: knowledgeGraphPath, dest: "knowledge_graph_store.json" },
   ];
 
   let totalBytes = 0;

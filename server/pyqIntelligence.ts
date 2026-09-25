@@ -386,6 +386,29 @@ const PRACTICE_PYQ_SEED: PyqSeed[] = [
   },
 ];
 
+function normalizePyq(item: PyqSeed): UpscPyqItem {
+  return {
+    ...item,
+    verification: item.verification || {
+      tier: "PRACTICE_QUESTION",
+      verified: false,
+      source: "BOLT Model UPSC Question Bank",
+      sourceUrl: null,
+      note: "Modeled on UPSC CSE pattern for practice purposes.",
+    },
+    commandWord: item.commandWord || "Discuss",
+    wordLimit: item.wordLimit || (item.marks === 10 ? 150 : item.marks === 15 ? 250 : 250),
+    syllabusMapping: item.syllabusMapping || {
+      paper: item.paper,
+      subject: item.unit,
+      topic: item.topic,
+      subtopic: item.subtopic,
+    },
+  };
+}
+
+export const UPSC_PYQ_REPOSITORY: UpscPyqItem[] = PRACTICE_PYQ_SEED.map(normalizePyq);
+
 // ----------------------------------------------------
 // RECURRING THEME FREQUENCY ANALYTICS
 // ----------------------------------------------------

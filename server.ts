@@ -1216,12 +1216,27 @@ app.get("/api/news/presets", (_req, res) => {
 // the server is an SSRF vector (probing internal/cloud-metadata hosts, port scanning, etc.),
 // so only these known-safe UPSC news hostnames may ever be fetched.
 const APPROVED_NEWS_FEED_HOSTNAMES = new Set<string>([
+  "news.google.com",
+  "www.news.google.com",
   "www.thehindu.com",
   "thehindu.com",
   "archive.pib.gov.in",
   "pib.gov.in",
   "indianexpress.com",
   "www.indianexpress.com",
+  "www.downtoearth.org.in",
+  "downtoearth.org.in",
+  "www.livelaw.in",
+  "livelaw.in",
+  "prsindia.org",
+  "www.prsindia.org",
+  "www.business-standard.com",
+  "business-standard.com",
+  "www.orfonline.org",
+  "orfonline.org",
+  "economictimes.indiatimes.com",
+  "www.livemint.com",
+  "livemint.com",
 ]);
 try {
   for (const preset of (POPULAR_UPSC_FEEDS as any[]) || []) {

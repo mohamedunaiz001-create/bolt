@@ -23,7 +23,6 @@ import {
   mainsPYQsList,
 } from "./data/upscData";
 import { DEFAULT_TIMETABLE_SLOTS } from "./data/timetableData";
-import { getInitialStudySessions } from "./data/initialStudySessions";
 import {
   NavigationTab,
   PrelimsQuestion,
